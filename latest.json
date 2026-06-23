@@ -1,0 +1,11 @@
+{
+    "version": "0.1.0",
+    "notes": "최초 릴리스",
+    "pub_date": "2026-06-23T00:00:00.000Z",
+    "platforms": {
+        "windows-x86_64": {
+            "signature": "",
+            "url": "https://github.com/banatic/suhree/releases/download/v0.1.0/suhree_0.1.0_x64_en-US.msi"
+        }
+    }
+}

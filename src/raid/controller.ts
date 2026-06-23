@@ -56,8 +56,8 @@ export async function startRaid(targetUid: string, targetNick: string): Promise<
     return;
   }
 
-  const onlineSnap = await get(r(paths.presenceOnline(targetUid)));
-  if (onlineSnap.val() !== true) {
+  const onlineSnap = await get(r(paths.presenceConnections(targetUid)));
+  if (!onlineSnap.exists()) {
     toast("오프라인 친구는 털 수 없어요");
     return;
   }

@@ -7,6 +7,7 @@ import { subscribeFriends } from "./friends/list";
 import { startDefenseWatch } from "./raid/controller";
 import { startLoop } from "./game/loop";
 import { setupStripInteractions, publishHitRegions } from "./render/strip";
+import { startUpdateChecker } from "./update";
 import {
   getStripGeometry,
   onGeometryChanged,
@@ -44,6 +45,7 @@ async function boot(): Promise<void> {
   await loadFont();
   setupStripInteractions();
   startLoop(); // render the (empty) band immediately while we connect
+  startUpdateChecker(); // background auto-update (Tauri only)
 
   // Window geometry / fullscreen events (no-ops in a plain browser).
   if (isTauri()) {
