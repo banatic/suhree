@@ -1,11 +1,11 @@
 {
-    "version": "0.1.0",
-    "notes": "최초 릴리스",
-    "pub_date": "2026-06-23T00:00:00.000Z",
+    "version": "0.1.1",
+    "notes": "업데이트",
+    "pub_date": "2026-06-23T23:32:56.851Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "",
-            "url": "https://github.com/banatic/suhree/releases/download/v0.1.0/suhree_0.1.0_x64_en-US.msi"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkQvREE1WmFQRExCdTduaEVIS2NJLzlnZkNJT3NESEE4TnJIRzlzVFRiVHl4Y3BBTTRoZGdWQzJCS3FCU3RVaE43a3BQN25pOCsvY2J2Z2hROWFXeFEwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyMjU3NzI4CWZpbGU6c3VocmVlXzAuMS4xX3g2NF9lbi1VUy5tc2kKVFAvc1M4c2lPMU9sOHBWSXNCYjBYLy9oTVFIMmVVWHF3MDRlUjc1WEtyNnE3NGZVSE1WcFNLcVlQeWFjNCtKT1U3WHNSbkovMFFKMWZPaWtzdGNkRGc9PQo=",
+            "url": "https://github.com/banatic/suhree/releases/download/v0.1.1/suhree_0.1.1_x64_en-US.msi"
         }
     }
 }
