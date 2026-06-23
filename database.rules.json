@@ -1,0 +1,103 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "users": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "$uid === auth.uid",
+        "nickname": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16" },
+        "friendCode": { ".validate": "newData.isString() && newData.val().length <= 16" },
+        "coins": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000" },
+        "scarecrowLv": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000" },
+        "scytheLv": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000" },
+        "plotSize": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 200" },
+        "equippedDecor": { ".validate": "newData.isString() && newData.val().length <= 24" },
+        "equippedMsgSkin": { ".validate": "newData.isString() && newData.val().length <= 24" },
+        "cosmetics": {
+          "$cid": { ".validate": "newData.isBoolean() || newData.isString()" }
+        },
+        "$other": { ".validate": false }
+      }
+    },
+
+    "friendCodes": {
+      ".read": "auth != null",
+      "$code": {
+        ".write": "auth != null && !data.exists() && newData.val() === auth.uid",
+        ".validate": "newData.isString()"
+      }
+    },
+
+    "presence": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "$uid === auth.uid"
+      }
+    },
+
+    "friends": {
+      "$uid": {
+        ".read": "$uid === auth.uid",
+        ".write": "$uid === auth.uid"
+      }
+    },
+
+    "plots": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "$uid === auth.uid || root.child('raids').child($uid).child('raiderUid').val() === auth.uid",
+        "crops": {
+          "$slot": {
+            "tier": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 9" },
+            "plantedAt": { ".validate": "newData.isNumber()" },
+            "$other": { ".validate": false }
+          }
+        }
+      }
+    },
+
+    "raids": {
+      "$targetUid": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid !== $targetUid && ( (!data.child('raiderUid').exists() && newData.child('raiderUid').val() === auth.uid && root.child('presence').child($targetUid).child('online').val() === true && root.child('friends').child(auth.uid).child($targetUid).val() === true) || data.child('raiderUid').val() === auth.uid ) || auth.uid === $targetUid",
+        "raiderUid": { ".validate": "newData.isString()" },
+        "startedAt": { ".validate": "newData.isNumber()" },
+        "durationMs": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 600000" },
+        "locked": { ".validate": "newData.isBoolean()" },
+        "evicted": { ".validate": "newData.isBoolean()" },
+        "ownerCursor": {
+          "x": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1" },
+          "y": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1" },
+          "$other": { ".validate": false }
+        },
+        "$other": { ".validate": false }
+      }
+    },
+
+    "cooldowns": {
+      "$targetUid": {
+        "$raiderUid": {
+          ".read": "auth != null",
+          ".write": "$raiderUid === auth.uid || auth.uid === $targetUid",
+          ".validate": "newData.isNumber() && newData.val() <= now"
+        }
+      }
+    },
+
+    "messages": {
+      "$uid": {
+        ".read": "$uid === auth.uid",
+        ".write": "$uid === auth.uid || root.child('raids').child($uid).child('raiderUid').val() === auth.uid",
+        "$msgId": {
+          "from": { ".validate": "newData.isString()" },
+          "text": { ".validate": "newData.isString() && newData.val().length <= 120" },
+          "at": { ".validate": "newData.isNumber()" },
+          "skin": { ".validate": "newData.isString() && newData.val().length <= 24" },
+          "$other": { ".validate": false }
+        }
+      }
+    }
+  }
+}
