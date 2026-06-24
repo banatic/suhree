@@ -1,11 +1,11 @@
 {
-    "version": "0.1.6",
+    "version": "0.1.7",
     "notes": "온라인 표시 안정화 (백그라운드에서도 친구가 오프라인으로 잘못 뜨던 문제 수정)",
-    "pub_date": "2026-06-24T02:50:55.449Z",
+    "pub_date": "2026-06-24T23:18:16.585Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkNrY1E5V1l4VnV0TGtCWmRzQmUxVlFBdGpiczRLM2ZOYVVxNXdBM01pT1UwSzBtMmd1NTc2OC9sYUZlUWg4N1BtZTZQQktpTUtjOUtPYjM4L3IwYlFFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyMjY5NTYwCWZpbGU6c3VocmVlXzAuMS42X3g2NF9lbi1VUy5tc2kKNGdPV1hTekFadHRjSHpJajBhbWxQcHpqS28zUk16ajZ2SnVTaEFxWE01aGJ2NUNlYmI4QWZ5SHFSQzdhU2EvNk15UXAzRmFidWVsYzBjUzdJL2ZmREE9PQo=",
-            "url": "https://github.com/banatic/suhree/releases/download/v0.1.6/suhree_0.1.6_x64_en-US.msi"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkQ3NzdXY29hbnNuV3lwQVZPYWtoS0U1U1J5aXRQVVNZUXdpNEFhYVRRcXRiRzJ3NWJBK05vbDZiNVRUd0loeWpTb0N1Q3lqdERFWUtFbXBGRy9UVGd3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyMzQzMjMxCWZpbGU6c3VocmVlXzAuMS43X3g2NF9lbi1VUy5tc2kKdWxiaU12QmxuNUpHTjBZbGtkZXMyY3NFNHMwbjkwa3VxRExydmF1WTFwWG5Ya1Bhd3JvNUNWczRVVmhUTTQ1YVBROTRlZ2RzQllOK2grN1ErK3YzREE9PQo=",
+            "url": "https://github.com/banatic/suhree/releases/download/v0.1.7/suhree_0.1.7_x64_en-US.msi"
         }
     }
 }
