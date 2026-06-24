@@ -317,7 +317,7 @@ def run_release(config: ReleaseConfig) -> int:
     else:
         print("[info] Skipping git push as requested.")
 
-    print("\nAll done ✅")
+    print("\nAll done.")
     print(f"- MSI: {msi_path}")
     return 0
 
@@ -329,6 +329,13 @@ def main() -> int:
 if __name__ == "__main__":
     if sys.version_info < (3, 10):
         raise SystemExit("[error] Python 3.10 or newer is required.")
+
+    # Windows consoles default to cp949 here; force UTF-8 so Korean notes / symbols never crash.
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
 
     # CLI 예시: python scripts/release_method.py 0.1.2 --notes "릴리스 노트"
     USE_CLI = False
