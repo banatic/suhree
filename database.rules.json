@@ -64,7 +64,7 @@
     "raids": {
       "$targetUid": {
         ".read": "auth != null",
-        ".write": "auth != null && auth.uid !== $targetUid && ( (!data.child('raiderUid').exists() && newData.child('raiderUid').val() === auth.uid && root.child('presence').child($targetUid).child('lastSeen').val() > now - 40000 && root.child('friends').child(auth.uid).child($targetUid).val() === true) || data.child('raiderUid').val() === auth.uid ) || auth.uid === $targetUid",
+        ".write": "auth != null && auth.uid !== $targetUid && ( (!data.child('raiderUid').exists() && newData.child('raiderUid').val() === auth.uid && (root.child('presence').child($targetUid).child('lastSeen').val() > now - 100000 || root.child('presence').child($targetUid).child('connections').exists()) && root.child('friends').child(auth.uid).child($targetUid).val() === true) || data.child('raiderUid').val() === auth.uid ) || auth.uid === $targetUid",
         "raiderUid": { ".validate": "newData.isString()" },
         "startedAt": { ".validate": "newData.isNumber()" },
         "durationMs": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 600000" },

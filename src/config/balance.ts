@@ -118,12 +118,18 @@ export const BALANCE = {
   },
 
   presence: {
-    // Heartbeat model: the app re-stamps /presence/{uid}/lastSeen every heartbeatMs (the "ping").
-    // online ⇔ serverNow − lastSeen < onlineThresholdMs. Robust to socket recycling, missed
-    // reconnect events, and multi-instance (any live instance keeps lastSeen fresh).
-    heartbeatMs: 12 * 1000,
-    onlineThresholdMs: 35 * 1000, // ≈ 3 missed beats of grace
-    readerTickMs: 4 * 1000, // how often readers re-evaluate friends' freshness locally
+    // Dual-signal presence. Two independent "alive" signals are OR-ed so neither failure mode
+    // (JS timer throttling vs. transient socket recycling) can wrongly show a live user offline:
+    //   1) heartbeat: app re-stamps /presence/{uid}/lastSeen every heartbeatMs (the "ping").
+    //   2) socket marker: a child under /presence/{uid}/connections, auto-removed onDisconnect.
+    // The websocket keepalive is NOT subject to Chromium's background-timer throttling, so the
+    // marker stays present even when a backgrounded strip's setInterval is throttled to ~1/min.
+    heartbeatMs: 15 * 1000,
+    // online ⇔ (serverNow − lastSeen < onlineThresholdMs) OR a connection marker exists.
+    // Kept above Chromium's ~60s background-throttle floor so a backgrounded-but-alive client
+    // isn't flipped offline by a missed heartbeat.
+    onlineThresholdMs: 90 * 1000,
+    readerTickMs: 5 * 1000, // how often readers re-evaluate friends' freshness locally
   },
 } as const;
 

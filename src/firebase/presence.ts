@@ -1,36 +1,41 @@
-import { ref, onValue, onDisconnect, set, serverTimestamp } from "firebase/database";
+import { ref, onValue, onDisconnect, set, push, serverTimestamp } from "firebase/database";
 import { db } from "./app";
 import { r, paths } from "./db";
 import { BALANCE } from "../config/balance";
 
 /**
- * Heartbeat presence (the "ping" model).
+ * Dual-signal presence — robust against the two ways a *live* user wrongly looked offline:
  *
- * The old per-connection-marker approach flipped users offline whenever Firebase recycled the
- * socket (idle/reconnect/sleep-resume): the server-side `onDisconnect` removed the marker, and the
- * `.info/connected` re-fire that should re-create it can be throttled in a hidden webview — so the
- * marker stayed gone while the app was alive. "Does a child exist" is a fragile signal.
+ *  1) Heartbeat: re-stamp `/presence/{uid}/lastSeen` every heartbeatMs (the "ping"). Survives socket
+ *     recycling and is multi-instance-safe, but a backgrounded strip's setInterval is throttled by
+ *     Chromium to ~once/min, so on its own it needs a generous freshness window.
+ *  2) Socket marker: push a child under `/presence/{uid}/connections`, removed `onDisconnect`. The
+ *     websocket keepalive is NOT throttled by the JS timer governor, so the marker stays present
+ *     while the app is alive even when the heartbeat is throttled, and the server removes it within
+ *     seconds of an actual disconnect/crash.
  *
- * Instead we keep ONE value, `/presence/{uid}/lastSeen`, and re-stamp it on a timer. A reader treats
- * it as online iff it is fresh (`serverNow − lastSeen < onlineThresholdMs`). This is robust to socket
- * recycling and missed events, and multi-instance-safe: any live instance keeps the stamp fresh, and
- * once every instance is gone it simply goes stale.
+ * A reader treats the user as online if EITHER signal says so, so neither failure mode flips a live
+ * user offline.
  */
 let heartbeatTimer: number | null = null;
+let conRef: ReturnType<typeof push> | null = null;
 
 export function setupPresence(uid: string): void {
   const connectedRef = ref(db, ".info/connected");
+  const connsRef = r(paths.presenceConnections(uid));
   const lastSeenRef = r(paths.presenceLastSeen(uid));
 
   const beat = (): void => {
-    set(lastSeenRef, serverTimestamp()).catch(() => {
-      /* offline writes are buffered by the SDK and flush on reconnect */
-    });
+    set(lastSeenRef, serverTimestamp()).catch(() => {});
+    // Refresh our marker too — re-creates it if it was somehow removed while we're still alive.
+    if (conRef) set(conRef, serverTimestamp()).catch(() => {});
   };
 
   onValue(connectedRef, (snap) => {
     if (snap.val() !== true) return;
-    // Record an accurate "last seen" if we vanish, then stamp immediately so we appear online now.
+    // Fresh marker for this (re)connection; register cleanup BEFORE writing so a crash can't strand it.
+    conRef = push(connsRef);
+    onDisconnect(conRef).remove().catch(() => {});
     onDisconnect(lastSeenRef).set(serverTimestamp()).catch(() => {});
     beat();
   });
@@ -39,8 +44,9 @@ export function setupPresence(uid: string): void {
   if (heartbeatTimer == null) {
     heartbeatTimer = window.setInterval(beat, BALANCE.presence.heartbeatMs);
   }
-  // Re-ping the moment we regain focus/visibility (snappier re-appearance after sleep/minimise).
+  // Beat the instant we regain focus/visibility (snappy re-appearance after sleep/minimise/fullscreen).
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) beat();
   });
+  window.addEventListener("focus", beat);
 }

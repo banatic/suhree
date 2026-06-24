@@ -59,8 +59,12 @@ export async function startRaid(targetUid: string, targetNick: string): Promise<
     return;
   }
 
-  const lastSeen = ((await get(r(paths.presenceLastSeen(targetUid)))).val() as number) || 0;
-  if (serverNow() - lastSeen >= BALANCE.presence.onlineThresholdMs) {
+  const presence = (await get(r(paths.presence(targetUid)))).val() as
+    | { lastSeen?: number; connections?: Record<string, unknown> }
+    | null;
+  const fresh = !!presence && serverNow() - (presence.lastSeen ?? 0) < BALANCE.presence.onlineThresholdMs;
+  const socketAlive = !!presence?.connections && Object.keys(presence.connections).length > 0;
+  if (!fresh && !socketAlive) {
     toast("오프라인 친구는 털 수 없어요");
     return;
   }

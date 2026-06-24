@@ -6,21 +6,24 @@ import { serverNow } from "../firebase/time";
 
 const presenceUnsubs = new Map<string, Unsubscribe>();
 const cooldownUnsubs = new Map<string, Unsubscribe>();
-const lastSeenMap = new Map<string, number>(); // friendUid → last heartbeat (server ms)
+const presenceMap = new Map<string, { lastSeen: number; conns: number }>();
 let onlineTicker: number | null = null;
 
-// online ⇔ the friend's heartbeat is fresh. Re-evaluated both when lastSeen changes (a friend's
-// beat / coming online) AND on a local timer (so a friend who simply STOPS beating — closed the
-// app, lost network — is detected: their lastSeen never changes, so onValue alone wouldn't fire).
-function isFresh(uid: string): boolean {
-  const ls = lastSeenMap.get(uid) ?? 0;
-  return serverNow() - ls < BALANCE.presence.onlineThresholdMs;
+// online ⇔ a fresh heartbeat OR a live socket marker (see firebase/presence.ts). Re-evaluated both
+// when the friend's presence node changes (coming online / marker removed) AND on a local timer (so a
+// friend who simply STOPS beating — backgrounded then closed — is detected: their lastSeen stops
+// changing, so onValue alone wouldn't fire once the socket marker is gone).
+function isOnline(uid: string): boolean {
+  const e = presenceMap.get(uid);
+  if (!e) return false;
+  const fresh = serverNow() - e.lastSeen < BALANCE.presence.onlineThresholdMs;
+  return fresh || e.conns > 0;
 }
 
 function recomputeOnline(): void {
   let changed = false;
   for (const f of store.friends) {
-    const online = isFresh(f.uid);
+    const online = isOnline(f.uid);
     if (f.online !== online) {
       f.online = online;
       changed = true;
@@ -31,8 +34,12 @@ function recomputeOnline(): void {
 
 function subscribePresence(uid: string): void {
   if (presenceUnsubs.has(uid)) return;
-  const un = onValue(r(paths.presenceLastSeen(uid)), (snap) => {
-    lastSeenMap.set(uid, (snap.val() as number) || 0);
+  const un = onValue(r(paths.presence(uid)), (snap) => {
+    const p = (snap.val() as { lastSeen?: number; connections?: Record<string, unknown> }) || {};
+    presenceMap.set(uid, {
+      lastSeen: typeof p.lastSeen === "number" ? p.lastSeen : 0,
+      conns: p.connections ? Object.keys(p.connections).length : 0,
+    });
     recomputeOnline();
   });
   presenceUnsubs.set(uid, un);
@@ -44,7 +51,7 @@ function unsubscribePresence(uid: string): void {
     un();
     presenceUnsubs.delete(uid);
   }
-  lastSeenMap.delete(uid);
+  presenceMap.delete(uid);
 }
 
 // My raid cooldown against this friend lives at cooldowns/{friend}/{me} (server stamp). Mirror it
@@ -85,7 +92,7 @@ export function subscribeFriends(uid: string): void {
         uid: fuid,
         nickname: u.nickname || "농부",
         friendCode: u.friendCode || "",
-        online: isFresh(fuid), // derive from the last known heartbeat, not a stale cache
+        online: isOnline(fuid), // derive from the last known presence, not a stale cache
         cooldownUntil: store.friends.find((x) => x.uid === fuid)?.cooldownUntil,
       });
     }
