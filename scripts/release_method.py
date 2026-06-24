@@ -41,6 +41,7 @@ class ReleaseConfig:
     repo_download_url: Optional[str] = None
     skip_github_release: bool = False
     skip_git_push: bool = False
+    skip_rules_deploy: bool = False
 
 
 def parse_args() -> argparse.Namespace:
@@ -56,6 +57,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--repo-download-url", help="Override base download URL, e.g. https://github.com/banatic/suhree/releases/download")
     parser.add_argument("--skip-github-release", action="store_true")
     parser.add_argument("--skip-git-push", action="store_true")
+    parser.add_argument("--skip-rules-deploy", action="store_true", help="Skip `firebase deploy --only database`")
     return parser.parse_args()
 
 
@@ -72,6 +74,7 @@ def config_from_args(args: argparse.Namespace) -> ReleaseConfig:
         repo_download_url=args.repo_download_url,
         skip_github_release=args.skip_github_release,
         skip_git_push=args.skip_git_push,
+        skip_rules_deploy=args.skip_rules_deploy,
     )
 
 
@@ -284,6 +287,27 @@ def create_github_release(root, version, notes, msi_path, sig_path=None) -> None
         raise SystemExit(f"[error] Failed to create GitHub release: {exc}")
 
 
+def deploy_database_rules(root) -> None:
+    """Push database.rules.json to Firebase. Non-fatal: the binary release already succeeded, so a
+    missing CLI / not-logged-in only warns (with the manual command) rather than failing the run."""
+    fb = shutil.which("firebase") or shutil.which("firebase.cmd") or shutil.which("firebase.exe")
+    if not fb:
+        print("[warn] firebase CLI를 찾지 못해 DB 규칙 자동 배포를 건너뜁니다.")
+        print("       설치: npm i -g firebase-tools  /  로그인: firebase login")
+        print("       수동 배포: firebase deploy --only database")
+        return
+    if not (root / "firebase.json").exists():
+        print("[warn] firebase.json이 없어 DB 규칙 배포를 건너뜁니다.")
+        return
+    print("[info] Deploying database rules (firebase deploy --only database) ...")
+    try:
+        subprocess.run([fb, "deploy", "--only", "database"], cwd=root, check=True)
+        print("[info] Database rules deployed.")
+    except subprocess.CalledProcessError as exc:
+        print(f"[warn] DB 규칙 배포 실패 (릴리스 자체는 성공). 사유: {exc}")
+        print("       로그인 확인: firebase login  /  수동: firebase deploy --only database")
+
+
 def git_add_commit_push(root, version, latest_path, extra_paths=None) -> None:
     git_exec = shutil.which("git") or shutil.which("git.exe")
     if not git_exec:
@@ -357,6 +381,11 @@ def run_release(config: ReleaseConfig) -> int:
     else:
         print("[info] Skipping git push as requested.")
 
+    if not config.skip_rules_deploy:
+        deploy_database_rules(root)
+    else:
+        print("[info] Skipping database rules deploy as requested.")
+
     print("\nAll done.")
     print(f"- MSI: {msi_path}")
     return 0
@@ -387,7 +416,7 @@ if __name__ == "__main__":
     #   version: "patch"(기본·자동 +0.0.1) / "minor" / "major" / "auto", 또는 "0.2.0" 처럼 명시.
     CONFIG = ReleaseConfig(
         version="patch",  # 현재 버전에서 자동으로 패치 올림 (0.1.2 -> 0.1.3 -> ...)
-        notes="유지보수 업데이트",
+        notes="온라인 표시 안정화 (백그라운드에서도 친구가 오프라인으로 잘못 뜨던 문제 수정)",
         pub_date=None,  # None이면 현재 UTC 시간 사용
         skip_build=False,
         msi_path=None,
@@ -396,6 +425,7 @@ if __name__ == "__main__":
         repo_download_url=None,
         skip_github_release=False,
         skip_git_push=False,
+        skip_rules_deploy=False,  # firebase deploy --only database (firebase login 필요)
     )
 
     raise SystemExit(run_release(CONFIG))

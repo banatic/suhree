@@ -10,3 +10,9 @@ src-tauri/gen/
 # local secrets (kept out of VCS even though Firebase web config is public)
 .env
 .env.local
+
+# Firebase CLI deploy cache
+.firebase/
+
+# Python
+__pycache__/
