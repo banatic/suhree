@@ -81,6 +81,40 @@ def ensure_semver(value: str) -> str:
     return value
 
 
+AUTO_BUMP_KEYWORDS = {None, "", "auto", "patch", "minor", "major"}
+
+
+def read_current_version(package_path: Path) -> str:
+    data = json.loads(package_path.read_text(encoding="utf-8"))
+    return str(data.get("version", "0.0.0"))
+
+
+def bump_version(current: str, part: str) -> str:
+    core = current.split("+", 1)[0].split("-", 1)[0]  # drop any pre-release/build suffix
+    nums = core.split(".")
+    if len(nums) != 3 or not all(n.isdigit() for n in nums):
+        raise SystemExit(f"[error] Cannot auto-bump non MAJOR.MINOR.PATCH version '{current}'.")
+    major, minor, patch = (int(n) for n in nums)
+    if part == "major":
+        major, minor, patch = major + 1, 0, 0
+    elif part == "minor":
+        minor, patch = minor + 1, 0
+    else:  # patch / auto
+        patch += 1
+    return f"{major}.{minor}.{patch}"
+
+
+def resolve_version(requested: Optional[str], package_path: Path) -> str:
+    """Explicit semver → use as-is. 'patch'/'minor'/'major'/'auto'/empty → bump current version."""
+    if requested in AUTO_BUMP_KEYWORDS:
+        part = requested if requested in {"minor", "major"} else "patch"
+        current = read_current_version(package_path)
+        nxt = bump_version(current, part)
+        print(f"[info] Auto-bump ({part}): {current} -> {nxt}")
+        return nxt
+    return ensure_semver(requested)
+
+
 def read_notes(arg_value: Optional[str], path: Optional[Path]) -> str:
     if arg_value and path:
         raise SystemExit("[error] Use either --notes or --notes-file, not both.")
@@ -250,42 +284,45 @@ def create_github_release(root, version, notes, msi_path, sig_path=None) -> None
         raise SystemExit(f"[error] Failed to create GitHub release: {exc}")
 
 
-def git_add_commit_push(root, version, latest_path) -> None:
+def git_add_commit_push(root, version, latest_path, extra_paths=None) -> None:
     git_exec = shutil.which("git") or shutil.which("git.exe")
     if not git_exec:
         raise SystemExit("[error] Git not found on PATH.")
+    # latest.json + the bumped version files (committing the bump keeps the next auto-bump accurate).
+    paths = [str(latest_path)] + [str(p) for p in (extra_paths or [])]
     try:
         status_result = subprocess.run(
-            [git_exec, "status", "--porcelain", str(latest_path)],
+            [git_exec, "status", "--porcelain", "--"] + paths,
             cwd=root, capture_output=True, text=True, check=True,
         )
         if not status_result.stdout.strip():
-            print("[info] No changes to latest.json, skipping git operations.")
+            print("[info] No release files changed, skipping git operations.")
             return
     except subprocess.CalledProcessError as exc:
         raise SystemExit(f"[error] Failed to check git status: {exc}")
-    print("[info] Staging + committing + pushing latest.json...")
+    print("[info] Staging + committing + pushing release files (latest.json + version bump)...")
     try:
-        subprocess.run([git_exec, "add", str(latest_path)], cwd=root, check=True)
-        subprocess.run([git_exec, "commit", "-m", f"Update latest.json for version {version}"], cwd=root, check=True)
+        subprocess.run([git_exec, "add", "--"] + paths, cwd=root, check=True)
+        subprocess.run([git_exec, "commit", "-m", f"release: v{version}"], cwd=root, check=True)
         subprocess.run([git_exec, "push"], cwd=root, check=True)
-        print("[info] Pushed latest.json to remote.")
+        print("[info] Pushed release files to remote.")
     except subprocess.CalledProcessError as exc:
         raise SystemExit(f"[error] git push failed: {exc}")
 
 
 def run_release(config: ReleaseConfig) -> int:
     root = Path(__file__).resolve().parents[1]
-    version = ensure_semver(config.version)
+    package_path = root / "package.json"
+    cargo_path = root / "src-tauri" / "Cargo.toml"
+    tauri_conf_path = root / "src-tauri" / "tauri.conf.json"
+    cargo_lock_path = root / "src-tauri" / "Cargo.lock"
+    latest_path = config.latest_path if config.latest_path.is_absolute() else root / config.latest_path
+
+    version = resolve_version(config.version, package_path)
     notes = config.notes.strip()
     if not notes:
         raise SystemExit("[error] Release notes must not be empty.")
     pub_date = normalize_rfc3339(config.pub_date)
-
-    package_path = root / "package.json"
-    cargo_path = root / "src-tauri" / "Cargo.toml"
-    tauri_conf_path = root / "src-tauri" / "tauri.conf.json"
-    latest_path = config.latest_path if config.latest_path.is_absolute() else root / config.latest_path
 
     print("[info] Bumping package.json, Cargo.toml, tauri.conf.json ...")
     old_pkg = update_package_json(package_path, version)
@@ -313,7 +350,10 @@ def run_release(config: ReleaseConfig) -> int:
         print("[info] Skipping GitHub release creation as requested.")
 
     if not config.skip_git_push:
-        git_add_commit_push(root=root, version=version, latest_path=latest_path)
+        git_add_commit_push(
+            root=root, version=version, latest_path=latest_path,
+            extra_paths=[package_path, cargo_path, tauri_conf_path, cargo_lock_path],
+        )
     else:
         print("[info] Skipping git push as requested.")
 
@@ -343,10 +383,11 @@ if __name__ == "__main__":
     if USE_CLI:
         raise SystemExit(main())
 
-    # ▼▼▼ 릴리스할 때 여기 version / notes 만 바꾸고 `npm run release` ▼▼▼
+    # ▼▼▼ 릴리스할 때 여기 notes 만 바꾸고 `npm run release` ▼▼▼
+    #   version: "patch"(기본·자동 +0.0.1) / "minor" / "major" / "auto", 또는 "0.2.0" 처럼 명시.
     CONFIG = ReleaseConfig(
-        version="0.1.2",
-        notes="친구 양방향 추가 · 강제 자동 업데이트(1분 주기) · 쿨다운 표시/계산 안정화",
+        version="patch",  # 현재 버전에서 자동으로 패치 올림 (0.1.2 -> 0.1.3 -> ...)
+        notes="유지보수 업데이트",
         pub_date=None,  # None이면 현재 UTC 시간 사용
         skip_build=False,
         msi_path=None,
