@@ -116,6 +116,15 @@ export const BALANCE = {
     // the client BLOCKS, installs, and relaunches — no skipping, no playing an old build.
     checkIntervalMs: 60 * 1000,
   },
+
+  presence: {
+    // Heartbeat model: the app re-stamps /presence/{uid}/lastSeen every heartbeatMs (the "ping").
+    // online ⇔ serverNow − lastSeen < onlineThresholdMs. Robust to socket recycling, missed
+    // reconnect events, and multi-instance (any live instance keeps lastSeen fresh).
+    heartbeatMs: 12 * 1000,
+    onlineThresholdMs: 35 * 1000, // ≈ 3 missed beats of grace
+    readerTickMs: 4 * 1000, // how often readers re-evaluate friends' freshness locally
+  },
 } as const;
 
 export type DecorId = (typeof BALANCE.cosmetics.decor)[number]["id"];

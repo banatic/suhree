@@ -6,7 +6,6 @@ export const paths = {
   userCoins: (uid: string) => `users/${uid}/coins`,
   friendCode: (code: string) => `friendCodes/${code}`,
   presence: (uid: string) => `presence/${uid}`,
-  presenceConnections: (uid: string) => `presence/${uid}/connections`,
   presenceLastSeen: (uid: string) => `presence/${uid}/lastSeen`,
   friends: (uid: string) => `friends/${uid}`,
   plot: (uid: string) => `plots/${uid}`,

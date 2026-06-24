@@ -15,6 +15,7 @@ import {
 import { r, paths } from "../firebase/db";
 import { store, toast, type CropData } from "../state";
 import { BALANCE } from "../config/balance";
+import { serverNow } from "../firebase/time";
 import { raidSeconds } from "../game/levels";
 import { stageOf, ripeValue } from "../game/crops";
 import { addCoins } from "../game/economy";
@@ -58,8 +59,8 @@ export async function startRaid(targetUid: string, targetNick: string): Promise<
     return;
   }
 
-  const onlineSnap = await get(r(paths.presenceConnections(targetUid)));
-  if (!onlineSnap.exists()) {
+  const lastSeen = ((await get(r(paths.presenceLastSeen(targetUid)))).val() as number) || 0;
+  if (serverNow() - lastSeen >= BALANCE.presence.onlineThresholdMs) {
     toast("오프라인 친구는 털 수 없어요");
     return;
   }
