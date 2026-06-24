@@ -1,4 +1,5 @@
-import { get, set } from "firebase/database";
+import { get, ref, update } from "firebase/database";
+import { db } from "../firebase/app";
 import { r, paths } from "../firebase/db";
 import { toast, markPanelsDirty } from "../state";
 
@@ -18,11 +19,22 @@ export async function addFriendByCode(uid: string, codeRaw: string): Promise<boo
     toast("자기 자신은 추가할 수 없어요");
     return false;
   }
-  // Friendship is one-directional (you can only write your own list). Adding someone lets
-  // YOU raid them; they add you back with your code to raid you. The raid rule checks that
-  // the raider has the target in their own friends list.
-  await set(r(`friends/${uid}/${fuid}`), true);
-  toast("친구를 추가했어요!");
+  // Mutual: one add wires up BOTH sides in a single atomic multi-location write.
+  // The rules let me write `true` into someone else's list only under my own uid key
+  // ($friendUid === auth.uid), so the reciprocal link is created here, no consent step.
+  // Both directions matter because the raid rule requires the raider to have the target
+  // in the raider's OWN friends list.
+  try {
+    await update(ref(db), {
+      [`friends/${uid}/${fuid}`]: true,
+      [`friends/${fuid}/${uid}`]: true,
+    });
+  } catch (e) {
+    console.error("addFriend failed", e);
+    toast("친구 추가에 실패했어요");
+    return false;
+  }
+  toast("서로 친구가 되었어요!");
   markPanelsDirty();
   return true;
 }

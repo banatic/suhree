@@ -1,7 +1,17 @@
 import { remove } from "firebase/database";
-import { store, toast, markPanelsDirty, bandHeightCss, bandDock, coins, type PanelKind } from "../state";
+import {
+  store,
+  toast,
+  markPanelsDirty,
+  bandHeightCss,
+  bandDock,
+  coins,
+  type PanelKind,
+  type FriendData,
+} from "../state";
 import { BALANCE } from "../config/balance";
 import { r, paths } from "../firebase/db";
+import { serverNow } from "../firebase/time";
 import { buyPlotExpansion, buyLevel, buyCosmetic, equipCosmetic } from "../game/shop";
 import { levelCost, plotCost, raidSeconds } from "../game/levels";
 import { addFriendByCode } from "../friends/add";
@@ -18,6 +28,8 @@ function ensurePanel(): HTMLDivElement {
     panelEl.id = "panel";
     panelEl.style.display = "none";
     document.getElementById("app")!.appendChild(panelEl);
+    // Tick cooldown labels in place (without rebuilding the panel → keeps input focus/text).
+    window.setInterval(refreshFriendCooldowns, 500);
   }
   return panelEl;
 }
@@ -34,6 +46,7 @@ function el(
     else if (k === "onclick") e.addEventListener("click", v);
     else if (k === "oninput") e.addEventListener("input", v);
     else if (k === "style") e.setAttribute("style", v);
+    else if (k.startsWith("data-")) e.setAttribute(k, v);
     else (e as any)[k] = v;
   }
   for (const ch of children) {
@@ -163,23 +176,58 @@ function friendsPanel(): HTMLElement {
     list.append(el("div", { class: "muted" }, "아직 친구가 없어요."));
   }
   for (const f of store.friends) {
-    const onCooldown = (f.cooldownUntil ?? 0) > Date.now();
-    const cdLeft = Math.max(0, Math.ceil(((f.cooldownUntil ?? 0) - Date.now()) / 1000));
-    const canRaid = f.online && !onCooldown && store.raid.role === "none";
-    let raidLabel = "털기";
-    if (!f.online) raidLabel = "오프라인";
-    else if (onCooldown) raidLabel = `쿨다운 ${cdLeft}s`;
-    else if (store.raid.role !== "none") raidLabel = "진행중";
+    const st = friendRaidState(f);
     list.append(
       row(
         el("span", { class: "dot", style: `background:${f.online ? "#5fd07a" : "#777"}` }),
         el("span", { class: "grow" }, f.nickname),
-        btn(raidLabel, () => void startRaid(f.uid, f.nickname), canRaid ? "btn danger" : "btn off"),
+        el(
+          "button",
+          { class: st.cls, "data-fuid": f.uid, onclick: () => void startRaid(f.uid, f.nickname) },
+          st.label,
+        ),
       ),
     );
   }
   wrap.append(list);
   return wrap;
+}
+
+// ── Cooldown display (single source of truth: f.cooldownUntil in server-clock ms) ──────
+
+function cooldownLeftMs(f: FriendData): number {
+  return Math.max(0, (f.cooldownUntil ?? 0) - serverNow());
+}
+
+function fmtCooldown(ms: number): string {
+  const s = Math.ceil(ms / 1000);
+  if (s >= 60) return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  return `${s}s`;
+}
+
+function friendRaidState(f: FriendData): { label: string; cls: string } {
+  const left = cooldownLeftMs(f);
+  const onCooldown = left > 0;
+  const canRaid = f.online && !onCooldown && store.raid.role === "none";
+  let label = "털기";
+  if (!f.online) label = "오프라인";
+  else if (onCooldown) label = `쿨다운 ${fmtCooldown(left)}`;
+  else if (store.raid.role !== "none") label = "진행중";
+  return { label, cls: canRaid ? "btn danger" : "btn off" };
+}
+
+/** Update only the raid buttons in place (every 0.5s) so countdowns tick and re-enable live. */
+function refreshFriendCooldowns(): void {
+  if (!panelEl || store.ui.panel !== "friends" || panelEl.style.display === "none") return;
+  const btns = panelEl.querySelectorAll<HTMLButtonElement>("button[data-fuid]");
+  btns.forEach((b) => {
+    const fuid = b.getAttribute("data-fuid");
+    const f = store.friends.find((x) => x.uid === fuid);
+    if (!f) return;
+    const st = friendRaidState(f);
+    if (b.textContent !== st.label) b.textContent = st.label;
+    if (b.className !== st.cls) b.className = st.cls;
+  });
 }
 
 function messagesPanel(): HTMLElement {

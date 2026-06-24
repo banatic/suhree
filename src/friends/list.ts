@@ -1,8 +1,10 @@
 import { onValue, get, type Unsubscribe } from "firebase/database";
 import { r, paths } from "../firebase/db";
 import { store, markPanelsDirty, type FriendData } from "../state";
+import { BALANCE } from "../config/balance";
 
 const presenceUnsubs = new Map<string, Unsubscribe>();
+const cooldownUnsubs = new Map<string, Unsubscribe>();
 const offlineTimers = new Map<string, number>();
 // Smooth transient reconnects: only show a friend offline after they stay offline this long.
 const OFFLINE_GRACE_MS = 4000;
@@ -55,6 +57,28 @@ function unsubscribePresence(uid: string): void {
   }
 }
 
+// My raid cooldown against this friend lives at cooldowns/{friend}/{me} (server stamp). Mirror it
+// so the friends panel is correct on a fresh launch / second device, not just after I raid here.
+function subscribeCooldown(fuid: string, myUid: string): void {
+  if (cooldownUnsubs.has(fuid)) return;
+  const un = onValue(r(paths.cooldown(fuid, myUid)), (snap) => {
+    const fr = store.friends.find((x) => x.uid === fuid);
+    if (!fr) return;
+    const stamp = snap.exists() ? (snap.val() as number) : null;
+    fr.cooldownUntil = stamp != null ? stamp + BALANCE.raid.cooldownMs : undefined;
+    markPanelsDirty();
+  });
+  cooldownUnsubs.set(fuid, un);
+}
+
+function unsubscribeCooldown(fuid: string): void {
+  const un = cooldownUnsubs.get(fuid);
+  if (un) {
+    un();
+    cooldownUnsubs.delete(fuid);
+  }
+}
+
 export function subscribeFriends(uid: string): void {
   onValue(r(paths.friends(uid)), async (snap) => {
     const map = (snap.val() as Record<string, boolean>) || {};
@@ -75,10 +99,14 @@ export function subscribeFriends(uid: string): void {
     store.friends = list;
     markPanelsDirty();
 
-    // Reconcile presence subscriptions incrementally — never tear down a still-present
+    // Reconcile presence + cooldown subscriptions incrementally — never tear down a still-present
     // friend's listener (that churn was a source of flicker).
     const want = new Set(uids);
     for (const sub of [...presenceUnsubs.keys()]) if (!want.has(sub)) unsubscribePresence(sub);
-    for (const fuid of uids) subscribePresence(fuid);
+    for (const sub of [...cooldownUnsubs.keys()]) if (!want.has(sub)) unsubscribeCooldown(sub);
+    for (const fuid of uids) {
+      subscribePresence(fuid);
+      subscribeCooldown(fuid, uid);
+    }
   });
 }

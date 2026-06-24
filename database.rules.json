@@ -40,7 +40,10 @@
     "friends": {
       "$uid": {
         ".read": "$uid === auth.uid",
-        ".write": "$uid === auth.uid"
+        "$friendUid": {
+          ".write": "$uid === auth.uid || ($friendUid === auth.uid && newData.val() === true)",
+          ".validate": "newData.isBoolean()"
+        }
       }
     },
 

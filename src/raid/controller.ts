@@ -19,7 +19,7 @@ import { raidSeconds } from "../game/levels";
 import { stageOf, ripeValue } from "../game/crops";
 import { addCoins } from "../game/economy";
 import { acquireLock, releaseLock } from "./lock";
-import { isOnCooldown, setCooldown, markFriendCooldown } from "./cooldown";
+import { getCooldownRemaining, setCooldown, markFriendCooldown } from "./cooldown";
 import { startThiefCursorSub, stopThiefCursorSub } from "./cursorStream";
 import { playAlarm, playSteal, playWin } from "./alarm";
 
@@ -50,9 +50,11 @@ export async function startRaid(targetUid: string, targetNick: string): Promise<
   const me = store.uid;
   if (!me || targetUid === me) return;
 
-  if (await isOnCooldown(targetUid, me)) {
-    toast("아직 쿨다운이에요");
-    markFriendCooldown(targetUid);
+  const remaining = await getCooldownRemaining(targetUid, me);
+  if (remaining > 0) {
+    markFriendCooldown(targetUid, remaining); // exact remaining — don't reset to a full 5 min
+    const s = Math.ceil(remaining / 1000);
+    toast(`아직 쿨다운이에요 (${s >= 60 ? Math.ceil(s / 60) + "분" : s + "초"} 남음)`);
     return;
   }
 

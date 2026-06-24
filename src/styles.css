@@ -170,6 +170,28 @@ body {
   align-self: flex-start;
 }
 
+/* ── Forced-update banner ───────────────────────────────── */
+
+#update-overlay {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 9999;
+  padding: 9px 18px;
+  background: var(--wood);
+  color: var(--parch);
+  border: 2px solid var(--wood-dark);
+  border-radius: 999px;
+  font-family: var(--font);
+  font-weight: bold;
+  font-size: 13px;
+  white-space: nowrap;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+}
+
 .msg .msg-text {
   font-size: 13px;
 }

@@ -110,6 +110,12 @@ export const BALANCE = {
     startingCoins: 50,
     maxCoins: 1_000_000_000, // mirrors the security rule bound
   },
+
+  update: {
+    // Mandatory versioning: poll latest.json every minute. If the remote semver is newer,
+    // the client BLOCKS, installs, and relaunches — no skipping, no playing an old build.
+    checkIntervalMs: 60 * 1000,
+  },
 } as const;
 
 export type DecorId = (typeof BALANCE.cosmetics.decor)[number]["id"];

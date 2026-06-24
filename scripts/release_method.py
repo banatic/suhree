@@ -338,8 +338,8 @@ if __name__ == "__main__":
 
     # ▼▼▼ 릴리스할 때 여기 version / notes 만 바꾸고 `npm run release` ▼▼▼
     CONFIG = ReleaseConfig(
-        version="0.1.1",
-        notes="업데이트",
+        version="0.1.2",
+        notes="친구 양방향 추가 · 강제 자동 업데이트(1분 주기) · 쿨다운 표시/계산 안정화",
         pub_date=None,  # None이면 현재 UTC 시간 사용
         skip_build=False,
         msi_path=None,

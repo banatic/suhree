@@ -2,6 +2,7 @@ import "./styles.css";
 import { store, toast, markPanelsDirty } from "./state";
 import { ensureSignedIn, ensureUserRecord } from "./firebase/auth";
 import { setupPresence } from "./firebase/presence";
+import { initServerTime } from "./firebase/time";
 import { subscribeSelf } from "./game/sync";
 import { subscribeFriends } from "./friends/list";
 import { startDefenseWatch } from "./raid/controller";
@@ -45,6 +46,7 @@ async function boot(): Promise<void> {
   await loadFont();
   setupStripInteractions();
   startLoop(); // render the (empty) band immediately while we connect
+  initServerTime(); // sync the server-clock offset for robust cooldown math
   startUpdateChecker(); // background auto-update (Tauri only)
 
   // Window geometry / fullscreen events (no-ops in a plain browser).
