@@ -451,15 +451,9 @@ function renderChatList(): void {
   } else {
     for (const m of store.chat) {
       const mine = m.uid === store.uid;
-      // Titles aren't stored on the message (chat rule forbids extra fields) — derive from the
-      // sender's user record, which we only have for myself + friends. Others just show their nick.
-      const titleId = mine
-        ? store.user?.equippedTitle
-        : store.friends.find((f) => f.uid === m.uid)?.equippedTitle;
-      const tl = titleLabelOf(titleId);
-      const nickEl = el("span", { class: "chat-nick" });
-      if (tl) nickEl.append(el("span", { class: "title-chip" }, tl));
-      nickEl.append(document.createTextNode(mine ? "나" : m.nick || "농부"));
+      // No title chip in chat — titles are long and would push the nick off-screen. Titles still
+      // show in the friends/ranking panels.
+      const nickEl = el("span", { class: "chat-nick" }, mine ? "나" : m.nick || "농부");
       chatListEl.append(
         el(
           "div",

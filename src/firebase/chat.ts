@@ -38,6 +38,19 @@ export function subscribeChat(): void {
   });
 }
 
+/** Post a one-off announcement to the room (e.g. a 서리 result). Fire-and-forget; bypasses the
+ *  local send cooldown so a raid summary always lands, and never blocks the caller. */
+export async function announceToChat(text: string): Promise<void> {
+  const t = (text || "").trim().slice(0, BALANCE.chat.maxLen);
+  if (!t) return;
+  const nick = (store.user?.nickname || "농부").slice(0, 16);
+  try {
+    await set(push(r(paths.chat())), { uid: store.uid, nick, text: t, at: serverTimestamp() });
+  } catch {
+    /* ignore transient write errors — the raid loot is already settled */
+  }
+}
+
 /** Send one line to the room. Returns false on empty/too-soon (local anti-spam). */
 export async function sendChat(text: string): Promise<boolean> {
   const t = (text || "").trim().slice(0, BALANCE.chat.maxLen);

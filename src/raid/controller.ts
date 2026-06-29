@@ -31,6 +31,7 @@ import { startRaiderCursorSub, startDefenderCursorSub, stopCursorSub } from "./c
 import { playAlarm, playSteal, playWin } from "./alarm";
 import { promptLootNote } from "../render/lootNote";
 import { logRaid } from "../firebase/raidlog";
+import { announceToChat } from "../firebase/chat";
 
 let raidNodeSub: Unsubscribe | null = null;
 let defenseSub: Unsubscribe | null = null;
@@ -47,6 +48,20 @@ const MESSAGES = [
 ];
 function pickMessage(): string {
   return MESSAGES[Math.floor(Math.random() * MESSAGES.length)];
+}
+
+/** One-line 서리 result for the village chat — brags on a haul, owns up on a bust. */
+function raidChatLine(
+  victimNick: string,
+  reason: "fled" | "evicted" | "timeout" | "cleared",
+  looted: number,
+  count: number,
+): string {
+  const v = victimNick || "농부";
+  if (looted > 0) return `🌾 ${v}님 밭에서 작물 ${count}개를 서리했어요! (+${looted}💰)`;
+  if (reason === "evicted") return `🚨 ${v}님 밭에서 서리하다 들켜서 쫓겨났어요…`;
+  if (reason === "timeout") return `⏱️ ${v}님 밭에서 빈손으로 시간만 보냈어요…`;
+  return `🌿 ${v}님 밭을 노렸지만 빈손으로 돌아왔어요…`;
 }
 
 // ── Thief side ───────────────────────────────────────────────────────────────
@@ -228,6 +243,9 @@ async function finishThiefRaid(reason: "fled" | "evicted" | "timeout" | "cleared
 
   // Record the steal in the server-wide 서리 feed (one append per looted raid).
   if (looted > 0) void logRaid(targetUid, targetNick, looted, raid.stolenCount ?? 0);
+
+  // Mirror EVERY raid — success or failure — into the village chat so the whole server sees it.
+  void announceToChat(raidChatLine(targetNick, reason, looted, raid.stolenCount ?? 0));
 
   // Stole at least one crop → let the raider hand-write a parting note. The DB rule requires the
   // raid lock to still be held to write into the victim's messages, so we keep the lock until the

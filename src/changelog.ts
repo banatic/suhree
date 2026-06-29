@@ -9,6 +9,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.2.4",
+    date: "2026-06-30",
+    items: [
+      "💬 서리 결과가 마을 채팅에도 떠요 — 성공도 실패도 모두 함께 봐요!",
+      "🏷️ 채팅에서는 칭호를 숨겨 닉네임이 잘리지 않아요 (칭호는 친구·랭킹엔 그대로).",
+    ],
+  },
+  {
     version: "0.2.3",
     date: "2026-06-29",
     items: [
