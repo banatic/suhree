@@ -1,11 +1,11 @@
 {
-    "version": "0.2.2",
-    "notes": "서버 전체의 서리 기록을 볼 수 있는 페이지가 추가됐어요.",
-    "pub_date": "2026-06-29T04:27:59.916Z",
+    "version": "0.2.3",
+    "notes": "레이드 중 친구 밭의 빈칸에 잡초를 심어 훼방 놓을 수 있어요. (주인은 5번 클릭해야 뽑아요)",
+    "pub_date": "2026-06-29T05:47:47.987Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMklIOWwyNHpqVTBwaFZpdWFaaHkwZ1FrdlRNMVZ6L1luNHcvcUU4SUVQNGh0ZGozNEw2Sk9UaDZ0NXRxa2RyTGtsVVBab3dhUmp0T01oSER1c1dueUFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyNzA3NDAwCWZpbGU6c3VocmVlXzAuMi4yX3g2NF9lbi1VUy5tc2kKdlN4bW5VSnN1OFlCNkd0dG9vMUlQRzNwL0JOVjR0YjdqZDFFdjQxZGMzUWFlejB2bjNZZThoZ0pPUkNCRDNUQ3YyL1dadHlWR2FzaDRoSUN3VnZ6Q1E9PQo=",
-            "url": "https://github.com/banatic/suhree/releases/download/v0.2.2/suhree_0.2.2_x64_en-US.msi"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkF0S3pQNGl2NFZXZHZEYlVORFpwbVJxTkQ3dG5zNitLcENRU2JTajFPMGs0M0lqM2EwMEFlKzFlZzN6aWNTbERuRkxxeGpiczJRQUFRdUdhWWpheHdRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyNzEyMTkyCWZpbGU6c3VocmVlXzAuMi4zX3g2NF9lbi1VUy5tc2kKclZPZTJIaVF1OTQ4UUxhRW5BSGFDZkNZc3dKamtsblltQjM4OGlYa1pldVN5eHc3anlKQ1BId2h5SDhGODNIQWhZR1Q2TnNOQzR3QkltdGg1MlZ2Q1E9PQo=",
+            "url": "https://github.com/banatic/suhree/releases/download/v0.2.3/suhree_0.2.3_x64_en-US.msi"
         }
     }
 }
