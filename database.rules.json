@@ -69,6 +69,13 @@
             "plantedAt": { ".validate": "newData.isNumber()" },
             "$other": { ".validate": false }
           }
+        },
+        "weeds": {
+          "$slot": {
+            "by": { ".validate": "newData.isString()" },
+            "at": { ".validate": "newData.isNumber()" },
+            "$other": { ".validate": false }
+          }
         }
       }
     },

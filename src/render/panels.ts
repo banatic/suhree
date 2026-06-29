@@ -102,6 +102,7 @@ export function togglePanel(kind: PanelKind): void {
     chatHoverArmed = false; // re-arm only after the mouse enters the panel
   }
   if (store.ui.panel === "ranking") void refreshRankingCoins();
+  if (store.ui.panel === "spy") void refreshSpy();
   renderPanels();
   publishHitRegions();
 }
@@ -530,6 +531,111 @@ function rankingPanel(): HTMLElement {
   return wrap;
 }
 
+// ── 작물 점지소 ──────────────────────────────────────────────────────────────────
+
+type SpyRow = { uid: string; nick: string; crops: { tier: number; ripeAt: number }[] };
+let spyData: SpyRow[] | null = null;
+let spyLoading = false;
+
+function cropTotalMs(tier: number): number {
+  const t = BALANCE.crops.tiers[tier];
+  return t ? t.stages.seed + t.stages.sprout + t.stages.growing : 0;
+}
+
+async function refreshSpy(): Promise<void> {
+  spyLoading = true;
+  if (store.ui.panel === "spy") renderPanels();
+
+  // Everyone we know a uid + nick for, minus myself.
+  const who = new Map<string, string>();
+  for (const f of store.friends) who.set(f.uid, f.nickname);
+  for (const m of store.chat) if (m.uid !== store.uid) who.set(m.uid, m.nick || "농부");
+  for (const e of store.raidlog) {
+    if (e.raider !== store.uid) who.set(e.raider, e.raiderNick || "농부");
+    if (e.victim !== store.uid) who.set(e.victim, e.victimNick || "농부");
+  }
+  who.delete(store.uid);
+
+  const rows: SpyRow[] = [];
+  await Promise.all(
+    [...who.entries()].map(async ([uid, nick]) => {
+      try {
+        const v = (await get(r(paths.crops(uid)))).val() as Record<string, any> | null;
+        if (!v) return;
+        const crops = Object.values(v)
+          .filter((c) => c && typeof c.plantedAt === "number" && typeof c.tier === "number")
+          .map((c: any) => ({ tier: c.tier, ripeAt: c.plantedAt + cropTotalMs(c.tier) }));
+        if (crops.length) rows.push({ uid, nick, crops });
+      } catch {
+        /* unreadable plot — skip */
+      }
+    }),
+  );
+  // Soonest-to-be-fully-ripe first (best upcoming raid target on top).
+  rows.sort((a, b) => maxRipe(a) - maxRipe(b));
+  spyData = rows;
+  spyLoading = false;
+  if (store.ui.panel === "spy") renderPanels();
+}
+
+function maxRipe(r: SpyRow): number {
+  return Math.max(...r.crops.map((c) => c.ripeAt));
+}
+
+/** Clock time for a ripe moment; adds "내일" if it lands on a later KST day than now. */
+function fmtRipeClock(at: number, now: number): string {
+  const base = fmtChatTime(at);
+  const dayMs = 24 * 60 * 60 * 1000;
+  const kst = (t: number): number => Math.floor((t + 9 * 60 * 60 * 1000) / dayMs);
+  return kst(at) > kst(now) ? `내일 ${base}` : base;
+}
+
+function spyPanel(): HTMLElement {
+  const wrap = el("div", { class: "panel-body" });
+  if (store.user?.nickname !== "정충봉") {
+    wrap.append(el("div", { class: "muted" }, "🔒 진실된 이름을 가진 자에게만 열리는 페이지예요."));
+    return wrap;
+  }
+  wrap.append(el("div", { class: "muted" }, "🔮 마을 사람들의 작물이 언제 다 익는지 점지해 드려요."));
+  wrap.append(btn("다시 점지", () => void refreshSpy(), "btn small"));
+
+  if (spyLoading && !spyData) {
+    wrap.append(el("div", { class: "muted" }, "점지하는 중…"));
+    return wrap;
+  }
+  const rows = spyData ?? [];
+  if (rows.length === 0) {
+    wrap.append(el("div", { class: "muted" }, "들여다볼 밭이 없어요."));
+    return wrap;
+  }
+
+  const now = serverNow();
+  const card = el("div", { class: "card chat-list" });
+  for (const rrow of rows) {
+    const allRipeAt = maxRipe(rrow);
+    const ripeNow = rrow.crops.filter((c) => c.ripeAt <= now).length;
+    const allRipe = allRipeAt <= now;
+    const mins = Math.ceil((allRipeAt - now) / 60000);
+    const head = allRipe
+      ? `전부 익음 · 지금 털기 좋음! (${rrow.crops.length}개)`
+      : `모두 익는 시각 ${fmtRipeClock(allRipeAt, now)} (${mins}분 후) · 익은 ${ripeNow}/${rrow.crops.length}`;
+    card.append(
+      el(
+        "div",
+        { class: "raidlog-row" + (allRipe ? " me-raider" : "") },
+        el("span", { class: "grow" }, el("b", {}, rrow.nick), document.createTextNode(" — " + head)),
+      ),
+    );
+    const detail = [...rrow.crops]
+      .sort((a, b) => a.ripeAt - b.ripeAt)
+      .map((c) => `${BALANCE.crops.tiers[c.tier]?.label ?? "?"} ${c.ripeAt <= now ? "✅" : fmtRipeClock(c.ripeAt, now)}`)
+      .join(" · ");
+    card.append(el("div", { class: "muted small" }, detail));
+  }
+  wrap.append(card);
+  return wrap;
+}
+
 // ── Server-wide 서리 기록 (steal feed) ───────────────────────────────────────────
 
 function raidlogPanel(): HTMLElement {
@@ -780,6 +886,7 @@ const TITLES: Record<PanelKind, string> = {
   cosmetics: "꾸미기",
   dex: "도감",
   raidlog: "서리 기록",
+  spy: "🔮 작물 점지소",
   settings: "설정",
 };
 
@@ -818,6 +925,9 @@ export function renderPanels(): void {
       break;
     case "raidlog":
       body = raidlogPanel();
+      break;
+    case "spy":
+      body = spyPanel();
       break;
     case "settings":
       body = settingsPanel();

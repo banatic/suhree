@@ -17,7 +17,7 @@ import {
   type OnDisconnect,
 } from "firebase/database";
 import { r, paths } from "../firebase/db";
-import { store, toast, type CropData } from "../state";
+import { store, toast, type CropData, type WeedData } from "../state";
 import { BALANCE } from "../config/balance";
 import { serverNow } from "../firebase/time";
 import { cropClicksToSteal, evictHitsNeeded } from "../game/levels";
@@ -79,6 +79,7 @@ export async function startRaid(targetUid: string, targetNick: string): Promise<
 
   const tUser = (await get(r(paths.user(targetUid)))).val() || {};
   const tCrops = ((await get(r(paths.crops(targetUid)))).val() as Record<string, CropData>) || {};
+  const tWeeds = ((await get(r(paths.weeds(targetUid)))).val() as Record<string, WeedData>) || {};
   const cropClicks = cropClicksToSteal(tUser.scarecrowLv ?? 0, store.user?.scytheLv ?? 0);
   // My "health" as the raider: how many hits the defender must land to evict me. The defender
   // computes the same value (same formula/args) and syncs their running hit count via evictHits.
@@ -101,6 +102,8 @@ export async function startRaid(targetUid: string, targetNick: string): Promise<
     targetUid,
     targetNick,
     targetCrops: tCrops,
+    targetWeeds: tWeeds,
+    targetPlotSize: tUser.plotSize ?? BALANCE.shop.plotExpansion.startSlots,
     targetDecor: tUser.equippedDecor || "decor_none",
     targetTheme: tUser.equippedTheme || "theme_day",
     cropClicks,

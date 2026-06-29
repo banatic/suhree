@@ -19,6 +19,7 @@ import { drawTheme } from "./theme";
 import { drawDecorById } from "./decorArt";
 import type { CosmeticScene } from "./cosmeticScene";
 import { cancelRaid, registerStealClick, registerEvictClick, registerEvictGraze } from "../raid/controller";
+import { plantWeed, removeWeed } from "../game/weeds";
 import { togglePanel, getPanelRect } from "./panels";
 import { getChatPopupRect } from "./chatPopup";
 import { getLootNoteRect } from "./lootNote";
@@ -87,8 +88,13 @@ const HUD_LABELS: { id: string; label: string }[] = [
   { id: "cosmetics", label: "꾸미기" },
   { id: "dex", label: "도감" },
   { id: "raidlog", label: "서리기록" },
+  { id: "spy", label: "🔮점지" },
   { id: "settings", label: "설정" },
 ];
+
+function visibleHudLabels(): { id: string; label: string }[] {
+  return HUD_LABELS.filter((b) => b.id !== "spy" || store.user?.nickname === "정충봉");
+}
 
 // ── Canvas ─────────────────────────────────────────────────────────────────
 
@@ -135,7 +141,12 @@ function layout(): BandLayout {
   const dir: -1 | 1 = dock === "bottom" ? -1 : 1;
   const soilY = dock === "bottom" ? bandY + bandH - soil : bandY + soil;
 
-  const slotCount = Math.max(1, store.user?.plotSize ?? BALANCE.shop.plotExpansion.startSlots);
+  // While raiding, render the VICTIM's plot (their slot count); otherwise my own.
+  const raidingSize = store.raid.role === "raiding" ? store.raid.targetPlotSize : undefined;
+  const slotCount = Math.max(
+    1,
+    raidingSize ?? store.user?.plotSize ?? BALANCE.shop.plotExpansion.startSlots,
+  );
   const maxRowW = W * 0.92;
   let scale = 2;
   let slotW = 16 * scale + 6;
@@ -177,7 +188,7 @@ function hudLayout(L: BandLayout): { coin: Rect; buttons: Btn[]; barYOpen: numbe
   const chipY = barYOpen + (HUD_H - chipH) / 2;
   const gap = 6;
   const coinW = 28 + String(coins()).length * 9;
-  const parts = HUD_LABELS.map((b) => ({ ...b, w: chipW(b.label, b.id === "seed" ? 12 : 0) }));
+  const parts = visibleHudLabels().map((b) => ({ ...b, w: chipW(b.label, b.id === "seed" ? 12 : 0) }));
   const totalW = coinW + gap + parts.reduce((a, p) => a + p.w + gap, 0) - gap;
   const startX = clamp(L.W / 2 - totalW / 2, 8, Math.max(8, L.W - totalW - 8));
   let x = startX;
@@ -227,7 +238,15 @@ function drawFarmView(c: CanvasRenderingContext2D, L: BandLayout): void {
   drawSoil(c, L);
   drawDecor(c, L, store.user?.equippedDecor);
   for (const s of L.slots) {
-    const crop = store.crops[String(s.i)];
+    const key = String(s.i);
+    if (store.weeds[key]) {
+      drawShadow(c, s.cx, L.soilY, L.slotW);
+      drawWeed(c, L, s);
+      const pulled = weedPullClicks[key] ?? 0;
+      if (pulled > 0) drawStealPips(c, L, s, pulled, BALANCE.weed.removeClicks);
+      continue;
+    }
+    const crop = store.crops[key];
     if (!crop) {
       if (hudT > 0.3) drawEmptyMarker(c, L, s);
       continue;
@@ -315,6 +334,50 @@ function drawEmptyMarker(c: CanvasRenderingContext2D, L: BandLayout, s: Slot): v
   c.lineTo(s.cx, cy + r);
   c.stroke();
   c.globalAlpha = 1;
+}
+
+// ── Weeds (raider griefing: clutter an empty slot; owner clicks to pull) ──────────
+// Owner-side pull progress is local (resets on reload) — it just gates the final remove.
+const weedPullClicks: Record<string, number> = {};
+
+function drawWeed(c: CanvasRenderingContext2D, L: BandLayout, s: Slot): void {
+  const x = s.cx;
+  const y = L.soilY;
+  const up = L.dir; // -1 = grows up (bottom dock), +1 = down (top dock)
+  const h = 9 * L.scale;
+  const sway = Math.sin(store.now / 700 + s.i) * 1.2 * L.scale;
+  c.save();
+  c.strokeStyle = "#5d8a39";
+  c.lineWidth = Math.max(1, 1.4 * L.scale);
+  c.lineCap = "round";
+  for (const a of [-0.55, -0.2, 0.2, 0.55]) {
+    c.beginPath();
+    c.moveTo(x, y);
+    c.quadraticCurveTo(x + a * 5 * L.scale, y + up * h * 0.6, x + a * 9 * L.scale + sway, y + up * h);
+    c.stroke();
+  }
+  c.beginPath();
+  c.moveTo(x, y);
+  c.lineTo(x + sway * 0.4, y + up * h * 1.15);
+  c.stroke();
+  c.restore();
+}
+
+/** Faint "+" on an empty slot during a raid — telegraphs that you can plant a weed here. */
+function drawWeedTargetHint(c: CanvasRenderingContext2D, L: BandLayout, s: Slot): void {
+  c.save();
+  c.globalAlpha = 0.22;
+  c.strokeStyle = "#5d8a39";
+  c.lineWidth = 1;
+  const y = L.soilY + L.dir * 6 * L.scale;
+  const r = 3 * L.scale;
+  c.beginPath();
+  c.moveTo(s.cx - r, y);
+  c.lineTo(s.cx + r, y);
+  c.moveTo(s.cx, y - r);
+  c.lineTo(s.cx, y + r);
+  c.stroke();
+  c.restore();
 }
 
 function cropOverrides(tier: number): Record<string, string> {
@@ -417,20 +480,26 @@ function drawRaidingView(c: CanvasRenderingContext2D, L: BandLayout): void {
   drawThemeBg(c, L, raid.targetTheme);
   drawSoil(c, L);
   drawDecor(c, L, raid.targetDecor);
-  const entries = Object.entries(raid.targetCrops || {});
   const need = raid.cropClicks ?? 3;
-  for (let i = 0; i < L.slots.length; i++) {
-    const e = entries[i];
-    if (!e) continue;
-    const [slotKey, crop] = e;
-    const st = stageOf(crop.plantedAt, crop.tier, store.now);
-    const s = L.slots[i];
-    drawShadow(c, s.cx, L.soilY, L.slotW);
-    c.save();
-    if (st !== "ripe") c.globalAlpha = 0.4;
-    drawCropAt(c, L, s, crop.tier, st);
-    c.restore();
-    if (st === "ripe") drawStealPips(c, L, s, raid.stealProgress?.[slotKey] ?? 0, need);
+  let ripeLeft = 0;
+  for (const s of L.slots) {
+    const key = String(s.i);
+    const crop = raid.targetCrops?.[key];
+    if (crop) {
+      const st = stageOf(crop.plantedAt, crop.tier, store.now);
+      if (st === "ripe") ripeLeft++;
+      drawShadow(c, s.cx, L.soilY, L.slotW);
+      c.save();
+      if (st !== "ripe") c.globalAlpha = 0.4;
+      drawCropAt(c, L, s, crop.tier, st);
+      c.restore();
+      if (st === "ripe") drawStealPips(c, L, s, raid.stealProgress?.[key] ?? 0, need);
+    } else if (raid.targetWeeds?.[key]) {
+      drawShadow(c, s.cx, L.soilY, L.slotW);
+      drawWeed(c, L, s);
+    } else {
+      drawWeedTargetHint(c, L, s); // empty → click to plant a weed
+    }
   }
 
   // The defender's cursor — DODGE it. A pulsing danger ring telegraphs its catch radius.
@@ -450,13 +519,12 @@ function drawRaidingView(c: CanvasRenderingContext2D, L: BandLayout): void {
 
   drawEffects(c, L);
 
-  // header: looted total + ripe remaining
-  const ripeLeft = entries.filter(([, cr]) => stageOf(cr.plantedAt, cr.tier, store.now) === "ripe").length;
+  // header: looted total + ripe remaining (+ weed hint)
   c.fillStyle = "#ffe9a8";
   c.font = `bold 12px ${FONT}`;
   c.textBaseline = "top";
   c.textAlign = "left";
-  c.fillText(`💰 +${raid.stolenCoins ?? 0} · 익은작물 ${ripeLeft} (작물당 ${need}클릭)`, 10, L.bandY + 3);
+  c.fillText(`💰 +${raid.stolenCoins ?? 0} · 익은작물 ${ripeLeft} (작물당 ${need}클릭) · 빈칸 클릭=잡초 심기`, 10, L.bandY + 3);
 
   drawRaiderHP(c, L);
   drawRaidProgress(c, L, "#e8b94a");
@@ -504,7 +572,13 @@ function drawDefendingView(c: CanvasRenderingContext2D, L: BandLayout): void {
   c.strokeRect(1, L.bandY + 1, L.W - 2, L.bandH - 2);
   c.globalAlpha = 1;
   for (const s of L.slots) {
-    const crop = store.crops[String(s.i)];
+    const key = String(s.i);
+    if (store.weeds[key]) {
+      drawShadow(c, s.cx, L.soilY, L.slotW);
+      drawWeed(c, L, s);
+      continue;
+    }
+    const crop = store.crops[key];
     if (!crop) continue;
     const st = stageOf(crop.plantedAt, crop.tier, store.now);
     drawShadow(c, s.cx, L.soilY, L.slotW);
@@ -763,17 +837,19 @@ function onClick(e: MouseEvent): void {
       void cancelRaid();
       return;
     }
-    // Click a ripe crop column to chip away at stealing it.
-    const entries = Object.entries(store.raid.targetCrops || {});
-    for (let i = 0; i < L.slots.length; i++) {
-      const e = entries[i];
-      if (!e) continue;
-      const s = L.slots[i];
+    // Click a ripe crop to chip away at stealing it; click an empty slot to plant a weed.
+    for (const s of L.slots) {
       if (Math.abs(x - s.cx) <= L.slotW / 2 && Math.abs(y - (L.soilY - L.maxCropPx / 2)) <= L.maxCropPx) {
-        const [slotKey, crop] = e;
-        if (stageOf(crop.plantedAt, crop.tier, store.now) === "ripe") {
-          addEffect("pop", s.cx, L.soilY - 12 * L.scale);
-          void registerStealClick(slotKey);
+        const key = String(s.i);
+        const crop = store.raid.targetCrops?.[key];
+        if (crop) {
+          if (stageOf(crop.plantedAt, crop.tier, store.now) === "ripe") {
+            addEffect("pop", s.cx, L.soilY - 12 * L.scale);
+            void registerStealClick(key);
+          }
+        } else if (!store.raid.targetWeeds?.[key] && store.raid.targetUid) {
+          addEffect("poof", s.cx, L.soilY);
+          void plantWeed(store.raid.targetUid, s.i);
         }
         return;
       }
@@ -826,7 +902,26 @@ function handleButton(id: string): void {
 
 async function handleSlotClick(L: BandLayout, s: Slot): Promise<void> {
   const uid = store.uid;
-  const crop = store.crops[String(s.i)];
+  const key = String(s.i);
+
+  // A raider-planted weed blocks the slot — click it removeClicks times to pull it.
+  if (store.weeds[key]) {
+    const need = BALANCE.weed.removeClicks;
+    const n = (weedPullClicks[key] ?? 0) + 1;
+    addEffect("pop", s.cx, L.soilY - 6 * L.scale);
+    if (n >= need) {
+      delete weedPullClicks[key];
+      await removeWeed(s.i);
+      addEffect("poof", s.cx, L.soilY);
+      toast("잡초를 뽑았어요! 🌿");
+    } else {
+      weedPullClicks[key] = n;
+      toast(`잡초 뽑는 중… ${need - n}번 더!`);
+    }
+    return;
+  }
+
+  const crop = store.crops[key];
   if (!crop) {
     const ok = await plant(uid, s.i, store.selectedSeedTier);
     if (ok) addEffect("poof", s.cx, L.soilY);

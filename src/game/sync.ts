@@ -1,6 +1,13 @@
 import { onValue } from "firebase/database";
 import { r, paths } from "../firebase/db";
-import { store, markPanelsDirty, type UserRecord, type CropData, type LeftMessage } from "../state";
+import {
+  store,
+  markPanelsDirty,
+  type UserRecord,
+  type CropData,
+  type WeedData,
+  type LeftMessage,
+} from "../state";
 
 /** Subscribe to my own record, crops and messages so the strip stays live. */
 export function subscribeSelf(uid: string): void {
@@ -13,6 +20,11 @@ export function subscribeSelf(uid: string): void {
 
   onValue(r(paths.crops(uid)), (snap) => {
     store.crops = (snap.val() as Record<string, CropData>) || {};
+  });
+
+  onValue(r(paths.weeds(uid)), (snap) => {
+    store.weeds = (snap.val() as Record<string, WeedData>) || {};
+    markPanelsDirty();
   });
 
   onValue(r(paths.messages(uid)), (snap) => {

@@ -9,6 +9,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.2.3",
+    date: "2026-06-29",
+    items: [
+      "🌿 레이드 중 친구 밭의 빈칸에 잡초를 심어 훼방 놓을 수 있어요 — 주인은 5번 클릭해야 뽑고 다시 심을 수 있어요!",
+    ],
+  },
+  {
     version: "0.2.2",
     date: "2026-06-29",
     items: [

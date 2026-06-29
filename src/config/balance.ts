@@ -72,6 +72,12 @@ export const BALANCE = {
     evictHitRadius: 28, // CSS px: a defender click within this of the raider ghost counts as a hit
   },
 
+  weed: {
+    // Raiders can plant a weed in an empty slot of the victim's plot. The owner must click it this
+    // many times to pull it before the slot can be replanted.
+    removeClicks: 5,
+  },
+
   chat: {
     // Single global "village" room. No Cloud Functions → no server-side pruning; readers only
     // pull the most recent `keep` messages and the node grows slowly (fine for a friends game).

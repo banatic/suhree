@@ -11,6 +11,11 @@ export interface CropData {
   plantedAt: number;
 }
 
+export interface WeedData {
+  by: string; // uid of the raider who planted this weed
+  at: number;
+}
+
 export interface FriendData {
   uid: string;
   nickname: string;
@@ -75,6 +80,8 @@ export interface RaidState {
   targetUid?: string;
   targetNick?: string;
   targetCrops?: Record<string, CropData>;
+  targetWeeds?: Record<string, WeedData>; // weeds already in the victim's plot (can't double-plant)
+  targetPlotSize?: number; // victim's plot size — the raid view shows THEIR slots
   targetDecor?: string; // the victim's equipped decor/theme — so the raider sees their decorated farm
   targetTheme?: string;
   ownerCursor?: { x: number; y: number }; // smoothed defender ghost (band-normalised 0..1) — DODGE this
@@ -104,6 +111,7 @@ export type PanelKind =
   | "cosmetics"
   | "dex"
   | "raidlog"
+  | "spy"
   | "settings";
 
 export interface Store {
@@ -111,6 +119,7 @@ export interface Store {
   uid: string;
   user: UserRecord | null;
   crops: Record<string, CropData>;
+  weeds: Record<string, WeedData>; // weeds raiders planted in MY plot (slot → weed)
   friends: FriendData[];
   messages: LeftMessage[];
   chat: ChatMessage[];
@@ -130,6 +139,7 @@ export const store: Store = {
   uid: "",
   user: null,
   crops: {},
+  weeds: {},
   friends: [],
   messages: [],
   chat: [],
