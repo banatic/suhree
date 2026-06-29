@@ -9,6 +9,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.2.2",
+    date: "2026-06-29",
+    items: [
+      "🌾 서버 전체의 서리 기록을 볼 수 있는 페이지가 생겼어요 — 누가 누구 밭을 털었는지 한눈에!",
+    ],
+  },
+  {
     version: "0.2.1",
     date: "2026-06-29",
     items: [
