@@ -86,6 +86,7 @@ const HUD_LABELS: { id: string; label: string }[] = [
   { id: "messages", label: "쪽지" },
   { id: "cosmetics", label: "꾸미기" },
   { id: "dex", label: "도감" },
+  { id: "raidlog", label: "서리기록" },
   { id: "settings", label: "설정" },
 ];
 

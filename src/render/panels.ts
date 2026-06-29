@@ -530,6 +530,45 @@ function rankingPanel(): HTMLElement {
   return wrap;
 }
 
+// ── Server-wide 서리 기록 (steal feed) ───────────────────────────────────────────
+
+function raidlogPanel(): HTMLElement {
+  const wrap = el("div", { class: "panel-body" });
+  wrap.append(el("div", { class: "muted" }, "서버 전체의 서리 기록이에요 (최근순)."));
+
+  const card = el("div", { class: "card chat-list" });
+  if (store.raidlog.length === 0) {
+    card.append(el("div", { class: "muted" }, "아직 서리 기록이 없어요. 평화로운 마을이네요 🌱"));
+  } else {
+    // newest first
+    for (const e of [...store.raidlog].reverse()) {
+      const iRaided = e.raider === store.uid;
+      const iWasRobbed = e.victim === store.uid;
+      const raider = iRaided ? "나" : e.raiderNick || "농부";
+      const victim = iWasRobbed ? "나" : e.victimNick || "농부";
+      const cls = "raidlog-row" + (iRaided ? " me-raider" : iWasRobbed ? " me-victim" : "");
+      card.append(
+        el(
+          "div",
+          { class: cls },
+          el(
+            "div",
+            { class: "grow" },
+            el("b", {}, raider),
+            document.createTextNode(" 🌾 "),
+            el("b", {}, victim),
+            document.createTextNode(`님의 밭 · 작물 ${e.count}개`),
+          ),
+          el("span", { class: "raidlog-coin" }, `+${e.coins}💰`),
+          el("span", { class: "chat-time" }, fmtChatTime(e.at)),
+        ),
+      );
+    }
+  }
+  wrap.append(card);
+  return wrap;
+}
+
 function messagesPanel(): HTMLElement {
   const wrap = el("div", { class: "panel-body" });
   if (store.messages.length === 0) {
@@ -740,6 +779,7 @@ const TITLES: Record<PanelKind, string> = {
   messages: "쪽지함",
   cosmetics: "꾸미기",
   dex: "도감",
+  raidlog: "서리 기록",
   settings: "설정",
 };
 
@@ -775,6 +815,9 @@ export function renderPanels(): void {
       break;
     case "dex":
       body = dexPanel();
+      break;
+    case "raidlog":
+      body = raidlogPanel();
       break;
     case "settings":
       body = settingsPanel();

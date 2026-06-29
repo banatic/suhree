@@ -30,6 +30,7 @@ import { getCooldownRemaining, setCooldown, markFriendCooldown } from "./cooldow
 import { startRaiderCursorSub, startDefenderCursorSub, stopCursorSub } from "./cursorStream";
 import { playAlarm, playSteal, playWin } from "./alarm";
 import { promptLootNote } from "../render/lootNote";
+import { logRaid } from "../firebase/raidlog";
 
 let raidNodeSub: Unsubscribe | null = null;
 let defenseSub: Unsubscribe | null = null;
@@ -105,6 +106,7 @@ export async function startRaid(targetUid: string, targetNick: string): Promise<
     cropClicks,
     stealProgress: {},
     stolenCoins: 0,
+    stolenCount: 0,
     evictHits: 0,
     evictHitsNeeded: evictResist,
     startedAt,
@@ -145,6 +147,7 @@ export async function registerStealClick(slotKey: string): Promise<void> {
   delete raid.stealProgress[slotKey];
   const value = Math.floor(sellValue(crop.tier) * BALANCE.raidGame.stealValueFraction); // today's price
   raid.stolenCoins = (raid.stolenCoins ?? 0) + value;
+  raid.stolenCount = (raid.stolenCount ?? 0) + 1;
   const targetUid = raid.targetUid!;
   try {
     await remove(r(paths.crop(targetUid, slotKey)));
@@ -219,6 +222,9 @@ async function finishThiefRaid(reason: "fled" | "evicted" | "timeout" | "cleared
   else if (reason === "timeout") toast(`시간 초과로 도주${tail} · 쿨다운 ${mins}분`);
   else if (reason === "cleared") toast(`밭을 싹 털었다!${tail} · 쿨다운 ${mins}분`);
   else toast(`도망쳤다!${tail} · 쿨다운 ${mins}분`);
+
+  // Record the steal in the server-wide 서리 feed (one append per looted raid).
+  if (looted > 0) void logRaid(targetUid, targetNick, looted, raid.stolenCount ?? 0);
 
   // Stole at least one crop → let the raider hand-write a parting note. The DB rule requires the
   // raid lock to still be held to write into the victim's messages, so we keep the lock until the

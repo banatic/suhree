@@ -22,6 +22,7 @@ export const paths = {
   cooldown: (targetUid: string, raiderUid: string) => `cooldowns/${targetUid}/${raiderUid}`,
   messages: (uid: string) => `messages/${uid}`,
   chat: () => `chat`,
+  raidlog: () => `raidlog`,
 };
 
 export function r(path: string): DatabaseReference {

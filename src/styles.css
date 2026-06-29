@@ -266,6 +266,32 @@ body {
   vertical-align: middle;
 }
 
+/* ── 서리 기록 (server-wide steal feed) ───────────────────── */
+
+.raidlog-row {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  font-size: 12px;
+  line-height: 1.35;
+  padding: 2px 0;
+}
+
+.raidlog-row.me-raider {
+  color: #3f7a30; /* I did the robbing */
+}
+
+.raidlog-row.me-victim {
+  color: #b5402e; /* I got robbed */
+}
+
+.raidlog-coin {
+  flex: 0 0 auto;
+  font-weight: bold;
+  color: #b5651d;
+  white-space: nowrap;
+}
+
 /* ── Chat ──────────────────────────────────────────────── */
 
 .chat-list {

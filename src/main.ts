@@ -6,6 +6,7 @@ import { initServerTime } from "./firebase/time";
 import { subscribeSelf } from "./game/sync";
 import { subscribeFriends } from "./friends/list";
 import { subscribeChat } from "./firebase/chat";
+import { subscribeRaidLog } from "./firebase/raidlog";
 import { startDefenseWatch } from "./raid/controller";
 import { startLoop } from "./game/loop";
 import { setupStripInteractions, publishHitRegions } from "./render/strip";
@@ -76,6 +77,7 @@ async function boot(): Promise<void> {
     subscribeSelf(uid);
     subscribeFriends(uid);
     subscribeChat();
+    subscribeRaidLog();
     startDefenseWatch(uid);
 
     store.ready = true;

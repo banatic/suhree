@@ -131,6 +131,21 @@
         "at": { ".validate": "newData.isNumber()" },
         "$other": { ".validate": false }
       }
+    },
+
+    "raidlog": {
+      ".read": "auth != null",
+      "$id": {
+        ".write": "auth != null && !data.exists() && newData.child('raider').val() === auth.uid",
+        "raider": { ".validate": "newData.isString() && newData.val() === auth.uid" },
+        "raiderNick": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16" },
+        "victim": { ".validate": "newData.isString()" },
+        "victimNick": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16" },
+        "coins": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "count": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "at": { ".validate": "newData.isNumber()" },
+        "$other": { ".validate": false }
+      }
     }
   }
 }

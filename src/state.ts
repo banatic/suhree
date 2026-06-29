@@ -31,6 +31,17 @@ export interface ChatMessage {
   at: number;
 }
 
+export interface RaidLogEntry {
+  id: string;
+  raider: string; // raider uid
+  raiderNick: string;
+  victim: string; // victim uid
+  victimNick: string;
+  coins: number; // total looted this raid
+  count: number; // crops stolen this raid
+  at: number;
+}
+
 export interface UserRecord {
   nickname: string;
   friendCode: string;
@@ -70,6 +81,7 @@ export interface RaidState {
   cropClicks?: number; // clicks needed to steal one ripe crop (from levels)
   stealProgress?: Record<string, number>; // slot → clicks landed so far
   stolenCoins?: number; // running total looted this raid
+  stolenCount?: number; // crops fully stolen this raid (for the 서리 log)
   // defending (my plot is being robbed): click the raider's cursor to evict.
   raiderUid?: string;
   raiderNick?: string;
@@ -91,6 +103,7 @@ export type PanelKind =
   | "messages"
   | "cosmetics"
   | "dex"
+  | "raidlog"
   | "settings";
 
 export interface Store {
@@ -103,6 +116,7 @@ export interface Store {
   chat: ChatMessage[];
   chatUnread: boolean;
   chatNotify: boolean; // show the corner popup for new chat messages
+  raidlog: RaidLogEntry[]; // server-wide 서리 feed (newest last)
   geometry: StripGeometry | null;
   hiddenFullscreen: boolean;
   selectedSeedTier: number;
@@ -121,6 +135,7 @@ export const store: Store = {
   chat: [],
   chatUnread: false,
   chatNotify: localStorage.getItem(CHAT_NOTIFY_KEY) !== "0", // default on; "0" means muted
+  raidlog: [],
   geometry: null,
   hiddenFullscreen: false,
   selectedSeedTier: 0,

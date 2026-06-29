@@ -80,6 +80,12 @@ export const BALANCE = {
     cooldownMs: 800, // local anti-spam between sends
   },
 
+  raidLog: {
+    // Server-wide 서리(steal) feed: one append per raid that looted >0 coins. Spark-friendly like
+    // chat — no server pruning, readers only pull the most recent `keep` entries (limitToLast).
+    keep: 50,
+  },
+
   crops: {
     // A 16-tier ladder. ROI (harvest/price) holds ~2.5–3.0× across tiers while coins/second rises
     // with tier, so higher seeds reward more capital + attention (and carry more raid risk).
