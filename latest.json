@@ -1,11 +1,11 @@
 {
-    "version": "0.2.3",
-    "notes": "레이드 중 친구 밭의 빈칸에 잡초를 심어 훼방 놓을 수 있어요. (주인은 5번 클릭해야 뽑아요)",
-    "pub_date": "2026-06-29T05:47:47.987Z",
+    "version": "0.2.4",
+    "notes": "💬 서리 결과(성공·실패)가 마을 채팅에도 떠요.\n🏷️ 채팅에서는 칭호를 숨겨 닉네임이 잘리지 않아요.",
+    "pub_date": "2026-06-29T23:38:21.334Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkF0S3pQNGl2NFZXZHZEYlVORFpwbVJxTkQ3dG5zNitLcENRU2JTajFPMGs0M0lqM2EwMEFlKzFlZzN6aWNTbERuRkxxeGpiczJRQUFRdUdhWWpheHdRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyNzEyMTkyCWZpbGU6c3VocmVlXzAuMi4zX3g2NF9lbi1VUy5tc2kKclZPZTJIaVF1OTQ4UUxhRW5BSGFDZkNZc3dKamtsblltQjM4OGlYa1pldVN5eHc3anlKQ1BId2h5SDhGODNIQWhZR1Q2TnNOQzR3QkltdGg1MlZ2Q1E9PQo=",
-            "url": "https://github.com/banatic/suhree/releases/download/v0.2.3/suhree_0.2.3_x64_en-US.msi"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMko0UG0vcGZPOVUzVklYUE1PVDZvMkFFdHFRNlNFa3FyNWhHaU8wM3RURU5yN1d6cm1pUUkrSTdoMFFmVzhaL1dkYzBydU1kdjgzOStHMktTdllTeEFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyNzc2NDI0CWZpbGU6c3VocmVlXzAuMi40X3g2NF9lbi1VUy5tc2kKOHpxMVB6SWwvOG9FOXdHWWZITFdHVG9PdnBITklUT05ITHdDSCtReFFGM0Y1dmNwbHF0SEFCbnYyTEJLUjNJQWs1d1pZckRIbGVxWElITjk2SUovREE9PQo=",
+            "url": "https://github.com/banatic/suhree/releases/download/v0.2.4/suhree_0.2.4_x64_en-US.msi"
         }
     }
 }
