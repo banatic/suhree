@@ -1,11 +1,11 @@
 {
-    "version": "0.1.9",
-    "notes": "온라인 표시 안정화 (백그라운드에서도 친구가 오프라인으로 잘못 뜨던 문제 수정)",
-    "pub_date": "2026-06-25T00:48:16.797Z",
+    "version": "0.2.1",
+    "notes": "꾸미기 대개편(밭 배경 테마·칭호·새 장식)과 친구 밭 구경, 작물 16종(최대 50분 장시간 작물), 채팅 알림 토글이 추가됐어요.",
+    "pub_date": "2026-06-29T02:14:07.844Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkRUK1pyS2d6S2M0QkM4U1ZDejZabDQ0S29BOVhQR1NoOWVuSG53Z01hcGtZa0NmQzVUT1JkeWZpcDB4NlA0QlBMSGF0d0hDYVM3WDVkdEgyNzd2ZWdNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyMzQ4NTkyCWZpbGU6c3VocmVlXzAuMS45X3g2NF9lbi1VUy5tc2kKWHFEbGNDT0VBTldBQldCSkg4VnZMSzlnSGtrdEorQ2d0dE1wcitKczR5SUFueDU0Sm9USCtJZm9EUDAxVTNBSUxhdkpRZnMvZC9ZbTFZbG1vZlY0QkE9PQo=",
-            "url": "https://github.com/banatic/suhree/releases/download/v0.1.9/suhree_0.1.9_x64_en-US.msi"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMlBITytCL0FPWXJOSGhKMTMzZGFoRWVGbTBXbkZrQ20wamlKdkVjbVBGRzRPM0NFUURNUXk1WDNzVjZtZ0VYNC9Yek9waVl2eVhMNDliMUlEQ3pIcUFnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyNjk5MzYwCWZpbGU6c3VocmVlXzAuMi4xX3g2NF9lbi1VUy5tc2kKc3BKdTJoaVV2elY5SndxVldlYWQrcndIYXlsU20yaUN1Vk00Wm9ORnFkcWZHN2pZT014cktVV1pIWEtjR3FuampGWTNCZjlrdUdLeStRZ3BrUHlCQ0E9PQo=",
+            "url": "https://github.com/banatic/suhree/releases/download/v0.2.1/suhree_0.2.1_x64_en-US.msi"
         }
     }
 }
