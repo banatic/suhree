@@ -93,7 +93,11 @@ export function subscribeFriends(uid: string): void {
         nickname: u.nickname || "농부",
         friendCode: u.friendCode || "",
         online: isOnline(fuid), // derive from the last known presence, not a stale cache
+        coins: typeof u.coins === "number" ? u.coins : 0,
         cooldownUntil: store.friends.find((x) => x.uid === fuid)?.cooldownUntil,
+        equippedDecor: u.equippedDecor || "decor_none",
+        equippedTheme: u.equippedTheme || "theme_day",
+        equippedTitle: u.equippedTitle || "title_none",
       });
     }
     store.friends = list;

@@ -4,6 +4,8 @@ import { db } from "./app";
 export const paths = {
   user: (uid: string) => `users/${uid}`,
   userCoins: (uid: string) => `users/${uid}/coins`,
+  dexTier: (uid: string, tier: number) => `users/${uid}/dex/${tier}`,
+  dexClaimed: (uid: string) => `users/${uid}/dexClaimed`,
   friendCode: (code: string) => `friendCodes/${code}`,
   presence: (uid: string) => `presence/${uid}`,
   presenceConnections: (uid: string) => `presence/${uid}/connections`,
@@ -14,9 +16,12 @@ export const paths = {
   crop: (uid: string, slot: string | number) => `plots/${uid}/crops/${slot}`,
   raid: (targetUid: string) => `raids/${targetUid}`,
   raidCursor: (targetUid: string) => `raids/${targetUid}/ownerCursor`,
+  raidRaiderCursor: (targetUid: string) => `raids/${targetUid}/raiderCursor`,
   raidEvicted: (targetUid: string) => `raids/${targetUid}/evicted`,
+  raidEvictHits: (targetUid: string) => `raids/${targetUid}/evictHits`,
   cooldown: (targetUid: string, raiderUid: string) => `cooldowns/${targetUid}/${raiderUid}`,
   messages: (uid: string) => `messages/${uid}`,
+  chat: () => `chat`,
 };
 
 export function r(path: string): DatabaseReference {

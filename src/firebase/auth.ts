@@ -64,6 +64,8 @@ export async function ensureUserRecord(uid: string, nickname: string): Promise<U
     plotSize: BALANCE.shop.plotExpansion.startSlots,
     equippedDecor: "decor_none",
     equippedMsgSkin: "skin_plain",
+    equippedTheme: "theme_day",
+    equippedTitle: "title_none",
   };
   await set(r(paths.user(uid)), record);
   return record;

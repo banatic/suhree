@@ -20,9 +20,20 @@ export async function isOnCooldown(targetUid: string, raiderUid: string): Promis
   return (await getCooldownRemaining(targetUid, raiderUid)) > 0;
 }
 
-export async function setCooldown(targetUid: string, raiderUid: string): Promise<void> {
-  // Server stamp is the single source of truth; the per-friend subscription reflects it everywhere.
-  await set(r(paths.cooldown(targetUid, raiderUid)), serverTimestamp());
+export async function setCooldown(
+  targetUid: string,
+  raiderUid: string,
+  durationMs: number = BALANCE.raid.cooldownMs,
+): Promise<void> {
+  // Everywhere computes `remaining = stamp + cooldownMs − now`, so a SHORTER cooldown is stored by
+  // back-dating the start stamp by exactly (cooldownMs − durationMs). The full cooldown still uses
+  // the authoritative server stamp.
+  if (durationMs >= BALANCE.raid.cooldownMs) {
+    await set(r(paths.cooldown(targetUid, raiderUid)), serverTimestamp());
+  } else {
+    const stamp = serverNow() - (BALANCE.raid.cooldownMs - durationMs);
+    await set(r(paths.cooldown(targetUid, raiderUid)), stamp);
+  }
 }
 
 /**

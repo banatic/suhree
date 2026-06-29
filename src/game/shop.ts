@@ -42,9 +42,11 @@ export async function buyLevel(uid: string, kind: "scarecrow" | "scythe"): Promi
   return true;
 }
 
+export type CosmeticType = "decor" | "msgSkin" | "theme" | "title";
+
 export async function buyCosmetic(
   uid: string,
-  type: "decor" | "msgSkin",
+  type: CosmeticType,
   id: string,
   price: number,
 ): Promise<boolean> {
@@ -65,16 +67,18 @@ export async function buyCosmetic(
   return true;
 }
 
-export async function equipCosmetic(
-  uid: string,
-  type: "decor" | "msgSkin",
-  id: string,
-): Promise<void> {
+const EQUIP_FIELD: Record<CosmeticType, "equippedDecor" | "equippedMsgSkin" | "equippedTheme" | "equippedTitle"> = {
+  decor: "equippedDecor",
+  msgSkin: "equippedMsgSkin",
+  theme: "equippedTheme",
+  title: "equippedTitle",
+};
+
+export async function equipCosmetic(uid: string, type: CosmeticType, id: string): Promise<void> {
   const u = store.user;
   if (!u) return;
-  const field = type === "decor" ? "equippedDecor" : "equippedMsgSkin";
+  const field = EQUIP_FIELD[type];
   await update(r(paths.user(uid)), { [field]: id });
-  if (type === "decor") u.equippedDecor = id;
-  else u.equippedMsgSkin = id;
+  u[field] = id;
   markPanelsDirty();
 }

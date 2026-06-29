@@ -415,8 +415,8 @@ if __name__ == "__main__":
     # ▼▼▼ 릴리스할 때 여기 notes 만 바꾸고 `npm run release` ▼▼▼
     #   version: "patch"(기본·자동 +0.0.1) / "minor" / "major" / "auto", 또는 "0.2.0" 처럼 명시.
     CONFIG = ReleaseConfig(
-        version="patch",  # 현재 버전에서 자동으로 패치 올림 (0.1.2 -> 0.1.3 -> ...)
-        notes="온라인 표시 안정화 (백그라운드에서도 친구가 오프라인으로 잘못 뜨던 문제 수정)",
+        version="0.2.1",  # 명시 버전 — package.json/Cargo.toml/tauri.conf.json 0.2.1로 일괄 변경
+        notes="꾸미기 대개편(밭 배경 테마·칭호·새 장식)과 친구 밭 구경, 작물 16종(최대 50분 장시간 작물), 채팅 알림 토글이 추가됐어요.",
         pub_date=None,  # None이면 현재 UTC 시간 사용
         skip_build=False,
         msi_path=None,

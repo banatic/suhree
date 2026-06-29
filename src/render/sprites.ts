@@ -207,22 +207,6 @@ export const RIPE_PUMPKIN: Sprite = {
   ],
 };
 
-export const WITHERED: Sprite = {
-  rows: [
-    "................",
-    ".......o........",
-    "......oMo.o.....",
-    ".......oMoo.....",
-    "........oMo.....",
-    ".......oMo......",
-    "......oMo.......",
-    ".......oo.......",
-    ".......o........",
-    ".......o........",
-    ".....ooooo......",
-  ],
-};
-
 // ── Props ──────────────────────────────────────────────────────────────────
 
 /** Thief "rummaging" paw — drawn over a crop while raiding. ('h' = tinted skin) */

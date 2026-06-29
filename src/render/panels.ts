@@ -1,4 +1,4 @@
-import { remove } from "firebase/database";
+import { remove, get } from "firebase/database";
 import {
   store,
   toast,
@@ -6,21 +6,48 @@ import {
   bandHeightCss,
   bandDock,
   coins,
+  setChatNotify,
   type PanelKind,
   type FriendData,
 } from "../state";
 import { BALANCE } from "../config/balance";
 import { r, paths } from "../firebase/db";
 import { serverNow } from "../firebase/time";
-import { buyPlotExpansion, buyLevel, buyCosmetic, equipCosmetic } from "../game/shop";
-import { levelCost, plotCost, raidSeconds } from "../game/levels";
+import { buyPlotExpansion, buyLevel, buyCosmetic, equipCosmetic, type CosmeticType } from "../game/shop";
+import { cosmeticOwned, lockReason } from "../game/unlocks";
+import { renderFarmPreview } from "./farmPreview";
+import type { CosmeticItem } from "../config/balance";
+import { levelCost, plotCost, cropClicksToSteal, evictHitsNeeded } from "../game/levels";
 import { addFriendByCode } from "../friends/add";
 import { setNickname } from "../firebase/auth";
 import { startRaid } from "../raid/controller";
-import { setPreferredMonitor } from "../platform/tauri";
+import { sendChat } from "../firebase/chat";
+import { setPreferredMonitor, isTauri } from "../platform/tauri";
 import { publishHitRegions } from "./strip";
+import { dismissChatPopup } from "./chatPopup";
+import { APP_VERSION } from "../version";
+import { CHANGELOG } from "../changelog";
+import { checkForUpdates } from "../update";
+import { sellValue, priceFactor, topCropTier } from "../game/market";
+import {
+  isDiscovered,
+  discoveredCount,
+  allDiscovered,
+  harvestedCount,
+  stolenTotal,
+  stolenBreakdown,
+  claimDexReward,
+} from "../game/dex";
 
 let panelEl: HTMLDivElement | null = null;
+
+// Chat keeps its own draft + a signature so the live refresher can update the message list in place
+// (rebuilding the whole panel would clobber whatever the user is typing).
+let chatListEl: HTMLDivElement | null = null;
+let chatDraft = "";
+let lastChatSig = "";
+// Chat auto-dismiss: once the mouse has entered the open chat panel, leaving it closes the panel.
+let chatHoverArmed = false;
 
 function ensurePanel(): HTMLDivElement {
   if (!panelEl) {
@@ -28,8 +55,18 @@ function ensurePanel(): HTMLDivElement {
     panelEl.id = "panel";
     panelEl.style.display = "none";
     document.getElementById("app")!.appendChild(panelEl);
-    // Tick cooldown labels in place (without rebuilding the panel → keeps input focus/text).
-    window.setInterval(refreshFriendCooldowns, 500);
+    // Chat panel auto-closes once the mouse enters it and then leaves (only the chat kind).
+    panelEl.addEventListener("mouseenter", () => {
+      if (store.ui.panel === "chat") chatHoverArmed = true;
+    });
+    panelEl.addEventListener("mouseleave", () => {
+      if (store.ui.panel === "chat" && chatHoverArmed) togglePanel("chat");
+    });
+    // Tick live bits in place (without rebuilding the panel → keeps input focus/text).
+    window.setInterval(() => {
+      refreshFriendCooldowns();
+      refreshChat();
+    }, 500);
   }
   return panelEl;
 }
@@ -58,6 +95,13 @@ function el(
 
 export function togglePanel(kind: PanelKind): void {
   store.ui.panel = store.ui.panel === kind ? "none" : kind;
+  if (store.ui.panel === "chat") {
+    store.chatUnread = false;
+    lastChatSig = ""; // force the message list to (re)render on open
+    dismissChatPopup(); // user is now reading — no need for the corner popup
+    chatHoverArmed = false; // re-arm only after the mouse enters the panel
+  }
+  if (store.ui.panel === "ranking") void refreshRankingCoins();
   renderPanels();
   publishHitRegions();
 }
@@ -79,6 +123,83 @@ function btn(label: string, onclick: () => void, cls = "btn"): HTMLElement {
   return el("button", { class: cls, onclick }, label);
 }
 
+// ── Cosmetic helpers (decor / theme / title sections + farm preview thumbnails) ──────
+
+// Canvas previews must be measured AFTER they're in the DOM (clientWidth is 0 before insert), so
+// we queue them while building the panel and flush right after renderPanels appends + shows it.
+let previewQueue: { canvas: HTMLCanvasElement; opts: { decor: string; theme: string; topTier?: number } }[] = [];
+
+function makeFarmPreview(
+  opts: { decor: string; theme: string; topTier?: number },
+  w = 120,
+  h = 40,
+): HTMLCanvasElement {
+  const cv = el("canvas", { class: "farm-preview", style: `width:${w}px;height:${h}px` }) as HTMLCanvasElement;
+  previewQueue.push({ canvas: cv, opts });
+  return cv;
+}
+
+function flushPreviews(): void {
+  const q = previewQueue;
+  previewQueue = [];
+  for (const { canvas, opts } of q) renderFarmPreview(canvas, opts);
+}
+
+function rarityColor(r?: string): string {
+  switch (r) {
+    case "희귀":
+      return "#3b82c4";
+    case "영웅":
+      return "#9b59b6";
+    case "전설":
+      return "#e0a52e";
+    default:
+      return "#8a7a5c"; // 일반
+  }
+}
+
+function titleLabelOf(id: string | undefined): string {
+  const t = BALANCE.cosmetics.titles.find((x) => x.id === id);
+  return t ? t.label : "";
+}
+
+/** Decorate a nick with its owner's title chip: "[칭호] 닉" (no chip when the title is empty). */
+function nickWithTitle(nick: string, titleId: string | undefined): HTMLElement {
+  const label = titleLabelOf(titleId);
+  const span = el("span", { class: "grow" });
+  if (label) span.append(el("span", { class: "title-chip" }, label));
+  span.append(document.createTextNode(nick));
+  return span;
+}
+
+/** One buy/equip card for a family of cosmetics (decor, theme, title, msgSkin). */
+function cosmeticSection(
+  uid: string,
+  type: CosmeticType,
+  title: string,
+  items: readonly CosmeticItem[],
+  equippedId: string | undefined,
+): HTMLElement {
+  const card = el("div", { class: "card" }, el("div", { class: "card-title" }, title));
+  for (const it of items) {
+    const owned = cosmeticOwned(it);
+    const equipped = equippedId === it.id;
+    const lock = lockReason(it);
+    const kids: (Node | string)[] = [el("span", { class: "grow" }, it.label || "없음")];
+    if (it.rarity) {
+      kids.push(
+        el("span", { class: "small", style: `color:${rarityColor(it.rarity)};font-weight:bold` }, it.rarity),
+      );
+    }
+    if (equipped) kids.push(el("span", { class: "muted" }, "사용중"));
+    else if (owned) kids.push(btn("사용", () => void equipCosmetic(uid, type, it.id)));
+    else if (lock) kids.push(el("span", { class: "muted small" }, "🔒 " + lock));
+    else kids.push(btn(`구매 (${it.price})`, () => void buyCosmetic(uid, type, it.id, it.price)));
+    card.append(row(...kids));
+  }
+  return card;
+}
+
 // ── Panels ───────────────────────────────────────────────────────────────────
 
 function shopPanel(): HTMLElement {
@@ -86,15 +207,28 @@ function shopPanel(): HTMLElement {
   const u = store.user;
   const wrap = el("div", { class: "panel-body" });
   wrap.append(el("div", { class: "muted" }, "씨앗은 밭의 빈 칸을 눌러 심어요. 아래로 강화/확장하세요."));
+  wrap.append(
+    el(
+      "div",
+      { class: "muted small" },
+      `📈 오늘의 시세 (자정 KST 갱신) · 인기작물: ${BALANCE.crops.tiers[topCropTier()]?.label ?? ""}`,
+    ),
+  );
 
-  // seeds info
+  // seeds info — buy price is fixed; "오늘" shows today's sell price (base × market factor).
   const seeds = el("div", { class: "card" }, el("div", { class: "card-title" }, "씨앗"));
   for (const t of BALANCE.crops.tiers) {
+    const up = priceFactor(t.id) >= 1;
     seeds.append(
       row(
         el("span", { class: "dot", style: `background:${t.color}` }),
         el("span", { class: "grow" }, `${t.label}`),
-        el("span", { class: "muted" }, `씨 ${t.price} · 수확 ${t.harvestValue}`),
+        el("span", { class: "muted small" }, `씨 ${t.price} · 수확 ${t.harvestValue}`),
+        el(
+          "span",
+          { class: "small", style: `color:${up ? "#3f7a30" : "#b5402e"};font-weight:bold` },
+          `→ ${sellValue(t.id)} ${up ? "📈" : "📉"}`,
+        ),
         btn("선택", () => {
           store.selectedSeedTier = t.id;
           toast(`씨앗 선택: ${t.label}`);
@@ -122,31 +256,37 @@ function shopPanel(): HTMLElement {
       ),
     );
 
-    // scarecrow (defense)
+    // scarecrow (defense): tougher crops + faster catch
     const scCost = levelCost("scarecrow", u.scarecrowLv);
-    const defT = raidSeconds(u.scarecrowLv, 0);
     wrap.append(
       el(
         "div",
         { class: "card" },
         el("div", { class: "card-title" }, "허수아비 (방어)"),
         row(
-          el("span", { class: "grow" }, `Lv ${u.scarecrowLv} · 내 밭 기본 T≈${defT.toFixed(1)}s`),
+          el(
+            "span",
+            { class: "grow" },
+            `Lv ${u.scarecrowLv} · 내 작물 1개당 도둑 ${cropClicksToSteal(u.scarecrowLv, 0)}클릭 · 추격 ${evictHitsNeeded(0, u.scarecrowLv)}타`,
+          ),
           btn(`강화 (${scCost})`, () => void buyLevel(uid, "scarecrow")),
         ),
       ),
     );
 
-    // scythe (attack)
+    // scythe (attack): faster stealing + slipperier when chased
     const syCost = levelCost("scythe", u.scytheLv);
-    const atkT = raidSeconds(0, u.scytheLv);
     wrap.append(
       el(
         "div",
         { class: "card" },
         el("div", { class: "card-title" }, "낫 (공격)"),
         row(
-          el("span", { class: "grow" }, `Lv ${u.scytheLv} · 무방비 상대 T≈${atkT.toFixed(1)}s`),
+          el(
+            "span",
+            { class: "grow" },
+            `Lv ${u.scytheLv} · 무방비 작물 ${cropClicksToSteal(0, u.scytheLv)}클릭에 털기 · 쫓겨나기 ${evictHitsNeeded(u.scytheLv, 0)}타`,
+          ),
           btn(`강화 (${syCost})`, () => void buyLevel(uid, "scythe")),
         ),
       ),
@@ -180,7 +320,8 @@ function friendsPanel(): HTMLElement {
     list.append(
       row(
         el("span", { class: "dot", style: `background:${f.online ? "#5fd07a" : "#777"}` }),
-        el("span", { class: "grow" }, f.nickname),
+        makeFarmPreview({ decor: f.equippedDecor || "decor_none", theme: f.equippedTheme || "theme_day" }, 72, 24),
+        nickWithTitle(f.nickname, f.equippedTitle),
         el(
           "button",
           { class: st.cls, "data-fuid": f.uid, onclick: () => void startRaid(f.uid, f.nickname) },
@@ -230,6 +371,165 @@ function refreshFriendCooldowns(): void {
   });
 }
 
+// ── Village chat (one global room) ──────────────────────────────────────────────
+
+function chatPanel(): HTMLElement {
+  const wrap = el("div", { class: "panel-body" });
+  wrap.append(el("div", { class: "muted" }, "모두가 함께 쓰는 마을 채팅이에요."));
+
+  // New-message popup on/off (persisted). Flipping it just re-renders the panel.
+  const cb = el("input", { type: "checkbox" }) as HTMLInputElement;
+  cb.checked = store.chatNotify;
+  cb.addEventListener("change", () => {
+    setChatNotify(cb.checked);
+    renderPanels();
+  });
+  wrap.append(
+    row(
+      el("span", { class: "grow" }, store.chatNotify ? "🔔 새 메시지 알림" : "🔕 새 메시지 알림"),
+      el("label", { class: "switch" }, cb, el("span", { class: "track" }), el("span", { class: "knob" })),
+    ),
+  );
+
+  chatListEl = el("div", { class: "chat-list" }) as HTMLDivElement;
+  renderChatList();
+  wrap.append(chatListEl);
+
+  const input = el("input", {
+    class: "input",
+    placeholder: "메시지 입력…",
+    maxLength: BALANCE.chat.maxLen,
+    value: chatDraft,
+    oninput: (e: any) => (chatDraft = e.target.value),
+  }) as HTMLInputElement;
+  const doSend = async (): Promise<void> => {
+    const text = chatDraft;
+    chatDraft = "";
+    input.value = "";
+    input.focus();
+    const ok = await sendChat(text);
+    if (!ok && text.trim()) toast("잠시 후 다시 보내주세요");
+  };
+  input.addEventListener("keydown", (e: KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      void doSend();
+    }
+  });
+  wrap.append(row(input, btn("보내기", () => void doSend())));
+  // First open: focus + jump to newest.
+  setTimeout(() => {
+    input.focus();
+    if (chatListEl) chatListEl.scrollTop = chatListEl.scrollHeight;
+  }, 0);
+  return wrap;
+}
+
+function chatSignature(): string {
+  const last = store.chat[store.chat.length - 1];
+  return `${store.chat.length}:${last ? last.id : ""}`;
+}
+
+/** "오전/오후 h:mm" for a chat line; empty if the server timestamp hasn't resolved yet. */
+function fmtChatTime(at: number): string {
+  if (!Number.isFinite(at) || at <= 0) return "";
+  const d = new Date(at);
+  const h = d.getHours();
+  const m = String(d.getMinutes()).padStart(2, "0");
+  const ap = h < 12 ? "오전" : "오후";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${ap} ${h12}:${m}`;
+}
+
+function renderChatList(): void {
+  if (!chatListEl) return;
+  const atBottom = chatListEl.scrollHeight - chatListEl.scrollTop - chatListEl.clientHeight < 24;
+  chatListEl.replaceChildren();
+  if (store.chat.length === 0) {
+    chatListEl.append(el("div", { class: "muted" }, "아직 메시지가 없어요. 먼저 인사해 보세요!"));
+  } else {
+    for (const m of store.chat) {
+      const mine = m.uid === store.uid;
+      // Titles aren't stored on the message (chat rule forbids extra fields) — derive from the
+      // sender's user record, which we only have for myself + friends. Others just show their nick.
+      const titleId = mine
+        ? store.user?.equippedTitle
+        : store.friends.find((f) => f.uid === m.uid)?.equippedTitle;
+      const tl = titleLabelOf(titleId);
+      const nickEl = el("span", { class: "chat-nick" });
+      if (tl) nickEl.append(el("span", { class: "title-chip" }, tl));
+      nickEl.append(document.createTextNode(mine ? "나" : m.nick || "농부"));
+      chatListEl.append(
+        el(
+          "div",
+          { class: `chat-msg${mine ? " me" : ""}` },
+          nickEl,
+          el("span", { class: "chat-text" }, m.text),
+          el("span", { class: "chat-time" }, fmtChatTime(m.at)),
+        ),
+      );
+    }
+  }
+  lastChatSig = chatSignature();
+  if (atBottom) chatListEl.scrollTop = chatListEl.scrollHeight;
+}
+
+/** Update the open chat panel's message list in place (driven by the 0.5s ticker). */
+function refreshChat(): void {
+  if (!panelEl || store.ui.panel !== "chat" || panelEl.style.display === "none") return;
+  if (!chatListEl || chatSignature() === lastChatSig) return;
+  renderChatList();
+}
+
+// ── Gold ranking (me + friends) ───────────────────────────────────────────────
+
+async function refreshRankingCoins(): Promise<void> {
+  await Promise.all(
+    store.friends.map(async (f) => {
+      try {
+        const v = (await get(r(paths.userCoins(f.uid)))).val();
+        if (typeof v === "number") f.coins = v;
+      } catch {
+        /* ignore */
+      }
+    }),
+  );
+  if (store.ui.panel === "ranking") renderPanels();
+}
+
+function rankingPanel(): HTMLElement {
+  const wrap = el("div", { class: "panel-body" });
+  wrap.append(el("div", { class: "muted" }, "나와 친구들의 골드 랭킹이에요."));
+
+  type Entry = { nick: string; coins: number; me: boolean; titleId?: string };
+  const rows: Entry[] = [
+    { nick: store.user?.nickname || "나", coins: coins(), me: true, titleId: store.user?.equippedTitle },
+    ...store.friends.map((f) => ({
+      nick: f.nickname,
+      coins: f.coins ?? 0,
+      me: false,
+      titleId: f.equippedTitle,
+    })),
+  ].sort((a, b) => b.coins - a.coins);
+
+  const card = el("div", { class: "card" });
+  const medals = ["🥇", "🥈", "🥉"];
+  rows.forEach((e, i) => {
+    card.append(
+      el(
+        "div",
+        { class: `rank-row${e.me ? " rank-me" : ""}` },
+        el("span", { class: "rank-num" }, medals[i] || `${i + 1}`),
+        nickWithTitle(e.nick + (e.me ? " (나)" : ""), e.titleId),
+        el("span", { class: "rank-coin" }, `${e.coins}💰`),
+      ),
+    );
+  });
+  wrap.append(card);
+  wrap.append(btn("새로고침", () => void refreshRankingCoins(), "btn small"));
+  return wrap;
+}
+
 function messagesPanel(): HTMLElement {
   const wrap = el("div", { class: "panel-body" });
   if (store.messages.length === 0) {
@@ -255,39 +555,34 @@ function cosmeticsPanel(): HTMLElement {
   const u = store.user;
   const wrap = el("div", { class: "panel-body" });
 
-  const decor = el("div", { class: "card" }, el("div", { class: "card-title" }, "밭 꾸미기"));
-  for (const d of BALANCE.cosmetics.decor) {
-    const owned = d.price === 0 || u?.cosmetics?.[d.id];
-    const equipped = u?.equippedDecor === d.id;
-    decor.append(
-      row(
-        el("span", { class: "grow" }, d.label),
-        equipped
-          ? el("span", { class: "muted" }, "착용중")
-          : owned
-            ? btn("착용", () => void equipCosmetic(uid, "decor", d.id))
-            : btn(`구매 (${d.price})`, () => void buyCosmetic(uid, "decor", d.id, d.price)),
+  // Live preview of my own farm (current theme + decor + my best crop) — this is also exactly what a
+  // raider sees when they break into my plot, so the cosmetics finally have an audience.
+  wrap.append(
+    el(
+      "div",
+      { class: "card" },
+      el("div", { class: "card-title" }, "내 밭 미리보기"),
+      el(
+        "div",
+        { class: "preview-wrap" },
+        makeFarmPreview(
+          { decor: u?.equippedDecor || "decor_none", theme: u?.equippedTheme || "theme_day", topTier: topCropTier() },
+          224,
+          64,
+        ),
       ),
-    );
-  }
-  wrap.append(decor);
+      el("div", { class: "muted small" }, "친구가 내 밭을 털 때 이 모습이 보여요."),
+    ),
+  );
 
-  const skin = el("div", { class: "card" }, el("div", { class: "card-title" }, "쪽지 스킨 (서리 시)"));
-  for (const s of BALANCE.cosmetics.msgSkin) {
-    const owned = s.price === 0 || u?.cosmetics?.[s.id];
-    const equipped = u?.equippedMsgSkin === s.id;
-    skin.append(
-      row(
-        el("span", { class: "grow" }, s.label),
-        equipped
-          ? el("span", { class: "muted" }, "사용중")
-          : owned
-            ? btn("사용", () => void equipCosmetic(uid, "msgSkin", s.id))
-            : btn(`구매 (${s.price})`, () => void buyCosmetic(uid, "msgSkin", s.id, s.price)),
-      ),
-    );
-  }
-  wrap.append(skin);
+  wrap.append(cosmeticSection(uid, "decor", "밭 꾸미기", BALANCE.cosmetics.decor, u?.equippedDecor));
+  wrap.append(
+    cosmeticSection(uid, "theme", "밭 배경 테마", BALANCE.cosmetics.themes, u?.equippedTheme || "theme_day"),
+  );
+  wrap.append(
+    cosmeticSection(uid, "title", "칭호 (채팅·랭킹 표시)", BALANCE.cosmetics.titles, u?.equippedTitle || "title_none"),
+  );
+  wrap.append(cosmeticSection(uid, "msgSkin", "쪽지 스킨 (서리 시)", BALANCE.cosmetics.msgSkin, u?.equippedMsgSkin));
   return wrap;
 }
 
@@ -334,6 +629,105 @@ function settingsPanel(): HTMLElement {
       el("div", { class: "muted small" }, `코인: ${coins()}`),
     ),
   );
+
+  // version + update history
+  const verCard = el("div", { class: "card" }, el("div", { class: "card-title" }, "버전 / 업데이트"));
+  const verHead = row(el("span", { class: "grow" }, `현재 버전 v${APP_VERSION}`));
+  if (isTauri()) verHead.append(btn("업데이트 확인", () => void checkForUpdates(false), "btn small"));
+  verCard.append(verHead);
+
+  const log = el("div", { class: "changelog" });
+  for (const e of CHANGELOG) {
+    const entry = el("div", { class: "cl-entry" });
+    const tag = e.version === APP_VERSION ? " (현재)" : "";
+    const when = e.date ? ` · ${e.date}` : "";
+    entry.append(el("div", { class: "cl-ver" }, `v${e.version}${tag}${when}`));
+    const ul = el("ul", { class: "cl-items" });
+    for (const it of e.items) ul.append(el("li", {}, it));
+    entry.append(ul);
+    log.append(entry);
+  }
+  verCard.append(log);
+  wrap.append(verCard);
+  return wrap;
+}
+
+// ── Crop 도감 (collection) ──────────────────────────────────────────────────────
+
+function dexPanel(): HTMLElement {
+  const uid = store.uid;
+  const wrap = el("div", { class: "panel-body" });
+  const total = BALANCE.crops.tiers.length;
+  const got = discoveredCount();
+
+  wrap.append(el("div", { class: "muted" }, "수확하거나 서리해서 모은 작물 도감이에요."));
+
+  // progress + one-time completion reward
+  const head = el("div", { class: "card" });
+  head.append(el("div", { class: "card-title" }, `수집 ${got} / ${total}`));
+  if (allDiscovered()) {
+    if (store.user?.dexClaimed) {
+      head.append(el("div", { class: "muted small" }, "🏆 완성 보상을 받았어요!"));
+    } else {
+      head.append(
+        row(
+          el("span", { class: "grow" }, "도감 완성! 보상을 받으세요"),
+          btn(`보상 받기 (+${BALANCE.dex.completionReward})`, () => void claimDexReward(uid)),
+        ),
+      );
+    }
+  } else {
+    head.append(el("div", { class: "muted small" }, `${total - got}종 더 모으면 완성 보상!`));
+  }
+  wrap.append(head);
+
+  const nickOf = (u: string): string =>
+    store.friends.find((f) => f.uid === u)?.nickname ?? "알 수 없음";
+
+  for (const t of BALANCE.crops.tiers) {
+    const found = isDiscovered(t.id);
+    const card = el("div", { class: `card${found ? "" : " dex-locked"}` });
+    if (!found) {
+      card.append(
+        row(
+          el("span", { class: "dot", style: "background:#9a8a72" }),
+          el("span", { class: "grow" }, "???"),
+          el("span", { class: "muted small" }, "미발견"),
+        ),
+      );
+    } else {
+      const up = priceFactor(t.id) >= 1;
+      card.append(
+        row(
+          el("span", { class: "dot", style: `background:${t.color}` }),
+          el("span", { class: "grow" }, t.label),
+          el(
+            "span",
+            { class: "small", style: `color:${up ? "#3f7a30" : "#b5402e"};font-weight:bold` },
+            `오늘 ${sellValue(t.id)} ${up ? "📈" : "📉"}`,
+          ),
+        ),
+      );
+      card.append(
+        el(
+          "div",
+          { class: "muted small" },
+          `수확 ${harvestedCount(t.id)}개 · 서리 ${stolenTotal(t.id)}개 · 기본수확 ${t.harvestValue}`,
+        ),
+      );
+      const bd = stolenBreakdown(t.id);
+      if (bd.length) {
+        card.append(
+          el(
+            "div",
+            { class: "muted small" },
+            "서리: " + bd.map((x) => `${nickOf(x.uid)} ${x.count}개`).join(", "),
+          ),
+        );
+      }
+    }
+    wrap.append(card);
+  }
   return wrap;
 }
 
@@ -341,13 +735,17 @@ const TITLES: Record<PanelKind, string> = {
   none: "",
   shop: "상점",
   friends: "친구",
+  chat: "마을 채팅",
+  ranking: "골드 랭킹",
   messages: "쪽지함",
   cosmetics: "꾸미기",
+  dex: "도감",
   settings: "설정",
 };
 
 export function renderPanels(): void {
   const p = ensurePanel();
+  previewQueue = []; // drop any thumbnails queued by a prior build; this pass re-queues its own
   const kind = store.ui.panel;
   if (kind === "none") {
     p.style.display = "none";
@@ -363,11 +761,20 @@ export function renderPanels(): void {
     case "friends":
       body = friendsPanel();
       break;
+    case "chat":
+      body = chatPanel();
+      break;
+    case "ranking":
+      body = rankingPanel();
+      break;
     case "messages":
       body = messagesPanel();
       break;
     case "cosmetics":
       body = cosmeticsPanel();
+      break;
+    case "dex":
+      body = dexPanel();
       break;
     case "settings":
       body = settingsPanel();
@@ -378,6 +785,7 @@ export function renderPanels(): void {
   p.append(body);
   positionPanel(p);
   p.style.display = "block";
+  if (previewQueue.length) setTimeout(flushPreviews, 0); // canvases need to be in the DOM to size
 }
 
 function positionPanel(p: HTMLDivElement): void {

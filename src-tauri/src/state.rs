@@ -78,12 +78,12 @@ impl Default for AppState {
     fn default() -> Self {
         Self {
             window_rect: Mutex::new(PhysRect { x: 0, y: 0, w: 1280, h: 480 }),
-            band_rect: Mutex::new(PhysRect { x: 0, y: 0, w: 1280, h: 36 }),
+            band_rect: Mutex::new(PhysRect { x: 0, y: 0, w: 1280, h: 48 }),
             hit_regions: Mutex::new(Vec::new()),
             clickthrough_enabled: Mutex::new(true),
             hidden_fullscreen: Mutex::new(false),
             preferred_monitor: Mutex::new("primary".to_string()),
-            band_height_logical: Mutex::new(36),
+            band_height_logical: Mutex::new(48),
         }
     }
 }

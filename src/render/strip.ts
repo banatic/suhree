@@ -1,6 +1,6 @@
 import { store, toast, bandHeightCss, bandDock, coins, type PanelKind } from "../state";
 import { BALANCE } from "../config/balance";
-import { stageOf, tierOf, plant, harvest, clearSlot, msToRipe, type Stage } from "../game/crops";
+import { stageOf, tierOf, plant, harvest, msToRipe, type Stage } from "../game/crops";
 import {
   drawSprite,
   drawCropSprite,
@@ -10,15 +10,18 @@ import {
   RIPE_RADISH,
   RIPE_WHEAT,
   RIPE_PUMPKIN,
-  WITHERED,
-  PAW,
   COIN,
   SCARECROW,
   type Sprite,
 } from "./sprites";
 import { drawGhostCursor } from "./cursorGhost";
-import { cancelRaid, evict } from "../raid/controller";
+import { drawTheme } from "./theme";
+import { drawDecorById } from "./decorArt";
+import type { CosmeticScene } from "./cosmeticScene";
+import { cancelRaid, registerStealClick, registerEvictClick, registerEvictGraze } from "../raid/controller";
 import { togglePanel, getPanelRect } from "./panels";
+import { getChatPopupRect } from "./chatPopup";
+import { getLootNoteRect } from "./lootNote";
 import { updateHitRegions, onStripHover, type NormRect } from "../platform/tauri";
 
 interface Rect {
@@ -66,17 +69,23 @@ let hovered = false;
 let hudT = 0; // 0..1 roll-up progress
 let winkStart = 0; // first-run "wink" timestamp
 let lastRaidRole = "none";
+let lastPointer: { x: number; y: number } | null = null; // last in-canvas mouse pos (CSS px)
+let lastGrazeAt = 0; // throttles hover-to-evict hits
 const effects: Effect[] = [];
 
 const HUD_H = 34;
+const EVICT_GRAZE_MS = 140; // min ms between hover-graze eviction hits (defender)
 const TALLEST_ROWS = 22; // wheat
 const FONT = "'MulmaruMono', ui-monospace, monospace";
 const HUD_LABELS: { id: string; label: string }[] = [
   { id: "seed", label: "씨앗" },
   { id: "shop", label: "상점" },
   { id: "friends", label: "친구" },
+  { id: "chat", label: "채팅" },
+  { id: "ranking", label: "랭킹" },
   { id: "messages", label: "쪽지" },
   { id: "cosmetics", label: "꾸미기" },
+  { id: "dex", label: "도감" },
   { id: "settings", label: "설정" },
 ];
 
@@ -89,6 +98,12 @@ function ensureCanvas(): CanvasRenderingContext2D {
     canvas.id = "strip-canvas";
     document.getElementById("app")!.appendChild(canvas);
     canvas.addEventListener("click", onClick);
+    canvas.addEventListener("mousemove", (e) => {
+      lastPointer = cssCoords(e);
+    });
+    canvas.addEventListener("mouseleave", () => {
+      lastPointer = null;
+    });
   }
   const needW = Math.floor(window.innerWidth * dpr);
   const needH = Math.floor(window.innerHeight * dpr);
@@ -207,8 +222,9 @@ export function renderStrip(): void {
 }
 
 function drawFarmView(c: CanvasRenderingContext2D, L: BandLayout): void {
+  drawThemeBg(c, L, store.user?.equippedTheme);
   drawSoil(c, L);
-  drawDecor(c, L);
+  drawDecor(c, L, store.user?.equippedDecor);
   for (const s of L.slots) {
     const crop = store.crops[String(s.i)];
     if (!crop) {
@@ -249,8 +265,9 @@ function drawShadow(c: CanvasRenderingContext2D, cx: number, soilY: number, slot
 }
 
 function ripeSpriteFor(tier: number): Sprite {
-  if (tier === 1) return RIPE_WHEAT;
-  if (tier === 2) return RIPE_PUMPKIN;
+  const shape = tierOf(tier)?.sprite;
+  if (shape === "wheat") return RIPE_WHEAT;
+  if (shape === "pumpkin") return RIPE_PUMPKIN;
   return RIPE_RADISH;
 }
 function spriteFor(stage: Stage, tier: number): Sprite | null {
@@ -263,8 +280,6 @@ function spriteFor(stage: Stage, tier: number): Sprite | null {
       return GROWING;
     case "ripe":
       return ripeSpriteFor(tier);
-    case "withered":
-      return WITHERED;
     default:
       return null;
   }
@@ -273,10 +288,10 @@ function spriteFor(stage: Stage, tier: number): Sprite | null {
 function drawCropAt(c: CanvasRenderingContext2D, L: BandLayout, s: Slot, tier: number, st: Stage): void {
   const sp = spriteFor(st, tier);
   if (!sp) return;
-  const sway = Math.sin(store.now / 900 + s.i * 1.3) * (st === "withered" ? 0.4 : 1.1) * L.scale;
+  const sway = Math.sin(store.now / 900 + s.i * 1.3) * 1.1 * L.scale;
   const bob = st === "ripe" ? Math.abs(Math.sin(store.now / 500 + s.i)) * 1.5 : 0;
   const liftedSoil = L.soilY + (L.dir < 0 ? -bob : bob);
-  const ov = st === "withered" ? undefined : cropOverrides(tier);
+  const ov = cropOverrides(tier);
   drawCropSprite(c, sp, s.cx, liftedSoil, L.scale, L.dir, ov, sway);
   if (st === "ripe" && Math.sin(store.now / 600 + s.cx) > 0.72) {
     const topY = L.dir < 0 ? liftedSoil - sp.rows.length * L.scale : liftedSoil + sp.rows.length * L.scale;
@@ -360,7 +375,9 @@ function drawHUD(c: CanvasRenderingContext2D, L: BandLayout): void {
     c.textAlign = "center";
     c.textBaseline = "middle";
     c.fillText(b.label, textX, r.y + r.h / 2 + 1);
-    if (b.id === "messages" && store.messages.length > 0) {
+    const badge =
+      (b.id === "messages" && store.messages.length > 0) || (b.id === "chat" && store.chatUnread);
+    if (badge) {
       c.fillStyle = "#e2573c";
       c.beginPath();
       c.arc(r.x + r.w - 5, r.y + 5, 4, 0, Math.PI * 2);
@@ -395,42 +412,90 @@ function drawPullTab(c: CanvasRenderingContext2D, L: BandLayout): void {
 // ── Raid views ──────────────────────────────────────────────────────────────
 
 function drawRaidingView(c: CanvasRenderingContext2D, L: BandLayout): void {
-  drawSoil(c, L);
   const raid = store.raid;
+  drawThemeBg(c, L, raid.targetTheme);
+  drawSoil(c, L);
+  drawDecor(c, L, raid.targetDecor);
   const entries = Object.entries(raid.targetCrops || {});
+  const need = raid.cropClicks ?? 3;
   for (let i = 0; i < L.slots.length; i++) {
     const e = entries[i];
     if (!e) continue;
-    const [, crop] = e;
+    const [slotKey, crop] = e;
     const st = stageOf(crop.plantedAt, crop.tier, store.now);
-    drawShadow(c, L.slots[i].cx, L.soilY, L.slotW);
+    const s = L.slots[i];
+    drawShadow(c, s.cx, L.soilY, L.slotW);
     c.save();
-    if (st !== "ripe") c.globalAlpha = 0.45;
-    drawCropAt(c, L, L.slots[i], crop.tier, st);
+    if (st !== "ripe") c.globalAlpha = 0.4;
+    drawCropAt(c, L, s, crop.tier, st);
     c.restore();
+    if (st === "ripe") drawStealPips(c, L, s, raid.stealProgress?.[slotKey] ?? 0, need);
   }
-  const ripeIdx = entries.findIndex(([, cr]) => stageOf(cr.plantedAt, cr.tier, store.now) === "ripe");
-  if (ripeIdx >= 0 && ripeIdx < L.slots.length) {
-    const s = L.slots[ripeIdx];
-    const wig = Math.sin(store.now / 90) * 5;
-    drawSprite(c, PAW, s.cx - 6 * L.scale + wig, L.soilY - 22 * L.scale, L.scale, { h: "#e7c39a" });
-  }
-  drawRaidProgress(c, L, "#e8b94a");
+
+  // The defender's cursor — DODGE it. A pulsing danger ring telegraphs its catch radius.
   if (raid.ownerCursor) {
     const gx = raid.ownerCursor.x * L.W;
     const gy = L.bandY + raid.ownerCursor.y * L.bandH;
+    c.save();
+    c.globalAlpha = 0.45 + 0.3 * Math.sin(store.now / 150);
+    c.strokeStyle = "#e2573c";
+    c.lineWidth = 2;
+    c.beginPath();
+    c.arc(gx, gy, BALANCE.raidGame.evictHitRadius * 0.7, 0, Math.PI * 2);
+    c.stroke();
+    c.restore();
     drawGhostCursor(c, gx - 1, gy - 8, Math.max(2, L.scale));
   }
+
+  drawEffects(c, L);
+
+  // header: looted total + ripe remaining
+  const ripeLeft = entries.filter(([, cr]) => stageOf(cr.plantedAt, cr.tier, store.now) === "ripe").length;
+  c.fillStyle = "#ffe9a8";
+  c.font = `bold 12px ${FONT}`;
+  c.textBaseline = "top";
+  c.textAlign = "left";
+  c.fillText(`💰 +${raid.stolenCoins ?? 0} · 익은작물 ${ripeLeft} (작물당 ${need}클릭)`, 10, L.bandY + 3);
+
+  drawRaiderHP(c, L);
+  drawRaidProgress(c, L, "#e8b94a");
   drawActionButton(c, actionButtonRect(L, "left"), "도망치기", "#caa86a", "#2e2117");
+}
+
+/** Raider's health: how many defender hits remain before I'm evicted. Synced via raid.evictHits. */
+function drawRaiderHP(c: CanvasRenderingContext2D, L: BandLayout): void {
+  const raid = store.raid;
+  const need = raid.evictHitsNeeded ?? 3;
+  const hp = Math.max(0, need - (raid.evictHits ?? 0));
+  const frac = need > 0 ? hp / need : 1;
+  const bw = 78;
+  const bh = 7;
+  const bx = L.W - bw - 10;
+  const by = L.bandY + 3;
+  c.font = `bold 11px ${FONT}`;
+  c.textBaseline = "top";
+  c.textAlign = "right";
+  c.fillStyle = "#ffd8cf";
+  c.fillText(`❤️${hp}/${need}`, bx - 6, by - 1);
+  c.fillStyle = "rgba(0,0,0,0.5)";
+  roundRect(c, bx, by, bw, bh, 3);
+  c.fill();
+  c.fillStyle = frac > 0.5 ? "#5fd07a" : frac > 0.25 ? "#e8b94a" : "#e2573c";
+  roundRect(c, bx, by, Math.max(0, bw * frac), bh, 3);
+  c.fill();
+  c.textAlign = "left";
 }
 
 function drawDefendingView(c: CanvasRenderingContext2D, L: BandLayout): void {
   // pulsing red rim + brief shake (keeps crops readable, screams "raid")
-  const elapsed = store.raid.startedAt ? store.now - store.raid.startedAt : 0;
+  const raid = store.raid;
+  const elapsed = raid.startedAt ? store.now - raid.startedAt : 0;
   const shake = elapsed < 800 ? Math.sin(store.now / 40) * 1 : 0;
   c.save();
   c.translate(shake, 0);
+  drawThemeBg(c, L, store.user?.equippedTheme);
   drawSoil(c, L);
+  drawDecor(c, L, store.user?.equippedDecor);
   const rim = 0.5 + 0.4 * Math.sin(store.now / 140);
   c.globalAlpha = rim;
   c.strokeStyle = "#e2573c";
@@ -446,13 +511,85 @@ function drawDefendingView(c: CanvasRenderingContext2D, L: BandLayout): void {
   }
   c.restore();
 
+  const hits = raid.evictHits ?? 0;
+  const needHits = raid.evictHitsNeeded ?? 3;
   c.fillStyle = "#ffd8cf";
-  c.font = "bold 12px 'MulmaruMono', ui-monospace, monospace";
+  c.font = `bold 12px ${FONT}`;
   c.textBaseline = "top";
   c.textAlign = "left";
-  c.fillText(`⚠ 침입자! ${store.raid.raiderNick || "누군가"}`, 10, L.bandY + 3);
+  c.fillText(`⚠ 침입자 커서에 마우스를 갖다 대 쫓아내세요! ${hits}/${needHits}`, 10, L.bandY + 3);
+
+  // The raider's cursor — graze it with your mouse. Target ring + the intruder's NAME beside it.
+  if (raid.raiderCursor) {
+    const gx = raid.raiderCursor.x * L.W;
+    const gy = L.bandY + raid.raiderCursor.y * L.bandH;
+    // Hover-to-evict: grazing the ghost with the mouse lands hits (throttled) — no click needed.
+    if (
+      lastPointer &&
+      !raid.resolved &&
+      Math.hypot(lastPointer.x - gx, lastPointer.y - gy) <= BALANCE.raidGame.evictHitRadius &&
+      store.now - lastGrazeAt >= EVICT_GRAZE_MS
+    ) {
+      lastGrazeAt = store.now;
+      addEffect("pop", gx, gy);
+      registerEvictGraze();
+    }
+    c.save();
+    c.globalAlpha = 0.6 + 0.3 * Math.sin(store.now / 120);
+    c.strokeStyle = "#9bf6a0";
+    c.lineWidth = 2;
+    c.beginPath();
+    c.arc(gx, gy, BALANCE.raidGame.evictHitRadius * 0.7, 0, Math.PI * 2);
+    c.stroke();
+    c.restore();
+    drawGhostCursor(c, gx - 1, gy - 8, Math.max(2, L.scale));
+    drawCursorNameTag(c, gx, gy, raid.raiderNick || "침입자", L);
+  }
+
+  drawEffects(c, L);
   drawRaidProgress(c, L, "#ffd24a");
-  drawActionButton(c, actionButtonRect(L, "center"), "쫓아내기!", "#e2573c", "#ffffff");
+}
+
+/** Pips above a ripe crop showing how many of the required steal-clicks have landed. */
+function drawStealPips(c: CanvasRenderingContext2D, L: BandLayout, s: Slot, prog: number, need: number): void {
+  const y = clamp(L.dock === "bottom" ? L.bandY + 3 : L.bandY + L.bandH - 3, L.bandY + 2, L.bandY + L.bandH - 2);
+  const gap = Math.min(4, (L.slotW - 2) / Math.max(1, need));
+  const totalW = (need - 1) * gap;
+  let x = s.cx - totalW / 2;
+  for (let i = 0; i < need; i++) {
+    c.fillStyle = i < prog ? "#ffe9a8" : "rgba(0,0,0,0.4)";
+    c.beginPath();
+    c.arc(x, y, 1.6, 0, Math.PI * 2);
+    c.fill();
+    x += gap;
+  }
+}
+
+/** A small name tag drawn beside a ghost cursor (flips to the left near the right edge). */
+function drawCursorNameTag(
+  c: CanvasRenderingContext2D,
+  gx: number,
+  gy: number,
+  name: string,
+  L: BandLayout,
+): void {
+  const text = name.length > 10 ? name.slice(0, 10) + "…" : name;
+  c.save();
+  c.font = `bold 11px ${FONT}`;
+  const w = c.measureText(text).width + 10;
+  const h = 14;
+  let x = gx + 12;
+  if (x + w > L.W - 2) x = gx - 12 - w;
+  let y = clamp(gy - 7, L.bandY + 1, L.bandY + L.bandH - h - 1);
+  c.fillStyle = "rgba(40,26,14,0.92)";
+  roundRect(c, x, y, w, h, 4);
+  c.fill();
+  c.fillStyle = "#ffd8cf";
+  c.textAlign = "left";
+  c.textBaseline = "middle";
+  c.fillText(text, x + 5, y + h / 2 + 1);
+  c.restore();
+  c.textAlign = "left";
 }
 
 function drawRaidProgress(c: CanvasRenderingContext2D, L: BandLayout, color: string): void {
@@ -550,36 +687,35 @@ function drawEffects(c: CanvasRenderingContext2D, _L: BandLayout): void {
   }
 }
 
-// ── Decor (kept subtle, animated decor gated to hover) ──────────────────────────
+// ── Cosmetics (band theme background + farm decor) ───────────────────────────────
+// The actual art lives in render/{theme,decorArt}.ts behind a geometry-agnostic CosmeticScene,
+// so the same drawing also powers the friend/ranking preview thumbnails (render/farmPreview.ts).
 
-function drawDecor(c: CanvasRenderingContext2D, L: BandLayout): void {
-  const decor = store.user?.equippedDecor || "decor_none";
-  if (decor === "decor_none") return;
-  const y = L.soilY;
-  if (decor === "decor_fence") {
-    c.fillStyle = "#8a6a42";
-    for (let x = L.slotSpan.x0; x < L.slotSpan.x1; x += 22) c.fillRect(x, y - 8, 3, 8);
-    c.fillRect(L.slotSpan.x0, y - 6, L.slotSpan.x1 - L.slotSpan.x0, 2);
-  } else if (decor === "decor_lantern") {
-    for (let i = 0; i < 3; i++) {
-      const x = L.slotSpan.x0 + (L.slotSpan.x1 - L.slotSpan.x0) * (0.2 + i * 0.3);
-      c.fillStyle = "rgba(244,201,78,0.25)";
-      c.beginPath();
-      c.arc(x, y - 14, 9, 0, Math.PI * 2);
-      c.fill();
-      c.fillStyle = "#f4c94e";
-      c.beginPath();
-      c.arc(x, y - 14, 4, 0, Math.PI * 2);
-      c.fill();
-    }
-  } else if (decor === "decor_blossom" && hudT > 0.2) {
-    for (let i = 0; i < 5; i++) {
-      const x = L.slotSpan.x0 + ((i * 97.3 + store.now / 40) % (L.slotSpan.x1 - L.slotSpan.x0));
-      const yy = L.bandY + ((i * 53.7 + store.now / 60) % L.bandH);
-      c.fillStyle = "#f3b6cf";
-      c.fillRect(x, yy, 3, 3);
-    }
-  }
+function sceneFrom(c: CanvasRenderingContext2D, L: BandLayout): CosmeticScene {
+  return {
+    ctx: c,
+    bandX: 0,
+    bandY: L.bandY,
+    bandW: L.W,
+    bandH: L.bandH,
+    soilY: L.soilY,
+    rowX0: L.slotSpan.x0,
+    rowX1: L.slotSpan.x1,
+    scale: L.scale,
+    nowMs: store.now,
+    hoverT: hudT,
+    dock: L.dock,
+  };
+}
+
+/** Theme background — drawn BEHIND the soil. `themeId` is the farm owner's theme. */
+function drawThemeBg(c: CanvasRenderingContext2D, L: BandLayout, themeId: string | undefined): void {
+  drawTheme(themeId || "theme_day", sceneFrom(c, L));
+}
+
+/** Farm decor — drawn ON TOP of the soil. `decorId` is the farm owner's decor. */
+function drawDecor(c: CanvasRenderingContext2D, L: BandLayout, decorId: string | undefined): void {
+  drawDecorById(decorId || "decor_none", sceneFrom(c, L));
 }
 
 // ── Toast ──────────────────────────────────────────────────────────────────
@@ -622,11 +758,38 @@ function onClick(e: MouseEvent): void {
   const L = layout();
 
   if (store.raid.role === "raiding") {
-    if (inRect(x, y, actionButtonRect(L, "left"))) void cancelRaid();
+    if (inRect(x, y, actionButtonRect(L, "left"))) {
+      void cancelRaid();
+      return;
+    }
+    // Click a ripe crop column to chip away at stealing it.
+    const entries = Object.entries(store.raid.targetCrops || {});
+    for (let i = 0; i < L.slots.length; i++) {
+      const e = entries[i];
+      if (!e) continue;
+      const s = L.slots[i];
+      if (Math.abs(x - s.cx) <= L.slotW / 2 && Math.abs(y - (L.soilY - L.maxCropPx / 2)) <= L.maxCropPx) {
+        const [slotKey, crop] = e;
+        if (stageOf(crop.plantedAt, crop.tier, store.now) === "ripe") {
+          addEffect("pop", s.cx, L.soilY - 12 * L.scale);
+          void registerStealClick(slotKey);
+        }
+        return;
+      }
+    }
     return;
   }
   if (store.raid.role === "defending") {
-    if (inRect(x, y, actionButtonRect(L, "center"))) void evict();
+    // Click the raider's ghost cursor to land an eviction hit.
+    const g = store.raid.raiderCursor;
+    let landed = false;
+    if (g) {
+      const gx = g.x * L.W;
+      const gy = L.bandY + g.y * L.bandH;
+      landed = Math.hypot(x - gx, y - gy) <= BALANCE.raidGame.evictHitRadius;
+      if (landed) addEffect("pop", gx, gy);
+    }
+    registerEvictClick(landed);
     return;
   }
 
@@ -676,9 +839,6 @@ async function handleSlotClick(L: BandLayout, s: Slot): Promise<void> {
       addEffect("pop", s.cx, topY);
       addEffect("coin", s.cx, topY - 4, v);
     }
-  } else if (st === "withered") {
-    await clearSlot(uid, s.i);
-    toast("시든 작물을 정리했어요");
   } else {
     toast(`자라는 중... ${fmtTime(msToRipe(crop.plantedAt, crop.tier, store.now))} 남음`);
   }
@@ -734,6 +894,12 @@ export function publishHitRegions(): void {
 
   const pr = getPanelRect();
   if (pr) regions.push({ x: pr.left / W, y: pr.top / H, w: pr.width / W, h: pr.height / H });
+
+  const cp = getChatPopupRect();
+  if (cp) regions.push({ x: cp.left / W, y: cp.top / H, w: cp.width / W, h: cp.height / H });
+
+  const ln = getLootNoteRect();
+  if (ln) regions.push({ x: ln.left / W, y: ln.top / H, w: ln.width / W, h: ln.height / H });
 
   void updateHitRegions(regions);
 }
