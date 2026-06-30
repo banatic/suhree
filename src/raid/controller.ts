@@ -37,7 +37,6 @@ let raidNodeSub: Unsubscribe | null = null;
 let defenseSub: Unsubscribe | null = null;
 let raidDisconnect: OnDisconnect | null = null;
 let alarmedFor: string | null = null;
-let lastDefenseBoxLoot = 0; // last 돈통 total I (defender) already debited from my wallet this raid
 
 const MESSAGES = [
   "잘 먹고 갑니다 😋",
@@ -59,10 +58,7 @@ function raidChatLine(
   count: number,
 ): string {
   const v = victimNick || "농부";
-  if (looted > 0) {
-    if (count > 0) return `🌾 ${v}님 밭에서 작물 ${count}개를 서리했어요! (+${looted}💰)`;
-    return `💰 ${v}님 돈통을 털어 ${looted} 코인을 서리했어요!`;
-  }
+  if (looted > 0) return `🌾 ${v}님 밭에서 작물 ${count}개를 서리했어요! (+${looted}💰)`;
   if (reason === "evicted") return `🚨 ${v}님 밭에서 서리하다 들켜서 쫓겨났어요…`;
   if (reason === "timeout") return `⏱️ ${v}님 밭에서 빈손으로 시간만 보냈어요…`;
   return `🌿 ${v}님 밭을 노렸지만 빈손으로 돌아왔어요…`;
@@ -130,8 +126,6 @@ export async function startRaid(targetUid: string, targetNick: string): Promise<
     stealProgress: {},
     stolenCoins: 0,
     stolenCount: 0,
-    targetCoins: typeof tUser.coins === "number" ? tUser.coins : 0,
-    boxLoot: 0,
     evictHits: 0,
     evictHitsNeeded: evictResist,
     startedAt,
@@ -195,45 +189,6 @@ export async function registerStealClick(slotKey: string): Promise<void> {
     (c) => stageOf(c.plantedAt, c.tier, Date.now()) === "ripe",
   );
   if (!anyRipe) await finishThiefRaid("cleared");
-}
-
-/**
- * The raider clicks the victim's 돈통(money box) at the far right. Each click lifts a flat random
- * 50~500 coins straight into my wallet, repeatable until I'm evicted. The take is capped at the
- * victim's balance (estimated from raid start minus what I've already lifted) so I can't overdraw
- * them; the victim's own client mirrors `boxLoot` to debit their real coins (see startDefenseWatch).
- */
-export async function registerBoxSteal(): Promise<void> {
-  const raid = store.raid;
-  if (raid.role !== "raiding" || raid.resolved) return;
-  const targetUid = raid.targetUid;
-  if (!targetUid) return;
-
-  const remaining = (raid.targetCoins ?? 0) - (raid.boxLoot ?? 0);
-  if (remaining <= 0) {
-    toast("돈통이 텅 비었어요");
-    return;
-  }
-  const { minSteal, maxSteal } = BALANCE.raidGame.moneyBox;
-  const roll = minSteal + Math.floor(Math.random() * (maxSteal - minSteal + 1));
-  const amount = Math.min(roll, remaining);
-  if (amount <= 0) return;
-
-  raid.boxLoot = (raid.boxLoot ?? 0) + amount;
-  raid.stolenCoins = (raid.stolenCoins ?? 0) + amount;
-  // Publish the running total so the victim can debit the same amount from their wallet.
-  try {
-    await set(r(paths.raidBoxLoot(targetUid)), raid.boxLoot);
-  } catch {
-    /* ignore */
-  }
-  try {
-    await addCoins(store.uid, amount);
-  } catch {
-    /* ignore */
-  }
-  playSteal();
-  toast(`돈통에서 +${amount} 코인! (총 +${raid.stolenCoins})`);
 }
 
 /** Called every frame: hard timeout so a lock can't hang — the raider auto-flees with their loot. */
@@ -377,9 +332,7 @@ export function startDefenseWatch(myUid: string): void {
           evictHitsNeeded: evictHitsNeeded(raiderScytheLv, store.user?.scarecrowLv ?? 0),
           startedAt: v.startedAt,
           durationMs: v.durationMs || BALANCE.raidGame.timeoutSeconds * 1000,
-          boxLoot: 0,
         };
-        lastDefenseBoxLoot = 0; // fresh raider → start debiting their 돈통 take from zero
         startDefenderCursorSub(myUid);
         if (alarmedFor !== v.raiderUid) {
           alarmedFor = v.raiderUid;
@@ -389,24 +342,12 @@ export function startDefenseWatch(myUid: string): void {
         store.raid.startedAt = v.startedAt;
         store.raid.durationMs = v.durationMs || store.raid.durationMs;
       }
-
-      // The raider lifted more from my 돈통 → debit the delta from my own wallet (I'm the only one
-      // allowed to write my coins). Only-on-increase, so cursor-rate updates don't double-charge.
-      const bl = typeof v.boxLoot === "number" ? v.boxLoot : 0;
-      if (bl > lastDefenseBoxLoot) {
-        const delta = bl - lastDefenseBoxLoot;
-        lastDefenseBoxLoot = bl;
-        store.raid.boxLoot = bl;
-        void addCoins(myUid, -delta).catch(() => {});
-        toast(`돈통을 털렸어요! -${delta} 코인`);
-      }
     } else {
       if (store.raid.role === "defending") {
         stopCursorSub();
         store.raid = { role: "none" };
       }
       alarmedFor = null;
-      lastDefenseBoxLoot = 0;
     }
   });
 }

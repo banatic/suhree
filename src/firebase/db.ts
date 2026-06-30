@@ -21,7 +21,6 @@ export const paths = {
   raidRaiderCursor: (targetUid: string) => `raids/${targetUid}/raiderCursor`,
   raidEvicted: (targetUid: string) => `raids/${targetUid}/evicted`,
   raidEvictHits: (targetUid: string) => `raids/${targetUid}/evictHits`,
-  raidBoxLoot: (targetUid: string) => `raids/${targetUid}/boxLoot`,
   cooldown: (targetUid: string, raiderUid: string) => `cooldowns/${targetUid}/${raiderUid}`,
   messages: (uid: string) => `messages/${uid}`,
   chat: () => `chat`,

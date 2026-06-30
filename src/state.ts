@@ -89,10 +89,8 @@ export interface RaidState {
   ownerCursor?: { x: number; y: number }; // smoothed defender ghost (band-normalised 0..1) — DODGE this
   cropClicks?: number; // clicks needed to steal one ripe crop (from levels)
   stealProgress?: Record<string, number>; // slot → clicks landed so far
-  stolenCoins?: number; // running total looted this raid (crops + 돈통)
+  stolenCoins?: number; // running total looted this raid
   stolenCount?: number; // crops fully stolen this raid (for the 서리 log)
-  targetCoins?: number; // victim's coin balance at raid start — caps 돈통 looting (can't take more than they have)
-  boxLoot?: number; // coins lifted from the victim's 돈통 so far this raid (synced via raids/<uid>/boxLoot)
   // defending (my plot is being robbed): click the raider's cursor to evict.
   raiderUid?: string;
   raiderNick?: string;
