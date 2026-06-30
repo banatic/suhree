@@ -9,6 +9,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.2.6",
+    date: "2026-06-30",
+    items: [
+      "💰 돈통 서리 — 서리하러 가면 친구 밭 맨 오른쪽에 돈통이 떠요. 클릭할 때마다 친구 코인을 50~500씩 훔쳐와요 (쫓겨날 때까지)!",
+      "⏱️ 레이드 제한시간이 30초로 짧아져 더 빠르고 박진감 있게 즐길 수 있어요.",
+    ],
+  },
+  {
     version: "0.2.5",
     date: "2026-06-30",
     items: [

@@ -61,7 +61,7 @@ export const BALANCE = {
   raidGame: {
     cursorHz: 10, // snappier exchange than the 5 Hz idle ghost (both sides publish during a raid)
     cursorSmoothing: 0.45, // lerp applied to the received ghost (higher = snappier, less laggy)
-    timeoutSeconds: 60, // hard cap: the lock can't hang. On timeout the raider auto-flees.
+    timeoutSeconds: 30, // hard cap: the lock can't hang. On timeout the raider auto-flees.
     // Clicks the RAIDER must land on one ripe crop to steal it. More defence → tougher crops;
     // more attack → easier. clicks = clamp(round(base + kDef·ln(1+scarecrowLv) − kAtk·ln(1+scytheLv)), min, max)
     steal: { base: 3, kDef: 2.2, kAtk: 1.7, min: 1, max: 12 },
@@ -70,6 +70,10 @@ export const BALANCE = {
     // more defence → quicker catch. hits = clamp(round(base + kAtk·ln(1+scytheLv) − kDef·ln(1+scarecrowLv)), min, max)
     evict: { base: 3, kAtk: 2.2, kDef: 1.7, min: 1, max: 12 },
     evictHitRadius: 28, // CSS px: a defender click within this of the raider ghost counts as a hit
+    // 돈통(money box): a coin chest at the far-right of the raid strip. Each click lifts a random
+    // 50~500 coins straight from the victim's wallet (flat — independent of how rich they are),
+    // repeatable until evicted/timeout. Capped at the victim's actual balance (can't overdraw).
+    moneyBox: { minSteal: 50, maxSteal: 500 },
   },
 
   weed: {

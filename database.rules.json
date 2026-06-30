@@ -91,6 +91,7 @@
         "locked": { ".validate": "newData.isBoolean()" },
         "evicted": { ".validate": "newData.isBoolean()" },
         "evictHits": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000" },
+        "boxLoot": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000" },
         "ownerCursor": {
           "x": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1" },
           "y": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1" },

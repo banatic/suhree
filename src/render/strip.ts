@@ -20,7 +20,7 @@ import { createTrail } from "./cursorTrail";
 import { drawTheme } from "./theme";
 import { drawDecorById } from "./decorArt";
 import type { CosmeticScene } from "./cosmeticScene";
-import { cancelRaid, registerStealClick, registerEvictClick, registerEvictGraze } from "../raid/controller";
+import { cancelRaid, registerStealClick, registerBoxSteal, registerEvictClick, registerEvictGraze } from "../raid/controller";
 import { plantWeed, removeWeed } from "../game/weeds";
 import { togglePanel, getPanelRect } from "./panels";
 import { getChatPopupRect } from "./chatPopup";
@@ -551,11 +551,61 @@ function drawRaidingView(c: CanvasRenderingContext2D, L: BandLayout): void {
   c.font = `bold 12px ${FONT}`;
   c.textBaseline = "top";
   c.textAlign = "left";
-  c.fillText(`💰 +${raid.stolenCoins ?? 0} · 익은작물 ${ripeLeft} (작물당 ${need}클릭) · 빈칸 클릭=잡초 심기`, 10, L.bandY + 3);
+  c.fillText(`💰 +${raid.stolenCoins ?? 0} · 익은작물 ${ripeLeft} (작물당 ${need}클릭) · 빈칸=잡초 · 오른쪽 돈통=코인 훔치기`, 10, L.bandY + 3);
 
+  drawMoneyBox(c, L);
   drawRaiderHP(c, L);
   drawRaidProgress(c, L, "#e8b94a");
   drawActionButton(c, actionButtonRect(L, "left"), "도망치기", "#caa86a", "#2e2117");
+}
+
+/** The victim's 돈통(money box): far right of the band. Click it to lift coins (handled in onClick). */
+function moneyBoxRect(L: BandLayout): Rect {
+  const w = 24;
+  const h = 18;
+  return { x: L.W - w - 6, y: L.bandY + (L.bandH - h) / 2, w, h };
+}
+
+function drawMoneyBox(c: CanvasRenderingContext2D, L: BandLayout): void {
+  const r = moneyBoxRect(L);
+  const pulse = 0.5 + 0.5 * Math.sin(store.now / 320);
+  // attention glow
+  c.save();
+  c.globalAlpha = 0.18 + 0.22 * pulse;
+  c.fillStyle = "#ffd24a";
+  roundRect(c, r.x - 4, r.y - 4, r.w + 8, r.h + 8, 9);
+  c.fill();
+  c.restore();
+  // pot body
+  c.fillStyle = "#b9772f";
+  roundRect(c, r.x, r.y, r.w, r.h, 4);
+  c.fill();
+  c.fillStyle = "#9a6224";
+  roundRect(c, r.x + 1, r.y + r.h - 5, r.w - 2, 4, 2); // base shade
+  c.fill();
+  // lid rim
+  c.fillStyle = "#d79a44";
+  roundRect(c, r.x - 1, r.y - 2, r.w + 2, 5, 3);
+  c.fill();
+  // coin slot
+  c.fillStyle = "#4a3115";
+  c.fillRect(r.x + r.w / 2 - 5, r.y, 10, 2);
+  // coin emblem
+  c.fillStyle = "#f4c94e";
+  c.beginPath();
+  c.arc(r.x + r.w / 2, r.y + r.h / 2 + 2, 4.5, 0, Math.PI * 2);
+  c.fill();
+  c.fillStyle = "#8a6410";
+  c.font = `bold 8px ${FONT}`;
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  c.fillText("₩", r.x + r.w / 2, r.y + r.h / 2 + 3);
+  // outline
+  c.lineWidth = 1.5;
+  c.strokeStyle = "#5b3a16";
+  roundRect(c, r.x, r.y, r.w, r.h, 4);
+  c.stroke();
+  c.textAlign = "left";
 }
 
 /** Raider's health: how many defender hits remain before I'm evicted. Synced via raid.evictHits. */
@@ -619,7 +669,9 @@ function drawDefendingView(c: CanvasRenderingContext2D, L: BandLayout): void {
   c.font = `bold 12px ${FONT}`;
   c.textBaseline = "top";
   c.textAlign = "left";
-  c.fillText(`⚠ 침입자 커서에 마우스를 갖다 대 쫓아내세요! ${hits}/${needHits}`, 10, L.bandY + 3);
+  const boxLost = raid.boxLoot ?? 0;
+  const lostTail = boxLost > 0 ? ` · 돈통 -${boxLost}💰` : "";
+  c.fillText(`⚠ 침입자 커서에 마우스를 갖다 대 쫓아내세요! ${hits}/${needHits}${lostTail}`, 10, L.bandY + 3);
 
   // The raider's cursor — graze it with your mouse. Target ring + the intruder's NAME beside it.
   if (raid.raiderCursor) {
@@ -867,6 +919,13 @@ function onClick(e: MouseEvent): void {
   if (store.raid.role === "raiding") {
     if (inRect(x, y, actionButtonRect(L, "left"))) {
       void cancelRaid();
+      return;
+    }
+    // Click the 돈통 at the far right to lift coins straight from the victim's wallet.
+    if (inRect(x, y, moneyBoxRect(L))) {
+      const r = moneyBoxRect(L);
+      addEffect("pop", r.x + r.w / 2, r.y + r.h / 2);
+      void registerBoxSteal();
       return;
     }
     // Click a ripe crop to chip away at stealing it; click an empty slot to plant a weed.
