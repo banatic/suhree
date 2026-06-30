@@ -39,8 +39,11 @@ pub fn spawn(app: AppHandle) {
             } else if hidden && consecutive_clear >= 2 {
                 *state.hidden_fullscreen.lock().unwrap() = false;
                 window::recompute_and_apply(&app);
-                if let Some(w) = app.get_webview_window(STRIP_LABEL) {
-                    let _ = w.show();
+                // Don't resurrect a strip the user hid on purpose — only the fullscreen-driven hide.
+                if !*state.manual_hidden.lock().unwrap() {
+                    if let Some(w) = app.get_webview_window(STRIP_LABEL) {
+                        let _ = w.show();
+                    }
                 }
                 let _ = app.emit("fullscreen-changed", false);
             }

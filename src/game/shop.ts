@@ -42,7 +42,7 @@ export async function buyLevel(uid: string, kind: "scarecrow" | "scythe"): Promi
   return true;
 }
 
-export type CosmeticType = "decor" | "msgSkin" | "theme" | "title";
+export type CosmeticType = "decor" | "msgSkin" | "theme" | "title" | "cursor";
 
 export async function buyCosmetic(
   uid: string,
@@ -67,11 +67,15 @@ export async function buyCosmetic(
   return true;
 }
 
-const EQUIP_FIELD: Record<CosmeticType, "equippedDecor" | "equippedMsgSkin" | "equippedTheme" | "equippedTitle"> = {
+const EQUIP_FIELD: Record<
+  CosmeticType,
+  "equippedDecor" | "equippedMsgSkin" | "equippedTheme" | "equippedTitle" | "equippedCursor"
+> = {
   decor: "equippedDecor",
   msgSkin: "equippedMsgSkin",
   theme: "equippedTheme",
   title: "equippedTitle",
+  cursor: "equippedCursor",
 };
 
 export async function equipCosmetic(uid: string, type: CosmeticType, id: string): Promise<void> {

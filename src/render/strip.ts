@@ -1,4 +1,4 @@
-import { store, toast, bandHeightCss, bandDock, coins, type PanelKind } from "../state";
+import { store, toast, currentToast, bandHeightCss, bandDock, coins, type PanelKind } from "../state";
 import { BALANCE } from "../config/balance";
 import { stageOf, tierOf, plant, harvest, msToRipe, type Stage } from "../game/crops";
 import {
@@ -15,6 +15,8 @@ import {
   type Sprite,
 } from "./sprites";
 import { drawGhostCursor } from "./cursorGhost";
+import { cursorSkin } from "./cursorArt";
+import { createTrail } from "./cursorTrail";
 import { drawTheme } from "./theme";
 import { drawDecorById } from "./decorArt";
 import type { CosmeticScene } from "./cosmeticScene";
@@ -73,6 +75,9 @@ let lastRaidRole = "none";
 let lastPointer: { x: number; y: number } | null = null; // last in-canvas mouse pos (CSS px)
 let lastGrazeAt = 0; // throttles hover-to-evict hits
 const effects: Effect[] = [];
+// Trail wakes: the opponent ghost's during a raid, and your own cursor's while you hover the band.
+const ghostTrail = createTrail();
+const selfTrail = createTrail();
 
 const HUD_H = 34;
 const EVICT_GRAZE_MS = 140; // min ms between hover-graze eviction hits (defender)
@@ -92,8 +97,14 @@ const HUD_LABELS: { id: string; label: string }[] = [
   { id: "settings", label: "설정" },
 ];
 
+// The 점지 chip is a hidden easter egg: it exists only for one nickname, and that owner can further
+// toggle it on/off with a secret key sequence (see setupStripInteractions). Default = shown.
+const SPY_HIDDEN_KEY = "suhree_spy_off";
+function spyButtonVisible(): boolean {
+  return store.user?.nickname === "정충봉" && localStorage.getItem(SPY_HIDDEN_KEY) !== "1";
+}
 function visibleHudLabels(): { id: string; label: string }[] {
-  return HUD_LABELS.filter((b) => b.id !== "spy" || store.user?.nickname === "정충봉");
+  return HUD_LABELS.filter((b) => b.id !== "spy" || spyButtonVisible());
 }
 
 // ── Canvas ─────────────────────────────────────────────────────────────────
@@ -222,6 +233,7 @@ export function renderStrip(): void {
 
   if (store.raid.role !== lastRaidRole) {
     lastRaidRole = store.raid.role;
+    ghostTrail.reset(); // the ghost we're trailing just changed (or vanished)
     publishHitRegions();
   }
 
@@ -260,8 +272,18 @@ function drawFarmView(c: CanvasRenderingContext2D, L: BandLayout): void {
     drawSprite(c, SCARECROW, L.slotSpan.x0 - 18 * sc, L.soilY - 14 * sc, sc);
   }
   drawEffects(c, L);
+  drawSelfTrail(c, L);
   drawHUD(c, L);
   drawPullTab(c, L);
+}
+
+/** Your own cursor's trail while you hover your strip — personal flair (the OS arrow stays as-is). */
+function drawSelfTrail(c: CanvasRenderingContext2D, L: BandLayout): void {
+  const style = cursorSkin(store.user?.equippedCursor).trail;
+  if (lastPointer && hovered && style.kind !== "none") {
+    selfTrail.emit(lastPointer.x, lastPointer.y, style, store.now, L.dir);
+  }
+  selfTrail.step(c, store.now); // step every frame so it keeps fading after the mouse leaves
 }
 
 function drawSoil(c: CanvasRenderingContext2D, L: BandLayout): void {
@@ -514,7 +536,12 @@ function drawRaidingView(c: CanvasRenderingContext2D, L: BandLayout): void {
     c.arc(gx, gy, BALANCE.raidGame.evictHitRadius * 0.7, 0, Math.PI * 2);
     c.stroke();
     c.restore();
-    drawGhostCursor(c, gx - 1, gy - 8, Math.max(2, L.scale));
+    // The defender's own cursor cosmetic (shape + trail) — drawn behind, then the ghost on top.
+    ghostTrail.emit(gx, gy, cursorSkin(raid.ownerCursorSkin).trail, store.now, L.dir);
+    ghostTrail.step(c, store.now);
+    drawGhostCursor(c, gx - 1, gy - 8, Math.max(2, L.scale), raid.ownerCursorSkin);
+  } else {
+    ghostTrail.step(c, store.now); // keep fading even if the ghost briefly drops out
   }
 
   drawEffects(c, L);
@@ -617,8 +644,13 @@ function drawDefendingView(c: CanvasRenderingContext2D, L: BandLayout): void {
     c.arc(gx, gy, BALANCE.raidGame.evictHitRadius * 0.7, 0, Math.PI * 2);
     c.stroke();
     c.restore();
-    drawGhostCursor(c, gx - 1, gy - 8, Math.max(2, L.scale));
+    // The intruder's cursor cosmetic (shape + trail) — trail behind, ghost + name tag on top.
+    ghostTrail.emit(gx, gy, cursorSkin(raid.raiderCursorSkin).trail, store.now, L.dir);
+    ghostTrail.step(c, store.now);
+    drawGhostCursor(c, gx - 1, gy - 8, Math.max(2, L.scale), raid.raiderCursorSkin);
     drawCursorNameTag(c, gx, gy, raid.raiderNick || "침입자", L);
+  } else {
+    ghostTrail.step(c, store.now);
   }
 
   drawEffects(c, L);
@@ -796,8 +828,8 @@ function drawDecor(c: CanvasRenderingContext2D, L: BandLayout, decorId: string |
 // ── Toast ──────────────────────────────────────────────────────────────────
 
 function drawToast(c: CanvasRenderingContext2D, L: BandLayout): void {
-  if (!store.ui.toast || Date.now() > store.ui.toastUntil) return;
-  const text = store.ui.toast;
+  const text = currentToast(store.now);
+  if (!text) return;
   c.font = "bold 12px 'MulmaruMono', ui-monospace, monospace";
   const w = c.measureText(text).width + 24;
   const x = clamp(L.W / 2 - w / 2, 4, L.W - w - 4);
@@ -890,11 +922,10 @@ function onClick(e: MouseEvent): void {
 }
 
 function handleButton(id: string): void {
+  // The 씨앗 chip opens the shop's seed list (pick directly) instead of cycling one-by-one through
+  // all tiers — the chip's colour dot still shows which seed is currently selected.
   if (id === "seed") {
-    const n = BALANCE.crops.tiers.length;
-    store.selectedSeedTier = (store.selectedSeedTier + 1) % n;
-    const t = tierOf(store.selectedSeedTier);
-    toast(`씨앗 선택: ${t?.label} (${t?.price}코인)`);
+    togglePanel("shop");
     return;
   }
   togglePanel(id as PanelKind);
@@ -949,6 +980,27 @@ export function setupStripInteractions(): void {
     hovered = h;
     publishHitRegions();
   });
+
+  // Secret toggle for the 점지 easter-egg chip: type "jumji" (점지) while the strip window has focus.
+  // Gated to the one owner nickname and ignored while a text field is focused (so chat typing is
+  // safe). Silent on purpose — the chip simply appears/disappears, leaving no on-screen trace.
+  const SECRET = ["KeyJ", "KeyU", "KeyM", "KeyJ", "KeyI"];
+  let buf: string[] = [];
+  window.addEventListener("keydown", (e) => {
+    if (store.user?.nickname !== "정충봉") return;
+    const ae = document.activeElement as HTMLElement | null;
+    if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")) return;
+    buf.push(e.code);
+    if (buf.length > SECRET.length) buf.shift();
+    if (buf.length === SECRET.length && SECRET.every((k, i) => buf[i] === k)) {
+      buf = [];
+      const isHidden = localStorage.getItem(SPY_HIDDEN_KEY) === "1";
+      localStorage.setItem(SPY_HIDDEN_KEY, isHidden ? "0" : "1");
+      if (!isHidden && store.ui.panel === "spy") togglePanel("spy"); // hiding → close it if open
+      publishHitRegions();
+    }
+  });
+
   // first-run "wink" + discoverability hint
   winkStart = Date.now();
   toast("마우스를 올리면 메뉴가 나와요", 4000);

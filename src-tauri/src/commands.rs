@@ -18,14 +18,16 @@ pub fn apply_strip_position(app: AppHandle) {
 }
 
 #[tauri::command]
-pub fn show_strip(app: AppHandle) {
+pub fn show_strip(app: AppHandle, state: State<AppState>) {
+    *state.manual_hidden.lock().unwrap() = false;
     if let Some(w) = app.get_webview_window(window::STRIP_LABEL) {
         let _ = w.show();
     }
 }
 
 #[tauri::command]
-pub fn hide_strip(app: AppHandle) {
+pub fn hide_strip(app: AppHandle, state: State<AppState>) {
+    *state.manual_hidden.lock().unwrap() = true;
     if let Some(w) = app.get_webview_window(window::STRIP_LABEL) {
         let _ = w.hide();
     }

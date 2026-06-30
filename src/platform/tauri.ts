@@ -63,6 +63,16 @@ export async function updateHitRegions(regions: NormRect[]): Promise<void> {
   }
 }
 
+/** Hide the strip window. To get it back the user relaunches the app — single-instance re-shows it. */
+export async function hideStrip(): Promise<void> {
+  if (!isTauri()) return;
+  try {
+    await invoke("hide_strip");
+  } catch {
+    /* ignore */
+  }
+}
+
 export async function setPreferredMonitor(monitor: "primary" | "cursor"): Promise<void> {
   if (!isTauri()) return;
   try {

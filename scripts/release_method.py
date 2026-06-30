@@ -415,8 +415,14 @@ if __name__ == "__main__":
     # ▼▼▼ 릴리스할 때 여기 notes 만 바꾸고 `npm run release` ▼▼▼
     #   version: "patch"(기본·자동 +0.0.1) / "minor" / "major" / "auto", 또는 "0.2.0" 처럼 명시.
     CONFIG = ReleaseConfig(
-        version="0.2.4",  # 명시 버전 — package.json/Cargo.toml/tauri.conf.json 0.2.4로 일괄 변경
-        notes="💬 서리 결과(성공·실패)가 마을 채팅에도 떠요.\n🏷️ 채팅에서는 칭호를 숨겨 닉네임이 잘리지 않아요.",
+        version="0.2.5",  # 명시 버전 — package.json/Cargo.toml/tauri.conf.json 0.2.5로 일괄 변경
+        notes=(
+            "🖱️ 커서 꾸미기 — 모양 + 잔상(트레일)! 서리 시 상대 화면에 내 커서가 떠요.\n"
+            "🙈 앱 숨기기(설정) — 다시 실행하면 그 자리로 복귀해요.\n"
+            "🌱 씨앗은 '씨앗' 버튼 → 상점에서 바로 선택.\n"
+            "💬 전송 실패해도 채팅 입력이 사라지지 않아요.\n"
+            "⎋ Esc로 창 닫기 · 그 외 가독성·UX를 다듬었어요."
+        ),
         pub_date=None,  # None이면 현재 UTC 시간 사용
         skip_build=False,
         msi_path=None,

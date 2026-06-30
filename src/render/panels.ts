@@ -9,6 +9,7 @@ import {
   setChatNotify,
   type PanelKind,
   type FriendData,
+  type ChatMessage,
 } from "../state";
 import { BALANCE } from "../config/balance";
 import { r, paths } from "../firebase/db";
@@ -16,13 +17,16 @@ import { serverNow } from "../firebase/time";
 import { buyPlotExpansion, buyLevel, buyCosmetic, equipCosmetic, type CosmeticType } from "../game/shop";
 import { cosmeticOwned, lockReason } from "../game/unlocks";
 import { renderFarmPreview } from "./farmPreview";
+import { drawGhostCursor } from "./cursorGhost";
+import { cursorSkin } from "./cursorArt";
+import { createTrail } from "./cursorTrail";
 import type { CosmeticItem } from "../config/balance";
 import { levelCost, plotCost, cropClicksToSteal, evictHitsNeeded } from "../game/levels";
 import { addFriendByCode } from "../friends/add";
 import { setNickname } from "../firebase/auth";
 import { startRaid } from "../raid/controller";
 import { sendChat } from "../firebase/chat";
-import { setPreferredMonitor, isTauri } from "../platform/tauri";
+import { setPreferredMonitor, hideStrip, isTauri } from "../platform/tauri";
 import { publishHitRegions } from "./strip";
 import { dismissChatPopup } from "./chatPopup";
 import { APP_VERSION } from "../version";
@@ -48,6 +52,8 @@ let chatDraft = "";
 let lastChatSig = "";
 // Chat auto-dismiss: once the mouse has entered the open chat panel, leaving it closes the panel.
 let chatHoverArmed = false;
+// Which folded 서리 groups the user has expanded (keyed by the run's first message id).
+const expandedRaidGroups = new Set<string>();
 
 function ensurePanel(): HTMLDivElement {
   if (!panelEl) {
@@ -61,6 +67,14 @@ function ensurePanel(): HTMLDivElement {
     });
     panelEl.addEventListener("mouseleave", () => {
       if (store.ui.panel === "chat" && chatHoverArmed) togglePanel("chat");
+    });
+    // Esc closes the open panel (the only reliable "dismiss" gesture — clicks outside the band pass
+    // straight through the click-through overlay to the desktop, so they never reach the app).
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && store.ui.panel !== "none") {
+        e.preventDefault();
+        togglePanel(store.ui.panel);
+      }
     });
     // Tick live bits in place (without rebuilding the panel → keeps input focus/text).
     window.setInterval(() => {
@@ -144,6 +158,42 @@ function flushPreviews(): void {
   const q = previewQueue;
   previewQueue = [];
   for (const { canvas, opts } of q) renderFarmPreview(canvas, opts);
+}
+
+// Animated cursor preview — the equipped cursor drifts along a path leaving its trail, so the buyer
+// actually sees what they bought (the cosmetic is otherwise only visible to opponents mid-raid). The
+// loop reads the equipped id live and self-stops when the cosmetics panel closes or is rebuilt.
+let cursorPreviewRaf = 0;
+function startCursorPreview(canvas: HTMLCanvasElement): void {
+  if (!canvas.isConnected) return; // stale canvas from a superseded panel build
+  cancelAnimationFrame(cursorPreviewRaf);
+  const dpr = window.devicePixelRatio || 1;
+  const W = 224;
+  const H = 64;
+  canvas.width = Math.floor(W * dpr);
+  canvas.height = Math.floor(H * dpr);
+  canvas.style.width = W + "px";
+  canvas.style.height = H + "px";
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  const trail = createTrail();
+  const loop = (): void => {
+    if (store.ui.panel !== "cosmetics" || !canvas.isConnected) return; // panel closed/rebuilt → stop
+    const now = Date.now();
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = "#4a4660"; // dusk backdrop so light AND dark trails read
+    ctx.fillRect(0, 0, W, H);
+    const cx = W / 2 + W * 0.34 * Math.sin(now / 900);
+    const cy = H / 2 + H * 0.26 * Math.sin(now / 640 + 1);
+    const id = store.user?.equippedCursor;
+    trail.emit(cx, cy, cursorSkin(id).trail, now, -1);
+    trail.step(ctx, now);
+    drawGhostCursor(ctx, cx - 1, cy - 8, 2, id);
+    cursorPreviewRaf = requestAnimationFrame(loop);
+  };
+  cursorPreviewRaf = requestAnimationFrame(loop);
 }
 
 function rarityColor(r?: string): string {
@@ -409,7 +459,15 @@ function chatPanel(): HTMLElement {
     input.value = "";
     input.focus();
     const ok = await sendChat(text);
-    if (!ok && text.trim()) toast("잠시 후 다시 보내주세요");
+    if (!ok && text.trim()) {
+      // Send failed (cooldown / network) — put the draft back so the user doesn't lose what they
+      // typed (unless they've already started typing something new in the meantime).
+      if (!input.value) {
+        chatDraft = text;
+        input.value = text;
+      }
+      toast("잠시 후 다시 보내주세요");
+    }
   };
   input.addEventListener("keydown", (e: KeyboardEvent) => {
     if (e.key === "Enter") {
@@ -442,27 +500,83 @@ function fmtChatTime(at: number): string {
   return `${ap} ${h12}:${m}`;
 }
 
+// 서리 announcements are auto-posted to the same room, so a busy server buries real chat under raid
+// spam. Detect them heuristically (their fixed emoji-led format) and fold consecutive ones — the
+// raids sandwiched between two human messages — into one collapsible summary row.
+const RAID_PREFIXES = ["🌾", "🚨", "⏱️", "🌿"];
+function isRaidMsg(text: string): boolean {
+  return RAID_PREFIXES.some((p) => text.startsWith(p)) && text.includes("님 밭");
+}
+
+function appendChatMsg(m: ChatMessage): void {
+  if (!chatListEl) return;
+  const mine = m.uid === store.uid;
+  // No title chip in chat — titles are long and would push the nick off-screen. Titles still
+  // show in the friends/ranking panels.
+  const nickEl = el("span", { class: "chat-nick" }, mine ? "나" : m.nick || "농부");
+  chatListEl.append(
+    el(
+      "div",
+      { class: `chat-msg${mine ? " me" : ""}` },
+      nickEl,
+      el("span", { class: "chat-text" }, m.text),
+      el("span", { class: "chat-time" }, fmtChatTime(m.at)),
+    ),
+  );
+}
+
+function appendRaidGroup(run: ChatMessage[]): void {
+  if (!chatListEl) return;
+  const key = run[0].id;
+  const open = expandedRaidGroups.has(key);
+  chatListEl.append(
+    el(
+      "div",
+      {
+        class: "chat-raid-fold",
+        onclick: () => {
+          if (!expandedRaidGroups.delete(key)) expandedRaidGroups.add(key);
+          renderChatList();
+        },
+      },
+      `⚔️ 서리 ${run.length}건 · ${open ? "▴ 접기" : "▾ 펼치기"}`,
+    ),
+  );
+  if (open) {
+    for (const m of run) {
+      const who = m.uid === store.uid ? "나" : m.nick || "농부";
+      chatListEl.append(
+        el(
+          "div",
+          { class: "chat-raid-item" },
+          el("span", { class: "chat-raid-who" }, who),
+          document.createTextNode(" " + m.text + " "),
+          el("span", { class: "chat-time" }, fmtChatTime(m.at)),
+        ),
+      );
+    }
+  }
+}
+
 function renderChatList(): void {
   if (!chatListEl) return;
   const atBottom = chatListEl.scrollHeight - chatListEl.scrollTop - chatListEl.clientHeight < 24;
   chatListEl.replaceChildren();
-  if (store.chat.length === 0) {
+  const msgs = store.chat;
+  if (msgs.length === 0) {
     chatListEl.append(el("div", { class: "muted" }, "아직 메시지가 없어요. 먼저 인사해 보세요!"));
   } else {
-    for (const m of store.chat) {
-      const mine = m.uid === store.uid;
-      // No title chip in chat — titles are long and would push the nick off-screen. Titles still
-      // show in the friends/ranking panels.
-      const nickEl = el("span", { class: "chat-nick" }, mine ? "나" : m.nick || "농부");
-      chatListEl.append(
-        el(
-          "div",
-          { class: `chat-msg${mine ? " me" : ""}` },
-          nickEl,
-          el("span", { class: "chat-text" }, m.text),
-          el("span", { class: "chat-time" }, fmtChatTime(m.at)),
-        ),
-      );
+    let i = 0;
+    while (i < msgs.length) {
+      if (isRaidMsg(msgs[i].text)) {
+        let j = i + 1;
+        while (j < msgs.length && isRaidMsg(msgs[j].text)) j++;
+        appendRaidGroup(msgs.slice(i, j));
+        i = j;
+      } else {
+        appendChatMsg(msgs[i]);
+        i++;
+      }
     }
   }
   lastChatSig = chatSignature();
@@ -604,7 +718,7 @@ function spyPanel(): HTMLElement {
   }
 
   const now = serverNow();
-  const card = el("div", { class: "card chat-list" });
+  const card = el("div", { class: "feed-list" });
   for (const rrow of rows) {
     const allRipeAt = maxRipe(rrow);
     const ripeNow = rrow.crops.filter((c) => c.ripeAt <= now).length;
@@ -636,7 +750,7 @@ function raidlogPanel(): HTMLElement {
   const wrap = el("div", { class: "panel-body" });
   wrap.append(el("div", { class: "muted" }, "서버 전체의 서리 기록이에요 (최근순)."));
 
-  const card = el("div", { class: "card chat-list" });
+  const card = el("div", { class: "feed-list" });
   if (store.raidlog.length === 0) {
     card.append(el("div", { class: "muted" }, "아직 서리 기록이 없어요. 평화로운 마을이네요 🌱"));
   } else {
@@ -647,18 +761,22 @@ function raidlogPanel(): HTMLElement {
       const raider = iRaided ? "나" : e.raiderNick || "농부";
       const victim = iWasRobbed ? "나" : e.victimNick || "농부";
       const cls = "raidlog-row" + (iRaided ? " me-raider" : iWasRobbed ? " me-victim" : "");
+      const grow = el(
+        "div",
+        { class: "grow" },
+        el("b", {}, raider),
+        document.createTextNode(" 🌾 "),
+        el("b", {}, victim),
+        document.createTextNode(`님의 밭 · 작물 ${e.count}개`),
+      );
+      // Text+colour tag (not colour alone) flags the rows I'm involved in.
+      if (iRaided) grow.prepend(el("span", { class: "raidlog-tag raid" }, "내 서리"));
+      else if (iWasRobbed) grow.prepend(el("span", { class: "raidlog-tag robbed" }, "피해"));
       card.append(
         el(
           "div",
           { class: cls },
-          el(
-            "div",
-            { class: "grow" },
-            el("b", {}, raider),
-            document.createTextNode(" 🌾 "),
-            el("b", {}, victim),
-            document.createTextNode(`님의 밭 · 작물 ${e.count}개`),
-          ),
+          grow,
           el("span", { class: "raidlog-coin" }, `+${e.coins}💰`),
           el("span", { class: "chat-time" }, fmtChatTime(e.at)),
         ),
@@ -722,12 +840,42 @@ function cosmeticsPanel(): HTMLElement {
     cosmeticSection(uid, "title", "칭호 (채팅·랭킹 표시)", BALANCE.cosmetics.titles, u?.equippedTitle || "title_none"),
   );
   wrap.append(cosmeticSection(uid, "msgSkin", "쪽지 스킨 (서리 시)", BALANCE.cosmetics.msgSkin, u?.equippedMsgSkin));
+
+  // Raid cursor (shape + trail). Animated preview of the equipped one, then the catalog.
+  const curPrev = el("canvas", { class: "farm-preview" }) as HTMLCanvasElement;
+  wrap.append(
+    el(
+      "div",
+      { class: "card" },
+      el("div", { class: "card-title" }, "커서 미리보기"),
+      el("div", { class: "preview-wrap" }, curPrev),
+      el("div", { class: "muted small" }, "서리하러 가면 상대 화면에 이 커서와 잔상이 떠요."),
+    ),
+  );
+  setTimeout(() => startCursorPreview(curPrev), 0); // canvas must be in the DOM before it animates
+  wrap.append(
+    cosmeticSection(uid, "cursor", "커서 (모양 + 잔상)", BALANCE.cosmetics.cursors, u?.equippedCursor || "cursor_default"),
+  );
   return wrap;
+}
+
+// Which monitor the strip prefers. The Rust side owns the real value, so we mirror the choice in
+// localStorage just to show which button is currently active (defaults to the balance setting).
+const MONITOR_KEY = "suhree_monitor";
+function currentMonitor(): "primary" | "cursor" {
+  const v = localStorage.getItem(MONITOR_KEY);
+  return v === "cursor" || v === "primary" ? v : BALANCE.strip.preferredMonitor;
+}
+function chooseMonitor(m: "primary" | "cursor"): void {
+  localStorage.setItem(MONITOR_KEY, m);
+  void setPreferredMonitor(m);
+  renderPanels();
 }
 
 function settingsPanel(): HTMLElement {
   const uid = store.uid;
   const wrap = el("div", { class: "panel-body" });
+  const mon = currentMonitor();
 
   let nickDraft = store.user?.nickname ?? "";
   const nickInput = el("input", {
@@ -755,11 +903,23 @@ function settingsPanel(): HTMLElement {
     el("div", { class: "card" },
       el("div", { class: "card-title" }, "스트립 위치"),
       row(
-        btn("주 모니터", () => void setPreferredMonitor("primary"), "btn"),
-        btn("커서 모니터", () => void setPreferredMonitor("cursor"), "btn"),
+        btn("주 모니터", () => chooseMonitor("primary"), mon === "primary" ? "btn sel" : "btn"),
+        btn("커서 모니터", () => chooseMonitor("cursor"), mon === "cursor" ? "btn sel" : "btn"),
       ),
     ),
   );
+
+  // Hide the strip from the screen. There's no tray icon, so the way back is relaunching suhree —
+  // single-instance catches that and re-shows this same window instead of opening a second copy.
+  if (isTauri()) {
+    wrap.append(
+      el("div", { class: "card" },
+        el("div", { class: "card-title" }, "앱 숨기기"),
+        el("div", { class: "muted small" }, "스트립을 화면에서 숨겨요. 바탕화면·시작메뉴의 suhree 아이콘을 다시 실행하면 돌아와요."),
+        btn("숨기기", () => void hideStrip()),
+      ),
+    );
+  }
   wrap.append(
     el("div", { class: "card" },
       el("div", { class: "card-title" }, "내 정보"),

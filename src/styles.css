@@ -110,7 +110,7 @@ body {
 }
 
 .muted {
-  color: #7a6a52;
+  color: #6b5838; /* darkened for WCAG-AA contrast on the parchment background */
   font-size: 12px;
 }
 
@@ -168,6 +168,16 @@ body {
   padding: 3px 8px;
   font-size: 11px;
   align-self: flex-start;
+}
+
+/* Currently-selected choice in a button group (e.g. monitor pick) — still clickable, just marked. */
+.btn.sel {
+  background: var(--wood);
+  color: var(--parch);
+  border-color: var(--wood-dark);
+}
+.btn.sel:hover {
+  background: var(--wood-dark);
 }
 
 /* ── Forced-update banner ───────────────────────────────── */
@@ -292,6 +302,24 @@ body {
   white-space: nowrap;
 }
 
+/* Text label (not colour alone) marking the rows I'm in — pairs with the row's me-raider/-victim tint. */
+.raidlog-tag {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: bold;
+  color: #fff;
+  vertical-align: middle;
+}
+.raidlog-tag.raid {
+  background: #3f7a30;
+}
+.raidlog-tag.robbed {
+  background: #b5402e;
+}
+
 /* ── Chat ──────────────────────────────────────────────── */
 
 .chat-list {
@@ -300,6 +328,18 @@ body {
   gap: 5px;
   max-height: 260px;
   overflow: auto;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.42);
+  border: 2px solid rgba(90, 67, 38, 0.4);
+  border-radius: 8px;
+}
+
+/* Same look as .chat-list but WITHOUT its own scroll — feed cards (서리 기록 / 점지소) flow into the
+   panel's single scroll instead of nesting a second scrollbar inside it. */
+.feed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
   padding: 6px;
   background: rgba(255, 255, 255, 0.42);
   border: 2px solid rgba(90, 67, 38, 0.4);
@@ -338,8 +378,37 @@ body {
   flex: 0 0 auto;
   align-self: flex-end;
   font-size: 10px;
-  color: #9a8a72;
+  color: #736550; /* darkened from #9a8a72 (was ~3.4:1) for readability */
   white-space: nowrap;
+}
+
+/* Folded 서리 announcements (collapsed run between real chat lines). */
+.chat-raid-fold {
+  font-size: 12px;
+  font-weight: bold;
+  color: #6b5838;
+  background: rgba(90, 67, 38, 0.1);
+  border: 1px dashed rgba(90, 67, 38, 0.35);
+  border-radius: 6px;
+  padding: 2px 8px;
+  cursor: pointer;
+  user-select: none;
+}
+.chat-raid-fold:hover {
+  background: rgba(90, 67, 38, 0.18);
+}
+.chat-raid-item {
+  display: flex;
+  gap: 5px;
+  align-items: baseline;
+  font-size: 11px;
+  line-height: 1.3;
+  color: #6b5838;
+  padding-left: 10px;
+}
+.chat-raid-item .chat-raid-who {
+  flex: 0 0 auto;
+  font-weight: bold;
 }
 
 /* ── Chat popup (KakaoTalk-style corner toast) ─────────────── */
@@ -420,7 +489,7 @@ body {
 
 #loot-note .ln-sub {
   font-size: 12px;
-  color: #7a6a52;
+  color: #6b5838;
 }
 
 #loot-note .ln-input {
@@ -487,8 +556,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 220px;
-  overflow: auto;
+  /* No inner scroll — the settings panel itself scrolls, so a nested scrollbar here was redundant. */
 }
 
 .cl-entry .cl-ver {

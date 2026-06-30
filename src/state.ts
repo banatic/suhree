@@ -58,6 +58,7 @@ export interface UserRecord {
   equippedMsgSkin: string;
   equippedTheme?: string; // band background theme (defaults to "theme_day")
   equippedTitle?: string; // title shown next to my nick (defaults to "title_none")
+  equippedCursor?: string; // raid cursor shape + trail (defaults to "cursor_default")
   cosmetics?: Record<string, boolean | string>;
   // Crop 도감: per-tier { h: harvested count, s: { victimUid: stolen count } }.
   dex?: Record<string, { h?: number; s?: Record<string, number> }>;
@@ -84,6 +85,7 @@ export interface RaidState {
   targetPlotSize?: number; // victim's plot size — the raid view shows THEIR slots
   targetDecor?: string; // the victim's equipped decor/theme — so the raider sees their decorated farm
   targetTheme?: string;
+  ownerCursorSkin?: string; // the victim's equipped cursor id — their ghost wears it (raiding view)
   ownerCursor?: { x: number; y: number }; // smoothed defender ghost (band-normalised 0..1) — DODGE this
   cropClicks?: number; // clicks needed to steal one ripe crop (from levels)
   stealProgress?: Record<string, number>; // slot → clicks landed so far
@@ -92,6 +94,7 @@ export interface RaidState {
   // defending (my plot is being robbed): click the raider's cursor to evict.
   raiderUid?: string;
   raiderNick?: string;
+  raiderCursorSkin?: string; // the raider's equipped cursor id — their ghost wears it (defending view)
   raiderCursor?: { x: number; y: number }; // smoothed raider ghost (band-normalised 0..1) — CLICK this
   evictHits?: number; // hits landed on the raider so far
   evictHitsNeeded?: number; // hits needed to evict (from levels)
@@ -166,10 +169,36 @@ export function consumePanelsDirty(): boolean {
   return false;
 }
 
+// Toasts QUEUE so a burst of messages (rapid harvests, raid endings) plays one after another
+// instead of each instantly overwriting the last. The band render pulls the active line every
+// frame via currentToast(), which also advances the queue as each toast expires.
+interface ToastItem {
+  msg: string;
+  ms: number;
+}
+const toastQueue: ToastItem[] = [];
+
 export function toast(msg: string, ms = 2600): void {
-  store.ui.toast = msg;
-  store.ui.toastUntil = Date.now() + ms;
+  // Skip an immediate duplicate of what's already pending/showing (reconnect bursts, double taps).
+  const last = toastQueue.length ? toastQueue[toastQueue.length - 1].msg : store.ui.toast;
+  if (msg === last && (toastQueue.length > 0 || Date.now() < store.ui.toastUntil)) return;
+  toastQueue.push({ msg, ms });
+  if (toastQueue.length > 4) toastQueue.splice(0, toastQueue.length - 4); // cap a runaway backlog
   markPanelsDirty();
+}
+
+/** The toast to render right now, advancing the queue as each one expires (null = show nothing). */
+export function currentToast(now = Date.now()): string | null {
+  if (now >= store.ui.toastUntil) {
+    const next = toastQueue.shift();
+    if (next) {
+      store.ui.toast = next.msg;
+      store.ui.toastUntil = now + next.ms;
+    } else {
+      store.ui.toast = null;
+    }
+  }
+  return store.ui.toast && now < store.ui.toastUntil ? store.ui.toast : null;
 }
 
 export function coins(): number {

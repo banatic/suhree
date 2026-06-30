@@ -121,6 +121,7 @@ export async function startRaid(targetUid: string, targetNick: string): Promise<
     targetPlotSize: tUser.plotSize ?? BALANCE.shop.plotExpansion.startSlots,
     targetDecor: tUser.equippedDecor || "decor_none",
     targetTheme: tUser.equippedTheme || "theme_day",
+    ownerCursorSkin: tUser.equippedCursor || "cursor_default",
     cropClicks,
     stealProgress: {},
     stolenCoins: 0,
@@ -313,10 +314,12 @@ export function startDefenseWatch(myUid: string): void {
       if (store.raid.role !== "defending" || store.raid.raiderUid !== v.raiderUid) {
         let nick = "누군가";
         let raiderScytheLv = 0;
+        let raiderCursorSkin = "cursor_default";
         try {
           const ru = (await get(r(paths.user(v.raiderUid)))).val();
           nick = ru?.nickname || nick;
           raiderScytheLv = ru?.scytheLv ?? 0;
+          raiderCursorSkin = ru?.equippedCursor || "cursor_default";
         } catch {
           /* ignore */
         }
@@ -324,6 +327,7 @@ export function startDefenseWatch(myUid: string): void {
           role: "defending",
           raiderUid: v.raiderUid,
           raiderNick: nick,
+          raiderCursorSkin,
           evictHits: 0,
           evictHitsNeeded: evictHitsNeeded(raiderScytheLv, store.user?.scarecrowLv ?? 0),
           startedAt: v.startedAt,

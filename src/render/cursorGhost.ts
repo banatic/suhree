@@ -1,15 +1,17 @@
-import { drawSprite, GHOST_CURSOR } from "./sprites";
+import { drawSprite } from "./sprites";
+import { cursorSkin } from "./cursorArt";
 
-/** Draw the owner's ghost cursor at a CSS position on the thief's strip. */
+/** Draw a ghost cursor at a CSS position on the strip, using the given cosmetic skin (or default). */
 export function drawGhostCursor(
   ctx: CanvasRenderingContext2D,
   xCss: number,
   yCss: number,
   scale: number,
+  cursorId?: string,
 ): void {
-  // soft shadow so it reads against busy soil
+  const skin = cursorSkin(cursorId);
   ctx.save();
   ctx.globalAlpha = 0.85;
-  drawSprite(ctx, GHOST_CURSOR, Math.round(xCss), Math.round(yCss), scale);
+  drawSprite(ctx, skin.sprite, Math.round(xCss), Math.round(yCss), scale, skin.overrides);
   ctx.restore();
 }

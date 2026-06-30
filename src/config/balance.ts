@@ -312,6 +312,17 @@ export const BALANCE = {
       { id: "skin_heart", label: "하트 도장", price: 120 },
       { id: "skin_skull", label: "해골 낙서", price: 200 },
     ],
+    // Raid cursor: a SHAPE + a TRAIL (잔상). Shown to your opponent during a raid (and behind your
+    // own cursor while you hover your strip). Shape/trail art lives in render/cursorArt.ts, keyed by id.
+    cursors: [
+      { id: "cursor_default", label: "기본 화살표", price: 0, rarity: "일반" },
+      { id: "cursor_paw", label: "고양이 발 · 먼지", price: 300, rarity: "일반" },
+      { id: "cursor_heart", label: "하트 · 꽃잎", price: 700, rarity: "희귀" },
+      { id: "cursor_sparkle", label: "반짝 별 · 별가루", price: 1500, rarity: "희귀" },
+      { id: "cursor_flame", label: "불꽃 · 화염", price: 3000, rarity: "영웅" },
+      { id: "cursor_bandit", label: "밤손님 장갑 · 연기", price: 0, rarity: "영웅", req: "scytheMaster" },
+      { id: "cursor_rainbow", label: "무지개 자취", price: 0, rarity: "전설", req: "dexComplete" },
+    ],
     // Coin thresholds for the "rich"-style title/theme reqs (see game/unlocks.ts).
     scytheMasterLv: 10,
     scarecrowMasterLv: 10,
@@ -362,6 +373,7 @@ export type DecorId = (typeof BALANCE.cosmetics.decor)[number]["id"];
 export type MsgSkinId = (typeof BALANCE.cosmetics.msgSkin)[number]["id"];
 export type ThemeId = (typeof BALANCE.cosmetics.themes)[number]["id"];
 export type TitleId = (typeof BALANCE.cosmetics.titles)[number]["id"];
+export type CursorId = (typeof BALANCE.cosmetics.cursors)[number]["id"];
 
 /** A buyable/unlockable cosmetic entry (decor, theme, or title). */
 export interface CosmeticItem {

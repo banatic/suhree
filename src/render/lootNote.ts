@@ -12,8 +12,9 @@ let inputEl: HTMLTextAreaElement | null = null;
 let resolveCb: ((text: string | null) => void) | null = null;
 let autoTimer = 0;
 
-// An abandoned composer auto-sends whatever's typed, then lets the raid finalize. Kept well under
-// lockStaleMs (130s) so the raid lock can't hang while the note is being written.
+// An abandoned composer auto-SKIPS (sends no note) after this, then lets the raid finalize — better
+// to send nothing than to fire off the pre-filled suggestion the raider never confirmed. Kept well
+// under lockStaleMs (130s) so the raid lock can't hang while the note is being written.
 const AUTO_MS = 20000;
 
 function ensureEl(): HTMLDivElement {
@@ -92,7 +93,7 @@ export function promptLootNote(
   }, 0);
 
   window.clearTimeout(autoTimer);
-  autoTimer = window.setTimeout(() => finish(inputEl ? inputEl.value : null), AUTO_MS);
+  autoTimer = window.setTimeout(() => finish(null), AUTO_MS);
 }
 
 function finish(text: string | null): void {

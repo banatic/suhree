@@ -13,6 +13,16 @@ use tauri::Manager;
 
 fn main() {
     tauri::Builder::default()
+        // Single-instance must be the FIRST plugin. When the user relaunches suhree (e.g. to bring
+        // back a strip they hid via the 숨기기 button), the second process fires this in the running
+        // one and exits — we just un-hide + reposition the existing window instead of spawning a copy.
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            *app.state::<AppState>().manual_hidden.lock().unwrap() = false;
+            if let Some(win) = app.get_webview_window(window::STRIP_LABEL) {
+                let _ = win.show();
+            }
+            window::recompute_and_apply(app);
+        }))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .manage(AppState::default())

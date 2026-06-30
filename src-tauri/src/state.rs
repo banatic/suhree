@@ -68,6 +68,10 @@ pub struct AppState {
     pub clickthrough_enabled: Mutex<bool>,
     /// True while hidden because a fullscreen app is in the foreground.
     pub hidden_fullscreen: Mutex<bool>,
+    /// True when the user hid the strip on purpose (via the 숨기기 button). Kept separate from
+    /// `hidden_fullscreen` so the fullscreen watchdog won't auto-restore a deliberately-hidden strip;
+    /// relaunching the app (single-instance) clears it and shows the window again.
+    pub manual_hidden: Mutex<bool>,
     /// "primary" | "cursor" — which monitor to dock to.
     pub preferred_monitor: Mutex<String>,
     /// Logical height of the crop band (px @ 96dpi).
@@ -82,6 +86,7 @@ impl Default for AppState {
             hit_regions: Mutex::new(Vec::new()),
             clickthrough_enabled: Mutex::new(true),
             hidden_fullscreen: Mutex::new(false),
+            manual_hidden: Mutex::new(false),
             preferred_monitor: Mutex::new("primary".to_string()),
             band_height_logical: Mutex::new(48),
         }
