@@ -1,11 +1,11 @@
 {
-    "version": "0.2.4",
-    "notes": "💬 서리 결과(성공·실패)가 마을 채팅에도 떠요.\n🏷️ 채팅에서는 칭호를 숨겨 닉네임이 잘리지 않아요.",
-    "pub_date": "2026-06-29T23:38:21.334Z",
+    "version": "0.2.5",
+    "notes": "🖱️ 커서 꾸미기 — 모양 + 잔상(트레일)! 서리 시 상대 화면에 내 커서가 떠요.\n🙈 앱 숨기기(설정) — 다시 실행하면 그 자리로 복귀해요.\n🌱 씨앗은 '씨앗' 버튼 → 상점에서 바로 선택.\n💬 전송 실패해도 채팅 입력이 사라지지 않아요.\n⎋ Esc로 창 닫기 · 그 외 가독성·UX를 다듬었어요.",
+    "pub_date": "2026-06-30T00:49:59.751Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMko0UG0vcGZPOVUzVklYUE1PVDZvMkFFdHFRNlNFa3FyNWhHaU8wM3RURU5yN1d6cm1pUUkrSTdoMFFmVzhaL1dkYzBydU1kdjgzOStHMktTdllTeEFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyNzc2NDI0CWZpbGU6c3VocmVlXzAuMi40X3g2NF9lbi1VUy5tc2kKOHpxMVB6SWwvOG9FOXdHWWZITFdHVG9PdnBITklUT05ITHdDSCtReFFGM0Y1dmNwbHF0SEFCbnYyTEJLUjNJQWs1d1pZckRIbGVxWElITjk2SUovREE9PQo=",
-            "url": "https://github.com/banatic/suhree/releases/download/v0.2.4/suhree_0.2.4_x64_en-US.msi"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkphN3V2ajhkSHordE84ZEJYRVp5OEFpWDhld0JTK1hrV0xRMzNQWkp6RnUwL0JsQW00YnY1TUxFY3dPQVQzNlIwdTBrMXQybytqNTBUcEZNTklMVEFjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyNzgwNzcxCWZpbGU6c3VocmVlXzAuMi41X3g2NF9lbi1VUy5tc2kKUVgxSURGTFJ1Z0NUcVpDUGZiZnRZVVFaajlDblUzbGUyNktNYTVPQytKOWtZbHJBdWdNNUU5eUlmKzMrM1FRSWpEalE1OVU1QnhZdTNKK3BzRTcxREE9PQo=",
+            "url": "https://github.com/banatic/suhree/releases/download/v0.2.5/suhree_0.2.5_x64_en-US.msi"
         }
     }
 }
