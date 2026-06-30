@@ -1,11 +1,11 @@
 {
-    "version": "0.2.5",
-    "notes": "🖱️ 커서 꾸미기 — 모양 + 잔상(트레일)! 서리 시 상대 화면에 내 커서가 떠요.\n🙈 앱 숨기기(설정) — 다시 실행하면 그 자리로 복귀해요.\n🌱 씨앗은 '씨앗' 버튼 → 상점에서 바로 선택.\n💬 전송 실패해도 채팅 입력이 사라지지 않아요.\n⎋ Esc로 창 닫기 · 그 외 가독성·UX를 다듬었어요.",
-    "pub_date": "2026-06-30T00:49:59.751Z",
+    "version": "0.2.6",
+    "notes": "💰 돈통 서리 — 서리하러 가면 친구 밭 맨 오른쪽에 돈통이 떠요. 클릭마다 코인 50~500을 훔쳐와요(쫓겨날 때까지)!\n⏱️ 레이드 제한시간이 30초로 짧아져 더 빠르고 박진감 있게!",
+    "pub_date": "2026-06-30T05:05:53.052Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkphN3V2ajhkSHordE84ZEJYRVp5OEFpWDhld0JTK1hrV0xRMzNQWkp6RnUwL0JsQW00YnY1TUxFY3dPQVQzNlIwdTBrMXQybytqNTBUcEZNTklMVEFjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyNzgwNzcxCWZpbGU6c3VocmVlXzAuMi41X3g2NF9lbi1VUy5tc2kKUVgxSURGTFJ1Z0NUcVpDUGZiZnRZVVFaajlDblUzbGUyNktNYTVPQytKOWtZbHJBdWdNNUU5eUlmKzMrM1FRSWpEalE1OVU1QnhZdTNKK3BzRTcxREE9PQo=",
-            "url": "https://github.com/banatic/suhree/releases/download/v0.2.5/suhree_0.2.5_x64_en-US.msi"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkd4aEZsaFRjUXQzZG42azVIdXdiN0tlQ09lSFpWejFuNFVobWFUYWkzcDFWckZKM3N2VnRLK1RYU0lORHR4ZGg0c1M3U2F0WjExMXR3bEh4Y3p0bHdFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyNzk2MDkzCWZpbGU6c3VocmVlXzAuMi42X3g2NF9lbi1VUy5tc2kKL214c3lwVnBkNXdyL1JNL081dGNWS2NtSGhNbXAzVVdhZ3U0Z3E2MVViSVRjcUNFT05LNDFtS2QybjNBZUcxM1pMMUZNMjZhT2VyWllBZzFTVGwyRFE9PQo=",
+            "url": "https://github.com/banatic/suhree/releases/download/v0.2.6/suhree_0.2.6_x64_en-US.msi"
         }
     }
 }
