@@ -8,10 +8,10 @@
 import {
   get,
   set,
-  remove,
   push,
   onValue,
   onDisconnect,
+  runTransaction,
   serverTimestamp,
   type Unsubscribe,
   type OnDisconnect,
@@ -25,18 +25,29 @@ import { stageOf } from "../game/crops";
 import { sellValue } from "../game/market";
 import { recordDex } from "../game/dex";
 import { addCoins } from "../game/economy";
-import { acquireLock, releaseLock } from "./lock";
+import { joinRaid, leaveRaid } from "./lock";
 import { getCooldownRemaining, setCooldown, markFriendCooldown } from "./cooldown";
-import { startRaiderCursorSub, startDefenderCursorSub, stopCursorSub } from "./cursorStream";
+import { startRaiderCursorSub, stopCursorSub } from "./cursorStream";
 import { playAlarm, playSteal, playWin } from "./alarm";
 import { promptLootNote } from "../render/lootNote";
 import { logRaid } from "../firebase/raidlog";
 import { announceToChat } from "../firebase/chat";
 
-let raidNodeSub: Unsubscribe | null = null;
-let defenseSub: Unsubscribe | null = null;
-let raidDisconnect: OnDisconnect | null = null;
-let alarmedFor: string | null = null;
+// One raider's slot as stored under raids/{target}/raiders/{raiderUid}.
+interface RaiderSlot {
+  startedAt?: number;
+  durationMs?: number;
+  evicted?: boolean;
+  evictHits?: number;
+  cursor?: { x: number; y: number };
+}
+
+let raidNodeSub: Unsubscribe | null = null; // my own slot on the target (HP + evicted)
+let raidCropsSub: Unsubscribe | null = null; // the target's live crops (so others' steals disappear)
+let defenseSub: Unsubscribe | null = null; // the raiders map on MY field
+let raidDisconnect: OnDisconnect | null = null; // drops my slot if my socket dies mid-raid
+const alarmedUids = new Set<string>(); // raiders we've already sounded the alarm for
+const fetchingRaiders = new Set<string>(); // raiders whose user data we're fetching (avoid double-fetch)
 
 const MESSAGES = [
   "잘 먹고 갑니다 😋",
@@ -102,14 +113,11 @@ export async function startRaid(targetUid: string, targetNick: string): Promise<
   const startedAt = Date.now();
   const durationMs = BALANCE.raidGame.timeoutSeconds * 1000;
 
-  const lock = await acquireLock(targetUid, me, startedAt, durationMs);
-  if (!lock.ok) {
-    toast("다른 도둑이 이미 들어가 있어요");
-    return;
-  }
+  // Join as one of possibly-many raiders — no lock, my own slot keyed by uid (never "occupied").
+  await joinRaid(targetUid, me, startedAt, durationMs);
 
-  // Crash-safety: drop the lock automatically if our socket dies mid-raid.
-  raidDisconnect = onDisconnect(r(paths.raid(targetUid)));
+  // Crash-safety: drop only MY slot automatically if our socket dies mid-raid (others keep going).
+  raidDisconnect = onDisconnect(r(paths.raidRaider(targetUid, me)));
   raidDisconnect.remove().catch(() => {});
 
   store.raid = {
@@ -134,13 +142,27 @@ export async function startRaid(targetUid: string, targetNick: string): Promise<
   };
   startRaiderCursorSub(targetUid);
 
-  // Watch my raid node: detect eviction, and mirror the defender's running hit count so I can
-  // show my health (HP = evictHitsNeeded − evictHits).
-  raidNodeSub = onValue(r(paths.raid(targetUid)), (snap) => {
-    const v = snap.val();
+  // Watch MY slot: detect eviction, and mirror the defender's running hit count so I can show my
+  // health (HP = evictHitsNeeded − evictHits).
+  raidNodeSub = onValue(r(paths.raidRaider(targetUid, me)), (snap) => {
+    const v = snap.val() as RaiderSlot | null;
     if (!v || store.raid.role !== "raiding" || store.raid.resolved) return;
     if (typeof v.evictHits === "number") store.raid.evictHits = v.evictHits;
     if (v.evicted === true) void finishThiefRaid("evicted");
+  });
+
+  // Watch the target's live crops so a crop stolen by ANOTHER raider (or harvested by the owner)
+  // disappears from my strip too — no phantom crops to keep clicking.
+  raidCropsSub = onValue(r(paths.crops(targetUid)), (snap) => {
+    const raid = store.raid;
+    if (raid.role !== "raiding" || raid.resolved) return;
+    const live = ((snap.val() as Record<string, CropData>) || {});
+    raid.targetCrops = live;
+    if (raid.stealProgress) {
+      for (const k of Object.keys(raid.stealProgress)) {
+        if (!live[k]) delete raid.stealProgress[k]; // that crop is gone — reset any partial progress
+      }
+    }
   });
 
   toast(`${targetNick} 의 밭에 잠입! 익은 작물을 클릭해 털고, 주인 커서를 피하세요 (작물당 ${cropClicks}번)`);
@@ -161,18 +183,32 @@ export async function registerStealClick(slotKey: string): Promise<void> {
     return;
   }
 
-  // Fully clicked → steal this crop. Remove locally first so it can't be double-counted.
-  delete raid.targetCrops![slotKey];
+  // Fully clicked → RACE to claim this crop. First raider to win the transaction gets it; if
+  // someone already took it (or the owner harvested), my clicks are wasted — no reward.
   delete raid.stealProgress[slotKey];
-  const value = Math.floor(sellValue(crop.tier) * BALANCE.raidGame.stealValueFraction); // today's price
+  const targetUid = raid.targetUid!;
+  const tier = crop.tier;
+  let won = false;
+  try {
+    const res = await runTransaction(r(paths.crop(targetUid, slotKey)), (cur) => {
+      if (!cur) return undefined; // already taken/harvested → abort (committed = false)
+      return null; // I claim it → delete the crop
+    });
+    won = res.committed;
+  } catch {
+    won = false;
+  }
+  if (!won) {
+    if (raid.targetCrops) delete raid.targetCrops[slotKey]; // it's gone; the live sub confirms too
+    toast("이 작물은 다른 도둑이 가로챘어요!");
+    return;
+  }
+
+  // Won it — only the winner mints coins, so no double-spend across concurrent raiders.
+  if (raid.targetCrops) delete raid.targetCrops[slotKey];
+  const value = Math.floor(sellValue(tier) * BALANCE.raidGame.stealValueFraction); // today's price
   raid.stolenCoins = (raid.stolenCoins ?? 0) + value;
   raid.stolenCount = (raid.stolenCount ?? 0) + 1;
-  const targetUid = raid.targetUid!;
-  try {
-    await remove(r(paths.crop(targetUid, slotKey)));
-  } catch {
-    /* ignore */
-  }
   if (value > 0) {
     try {
       await addCoins(store.uid, value);
@@ -180,12 +216,12 @@ export async function registerStealClick(slotKey: string): Promise<void> {
       /* ignore */
     }
   }
-  void recordDex(store.uid, crop.tier, "steal", targetUid); // log it in my 도감 (who I stole from)
+  void recordDex(store.uid, tier, "steal", targetUid); // log it in my 도감 (who I stole from)
   playSteal();
   toast(`+${value} 코인 훔쳤다! (총 +${raid.stolenCoins})`);
 
   // Cleaned them out? Flee with the loot.
-  const anyRipe = Object.values(raid.targetCrops!).some(
+  const anyRipe = Object.values(raid.targetCrops ?? {}).some(
     (c) => stageOf(c.plantedAt, c.tier, Date.now()) === "ripe",
   );
   if (!anyRipe) await finishThiefRaid("cleared");
@@ -277,6 +313,10 @@ async function cleanupThiefRaid(targetUid: string): Promise<void> {
     raidNodeSub();
     raidNodeSub = null;
   }
+  if (raidCropsSub) {
+    raidCropsSub();
+    raidCropsSub = null;
+  }
   if (raidDisconnect) {
     try {
       await raidDisconnect.cancel();
@@ -285,108 +325,146 @@ async function cleanupThiefRaid(targetUid: string): Promise<void> {
     }
     raidDisconnect = null;
   }
-  await releaseLock(targetUid, store.uid).catch(() => {});
+  await leaveRaid(targetUid, store.uid).catch(() => {});
   store.raid = { role: "none" };
 }
 
 // ── Defender side ──────────────────────────────────────────────────────────────
 
-/** Watch my own raid node; when someone occupies it, go into defending mode. */
+/** Watch the raiders map on MY field; reconcile it into store.raid.raiders (N intruders at once). */
 export function startDefenseWatch(myUid: string): void {
   if (defenseSub) return;
-  defenseSub = onValue(r(paths.raid(myUid)), async (snap) => {
-    // While I'm out raiding someone else, ignore incoming raids on my own farm. Flipping to
-    // "defending" here would abandon my own raid lock (it'd linger until lockStaleMs) and, when
-    // two players raid each other at once, strand BOTH of us in a frozen defend state — neither
-    // side keeps publishing the cursor the other must click, so no one can evict. My farm is
-    // simply undefended until my raid ends; the raider's ~10Hz cursor writes then re-fire this
-    // watcher and I drop into defending.
-    if (store.raid.role === "raiding") return;
-
-    const v = snap.val();
-    const active =
-      v &&
-      v.raiderUid &&
-      v.evicted !== true &&
-      Date.now() - (v.startedAt || 0) < BALANCE.raid.lockStaleMs;
-
-    if (active) {
-      if (store.raid.role !== "defending" || store.raid.raiderUid !== v.raiderUid) {
-        let nick = "누군가";
-        let raiderScytheLv = 0;
-        let raiderCursorSkin = "cursor_default";
-        try {
-          const ru = (await get(r(paths.user(v.raiderUid)))).val();
-          nick = ru?.nickname || nick;
-          raiderScytheLv = ru?.scytheLv ?? 0;
-          raiderCursorSkin = ru?.equippedCursor || "cursor_default";
-        } catch {
-          /* ignore */
-        }
-        store.raid = {
-          role: "defending",
-          raiderUid: v.raiderUid,
-          raiderNick: nick,
-          raiderCursorSkin,
-          evictHits: 0,
-          evictHitsNeeded: evictHitsNeeded(raiderScytheLv, store.user?.scarecrowLv ?? 0),
-          startedAt: v.startedAt,
-          durationMs: v.durationMs || BALANCE.raidGame.timeoutSeconds * 1000,
-        };
-        startDefenderCursorSub(myUid);
-        if (alarmedFor !== v.raiderUid) {
-          alarmedFor = v.raiderUid;
-          playAlarm();
-        }
-      } else {
-        store.raid.startedAt = v.startedAt;
-        store.raid.durationMs = v.durationMs || store.raid.durationMs;
-      }
-    } else {
-      if (store.raid.role === "defending") {
-        stopCursorSub();
-        store.raid = { role: "none" };
-      }
-      alarmedFor = null;
-    }
+  defenseSub = onValue(r(paths.raidRaiders(myUid)), (snap) => {
+    reconcileDefense(myUid, snap.val() as Record<string, RaiderSlot> | null);
   });
 }
 
-function addEvictHit(sound: boolean): void {
-  const raid = store.raid;
-  if (raid.role !== "defending" || raid.resolved) return;
-  raid.evictHits = (raid.evictHits ?? 0) + 1;
-  if (sound) playWin();
-  // Sync the count to my raid node so the raider can see their health drop.
-  void set(r(paths.raidEvictHits(store.uid)), raid.evictHits).catch(() => {});
-  if (raid.evictHits >= (raid.evictHitsNeeded ?? 3)) void evict();
+/**
+ * Fold the latest raiders snapshot into store.raid.raiders: add newcomers (fetching their level/skin
+ * once), refresh live cursors, and drop raiders that left / were evicted / went stale. The defender's
+ * own cursor (published once, shared) is dodged by every raider; each raider is evicted individually.
+ */
+function reconcileDefense(myUid: string, raw: Record<string, RaiderSlot> | null): void {
+  // While I'm out raiding someone else, ignore incoming raids on my own farm — my farm is simply
+  // undefended until my raid ends (a single mouse can't dodge in one strip and click in another).
+  if (store.raid.role === "raiding") return;
+
+  const now = Date.now();
+  const slots = raw || {};
+  const activeUids = new Set<string>();
+  for (const [uid, s] of Object.entries(slots)) {
+    if (!s || s.evicted === true) continue;
+    if (now - (s.startedAt || 0) >= BALANCE.raid.lockStaleMs) continue; // abandoned slot
+    activeUids.add(uid);
+  }
+
+  // Nobody's raiding me → leave defending.
+  if (activeUids.size === 0) {
+    if (store.raid.role === "defending") store.raid = { role: "none" };
+    alarmedUids.clear();
+    return;
+  }
+
+  // Ensure we're in defending mode with a raiders map to fold into.
+  if (store.raid.role !== "defending" || !store.raid.raiders) {
+    store.raid = { role: "defending", raiders: {} };
+  }
+  const map = store.raid.raiders!;
+
+  // Drop raiders that are gone/evicted/stale.
+  for (const uid of Object.keys(map)) {
+    if (!activeUids.has(uid)) {
+      delete map[uid];
+      alarmedUids.delete(uid);
+    }
+  }
+
+  // Add newcomers (async user fetch) and refresh live cursors for existing ones.
+  for (const uid of activeUids) {
+    const s = slots[uid];
+    const existing = map[uid];
+    if (existing) {
+      existing.startedAt = s.startedAt ?? existing.startedAt;
+      const cur = s.cursor;
+      if (cur && typeof cur.x === "number" && typeof cur.y === "number") {
+        existing.rawCursor = { x: cur.x, y: cur.y };
+      }
+      continue;
+    }
+    if (fetchingRaiders.has(uid)) continue; // fetch already in flight
+    fetchingRaiders.add(uid);
+    void (async () => {
+      let nick = "누군가";
+      let raiderScytheLv = 0;
+      let cursorSkin = "cursor_default";
+      try {
+        const ru = (await get(r(paths.user(uid)))).val();
+        nick = ru?.nickname || nick;
+        raiderScytheLv = ru?.scytheLv ?? 0;
+        cursorSkin = ru?.equippedCursor || "cursor_default";
+      } catch {
+        /* ignore */
+      }
+      fetchingRaiders.delete(uid);
+      // May have flipped to raiding, or the raider may have left, while we fetched.
+      if (store.raid.role !== "defending" || !store.raid.raiders) return;
+      if (store.raid.raiders[uid]) return; // a later snapshot beat us to it
+      const cur = s.cursor;
+      store.raid.raiders[uid] = {
+        uid,
+        nick,
+        cursorSkin,
+        rawCursor: cur && typeof cur.x === "number" ? { x: cur.x, y: cur.y } : undefined,
+        evictHits: typeof s.evictHits === "number" ? s.evictHits : 0,
+        evictHitsNeeded: evictHitsNeeded(raiderScytheLv, store.user?.scarecrowLv ?? 0),
+        startedAt: s.startedAt ?? now,
+      };
+      if (!alarmedUids.has(uid)) {
+        alarmedUids.add(uid);
+        playAlarm();
+      }
+    })();
+  }
 }
 
-/** Defender clicks in the band; `landed` = the click was within range of the raider's ghost cursor. */
-export function registerEvictClick(landed: boolean): void {
+/** Land one eviction hit on a specific raider; mirror the count to their slot so they see HP drop. */
+function addEvictHit(raiderUid: string, sound: boolean): void {
+  if (store.raid.role !== "defending") return;
+  const rv = store.raid.raiders?.[raiderUid];
+  if (!rv || rv.resolved) return;
+  rv.evictHits += 1;
+  if (sound) playWin();
+  void set(r(paths.raidRaiderEvictHits(store.uid, raiderUid)), rv.evictHits).catch(() => {});
+  if (rv.evictHits >= rv.evictHitsNeeded) void evict(raiderUid);
+}
+
+/** Defender clicks in the band; `landed` = the click was within range of THAT raider's ghost cursor. */
+export function registerEvictClick(raiderUid: string, landed: boolean): void {
   if (!landed) return; // a miss — the raider dodged
-  addEvictHit(true);
+  addEvictHit(raiderUid, true);
 }
 
 /**
- * Grazing the raider's cursor with the mouse lands a hit too — no click needed (clicking the tiny
+ * Grazing a raider's cursor with the mouse lands a hit too — no click needed (clicking the tiny
  * fast ghost was too hard). Fires repeatedly while the cursor overlaps, so feedback is visual-only
  * (the strip adds a pop per graze); the win sound is reserved for the final eviction.
  */
-export function registerEvictGraze(): void {
-  addEvictHit(false);
+export function registerEvictGraze(raiderUid: string): void {
+  addEvictHit(raiderUid, false);
 }
 
-/** Enough hits landed → flag eviction; the thief aborts and clears the node. */
-export async function evict(): Promise<void> {
-  if (store.raid.role !== "defending" || store.raid.resolved) return;
-  store.raid.resolved = true;
+/** Enough hits landed on one raider → flag their eviction; that thief aborts and leaves their slot. */
+export async function evict(raiderUid: string): Promise<void> {
+  if (store.raid.role !== "defending") return;
+  const rv = store.raid.raiders?.[raiderUid];
+  if (!rv || rv.resolved) return;
+  rv.resolved = true;
   try {
-    await set(r(paths.raidEvicted(store.uid)), true);
+    await set(r(paths.raidRaiderEvicted(store.uid, raiderUid)), true);
   } catch {
     /* ignore */
   }
-  stopCursorSub();
   playWin();
   toast("침입자를 쫓아냈어요!");
+  // The raider sees evicted=true and tears down; our next reconcile drops them from the map.
 }

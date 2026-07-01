@@ -17,10 +17,17 @@ export const paths = {
   weeds: (uid: string) => `plots/${uid}/weeds`,
   weed: (uid: string, slot: string | number) => `plots/${uid}/weeds/${slot}`,
   raid: (targetUid: string) => `raids/${targetUid}`,
-  raidCursor: (targetUid: string) => `raids/${targetUid}/ownerCursor`,
-  raidRaiderCursor: (targetUid: string) => `raids/${targetUid}/raiderCursor`,
-  raidEvicted: (targetUid: string) => `raids/${targetUid}/evicted`,
-  raidEvictHits: (targetUid: string) => `raids/${targetUid}/evictHits`,
+  // The defender publishes ONE shared cursor; every raider on this field dodges it.
+  raidOwnerCursor: (targetUid: string) => `raids/${targetUid}/ownerCursor`,
+  // Each raider owns their own slot under raiders/{raiderUid} — no lock, no contention.
+  raidRaiders: (targetUid: string) => `raids/${targetUid}/raiders`,
+  raidRaider: (targetUid: string, raiderUid: string) => `raids/${targetUid}/raiders/${raiderUid}`,
+  raidRaiderCursor: (targetUid: string, raiderUid: string) =>
+    `raids/${targetUid}/raiders/${raiderUid}/cursor`,
+  raidRaiderEvicted: (targetUid: string, raiderUid: string) =>
+    `raids/${targetUid}/raiders/${raiderUid}/evicted`,
+  raidRaiderEvictHits: (targetUid: string, raiderUid: string) =>
+    `raids/${targetUid}/raiders/${raiderUid}/evictHits`,
   cooldown: (targetUid: string, raiderUid: string) => `cooldowns/${targetUid}/${raiderUid}`,
   messages: (uid: string) => `messages/${uid}`,
   chat: () => `chat`,

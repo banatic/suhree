@@ -1,40 +1,26 @@
-import { runTransaction, get, set } from "firebase/database";
+import { set, remove } from "firebase/database";
 import { r, paths } from "../firebase/db";
-import { BALANCE } from "../config/balance";
-
-export interface LockResult {
-  ok: boolean;
-  reason?: "occupied";
-}
 
 /**
- * Acquire the single raid slot for `targetUid` via an RTDB transaction (optimistic
- * concurrency — only one raider wins). A lock older than `lockStaleMs` is treated as
- * abandoned (the previous raider crashed before onDisconnect fired) and overwritten.
+ * Join `targetUid`'s field as one of possibly-many concurrent raiders. Each raider owns their own
+ * slot at raids/{targetUid}/raiders/{raiderUid}, so there is no lock and no contention — the uid
+ * key guarantees uniqueness. The defender reconciles the raiders map (ignoring stale slots), and
+ * onDisconnect removes just this slot if the raider's socket dies.
  */
-export async function acquireLock(
+export async function joinRaid(
   targetUid: string,
   raiderUid: string,
   startedAt: number,
   durationMs: number,
-): Promise<LockResult> {
-  const res = await runTransaction(r(paths.raid(targetUid)), (cur) => {
-    if (cur && cur.raiderUid) {
-      const age = Date.now() - (cur.startedAt || 0);
-      if (age < BALANCE.raid.lockStaleMs) return; // genuinely occupied → abort
-    }
-    return { raiderUid, startedAt, locked: true, durationMs };
+): Promise<void> {
+  await set(r(paths.raidRaider(targetUid, raiderUid)), {
+    startedAt,
+    durationMs,
+    evictHits: 0,
   });
-  if (res.committed && res.snapshot.exists() && res.snapshot.val()?.raiderUid === raiderUid) {
-    return { ok: true };
-  }
-  return { ok: false, reason: "occupied" };
 }
 
-/** Release the lock — only if we still hold it. */
-export async function releaseLock(targetUid: string, raiderUid: string): Promise<void> {
-  const snap = await get(r(paths.raid(targetUid)));
-  if (snap.exists() && snap.val()?.raiderUid === raiderUid) {
-    await set(r(paths.raid(targetUid)), null);
-  }
+/** Leave the field — remove ONLY my own slot, never the whole node (other raiders keep going). */
+export async function leaveRaid(targetUid: string, raiderUid: string): Promise<void> {
+  await remove(r(paths.raidRaider(targetUid, raiderUid)));
 }

@@ -63,7 +63,7 @@
     "plots": {
       "$uid": {
         ".read": "auth != null",
-        ".write": "$uid === auth.uid || root.child('raids').child($uid).child('raiderUid').val() === auth.uid",
+        ".write": "$uid === auth.uid || root.child('raids').child($uid).child('raiders').child(auth.uid).exists()",
         "crops": {
           "$slot": {
             "tier": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 99" },
@@ -84,22 +84,26 @@
     "raids": {
       "$targetUid": {
         ".read": "auth != null",
-        ".write": "auth != null && auth.uid !== $targetUid && ( (!data.child('raiderUid').exists() && newData.child('raiderUid').val() === auth.uid && (root.child('presence').child($targetUid).child('lastSeen').val() > now - 100000 || root.child('presence').child($targetUid).child('connections').exists()) && root.child('friends').child(auth.uid).child($targetUid).val() === true) || data.child('raiderUid').val() === auth.uid ) || auth.uid === $targetUid",
-        "raiderUid": { ".validate": "newData.isString()" },
-        "startedAt": { ".validate": "newData.isNumber()" },
-        "durationMs": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 600000" },
-        "locked": { ".validate": "newData.isBoolean()" },
-        "evicted": { ".validate": "newData.isBoolean()" },
-        "evictHits": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000" },
         "ownerCursor": {
+          ".write": "auth.uid === $targetUid",
           "x": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1" },
           "y": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1" },
           "$other": { ".validate": false }
         },
-        "raiderCursor": {
-          "x": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1" },
-          "y": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1" },
-          "$other": { ".validate": false }
+        "raiders": {
+          "$raiderUid": {
+            ".write": "auth != null && auth.uid !== $targetUid && ($raiderUid === auth.uid && (data.exists() || ((root.child('presence').child($targetUid).child('lastSeen').val() > now - 100000 || root.child('presence').child($targetUid).child('connections').exists()) && root.child('friends').child(auth.uid).child($targetUid).val() === true))) || auth.uid === $targetUid",
+            "startedAt": { ".validate": "newData.isNumber()" },
+            "durationMs": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 600000" },
+            "evicted": { ".validate": "newData.isBoolean()" },
+            "evictHits": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000" },
+            "cursor": {
+              "x": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1" },
+              "y": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1" },
+              "$other": { ".validate": false }
+            },
+            "$other": { ".validate": false }
+          }
         },
         "$other": { ".validate": false }
       }
@@ -118,7 +122,7 @@
     "messages": {
       "$uid": {
         ".read": "$uid === auth.uid",
-        ".write": "$uid === auth.uid || root.child('raids').child($uid).child('raiderUid').val() === auth.uid",
+        ".write": "$uid === auth.uid || root.child('raids').child($uid).child('raiders').child(auth.uid).exists()",
         "$msgId": {
           "from": { ".validate": "newData.isString()" },
           "text": { ".validate": "newData.isString() && newData.val().length <= 120" },

@@ -16,7 +16,7 @@ import {
 } from "./sprites";
 import { drawGhostCursor } from "./cursorGhost";
 import { cursorSkin } from "./cursorArt";
-import { createTrail } from "./cursorTrail";
+import { createTrail, type Trail } from "./cursorTrail";
 import { drawTheme } from "./theme";
 import { drawDecorById } from "./decorArt";
 import type { CosmeticScene } from "./cosmeticScene";
@@ -73,11 +73,22 @@ let hudT = 0; // 0..1 roll-up progress
 let winkStart = 0; // first-run "wink" timestamp
 let lastRaidRole = "none";
 let lastPointer: { x: number; y: number } | null = null; // last in-canvas mouse pos (CSS px)
-let lastGrazeAt = 0; // throttles hover-to-evict hits
 const effects: Effect[] = [];
-// Trail wakes: the opponent ghost's during a raid, and your own cursor's while you hover the band.
+// Trail wakes: the owner ghost's while I raid, and your own cursor's while you hover the band.
 const ghostTrail = createTrail();
 const selfTrail = createTrail();
+// Defending against N intruders: one trail + one graze-throttle per raider (keyed by raiderUid).
+const raiderTrails = new Map<string, Trail>();
+const grazeAt = new Map<string, number>();
+
+function raiderTrail(uid: string): Trail {
+  let t = raiderTrails.get(uid);
+  if (!t) {
+    t = createTrail();
+    raiderTrails.set(uid, t);
+  }
+  return t;
+}
 
 const HUD_H = 34;
 const EVICT_GRAZE_MS = 140; // min ms between hover-graze eviction hits (defender)
@@ -234,6 +245,8 @@ export function renderStrip(): void {
   if (store.raid.role !== lastRaidRole) {
     lastRaidRole = store.raid.role;
     ghostTrail.reset(); // the ghost we're trailing just changed (or vanished)
+    raiderTrails.clear(); // drop any per-intruder trails from a previous defence
+    grazeAt.clear();
     publishHitRegions();
   }
 
@@ -585,7 +598,12 @@ function drawRaiderHP(c: CanvasRenderingContext2D, L: BandLayout): void {
 function drawDefendingView(c: CanvasRenderingContext2D, L: BandLayout): void {
   // pulsing red rim + brief shake (keeps crops readable, screams "raid")
   const raid = store.raid;
-  const elapsed = raid.startedAt ? store.now - raid.startedAt : 0;
+  const raiders = raid.raiders || {};
+  const uids = Object.keys(raiders);
+  // brief shake right after the newest intruder arrives
+  let minStart = Infinity;
+  for (const u of uids) minStart = Math.min(minStart, raiders[u].startedAt || store.now);
+  const elapsed = isFinite(minStart) ? store.now - minStart : 0;
   const shake = elapsed < 800 ? Math.sin(store.now / 40) * 1 : 0;
   c.save();
   c.translate(shake, 0);
@@ -613,28 +631,40 @@ function drawDefendingView(c: CanvasRenderingContext2D, L: BandLayout): void {
   }
   c.restore();
 
-  const hits = raid.evictHits ?? 0;
-  const needHits = raid.evictHitsNeeded ?? 3;
   c.fillStyle = "#ffd8cf";
   c.font = `bold 12px ${FONT}`;
   c.textBaseline = "top";
   c.textAlign = "left";
-  c.fillText(`⚠ 침입자 커서에 마우스를 갖다 대 쫓아내세요! ${hits}/${needHits}`, 10, L.bandY + 3);
+  const header =
+    uids.length > 1
+      ? `⚠ 침입자 ${uids.length}명! 커서에 마우스를 갖다 대 각각 쫓아내세요`
+      : `⚠ 침입자! 커서에 마우스를 갖다 대 쫓아내세요`;
+  c.fillText(header, 10, L.bandY + 3);
 
-  // The raider's cursor — graze it with your mouse. Target ring + the intruder's NAME beside it.
-  if (raid.raiderCursor) {
-    const gx = raid.raiderCursor.x * L.W;
-    const gy = L.bandY + raid.raiderCursor.y * L.bandH;
-    // Hover-to-evict: grazing the ghost with the mouse lands hits (throttled) — no click needed.
+  // Drop trails/throttles for intruders that have left.
+  for (const u of [...raiderTrails.keys()]) if (!raiders[u]) raiderTrails.delete(u);
+  for (const u of [...grazeAt.keys()]) if (!raiders[u]) grazeAt.delete(u);
+
+  // Each intruder: graze it with your mouse. Target ring + the intruder's NAME + their HP.
+  for (const uid of uids) {
+    const rv = raiders[uid];
+    const trail = raiderTrail(uid);
+    if (!rv.cursor) {
+      trail.step(c, store.now); // keep fading even if this ghost briefly drops out
+      continue;
+    }
+    const gx = rv.cursor.x * L.W;
+    const gy = L.bandY + rv.cursor.y * L.bandH;
+    // Hover-to-evict: grazing the ghost lands hits (throttled per raider) — no click needed.
     if (
       lastPointer &&
-      !raid.resolved &&
+      !rv.resolved &&
       Math.hypot(lastPointer.x - gx, lastPointer.y - gy) <= BALANCE.raidGame.evictHitRadius &&
-      store.now - lastGrazeAt >= EVICT_GRAZE_MS
+      store.now - (grazeAt.get(uid) ?? 0) >= EVICT_GRAZE_MS
     ) {
-      lastGrazeAt = store.now;
+      grazeAt.set(uid, store.now);
       addEffect("pop", gx, gy);
-      registerEvictGraze();
+      registerEvictGraze(uid);
     }
     c.save();
     c.globalAlpha = 0.6 + 0.3 * Math.sin(store.now / 120);
@@ -644,17 +674,41 @@ function drawDefendingView(c: CanvasRenderingContext2D, L: BandLayout): void {
     c.arc(gx, gy, BALANCE.raidGame.evictHitRadius * 0.7, 0, Math.PI * 2);
     c.stroke();
     c.restore();
-    // The intruder's cursor cosmetic (shape + trail) — trail behind, ghost + name tag on top.
-    ghostTrail.emit(gx, gy, cursorSkin(raid.raiderCursorSkin).trail, store.now, L.dir);
-    ghostTrail.step(c, store.now);
-    drawGhostCursor(c, gx - 1, gy - 8, Math.max(2, L.scale), raid.raiderCursorSkin);
-    drawCursorNameTag(c, gx, gy, raid.raiderNick || "침입자", L);
-  } else {
-    ghostTrail.step(c, store.now);
+    // The intruder's cursor cosmetic (shape + trail) — trail behind, ghost + name tag + HP on top.
+    trail.emit(gx, gy, cursorSkin(rv.cursorSkin).trail, store.now, L.dir);
+    trail.step(c, store.now);
+    drawGhostCursor(c, gx - 1, gy - 8, Math.max(2, L.scale), rv.cursorSkin);
+    drawCursorNameTag(c, gx, gy, rv.nick || "침입자", L);
+    drawIntruderHp(c, gx, gy, rv.evictHits, rv.evictHitsNeeded, L);
   }
 
   drawEffects(c, L);
-  drawRaidProgress(c, L, "#ffd24a");
+}
+
+/** Tiny per-intruder HP plate under their ghost cursor (how many hits left to evict THIS one). */
+function drawIntruderHp(
+  c: CanvasRenderingContext2D,
+  gx: number,
+  gy: number,
+  hits: number,
+  need: number,
+  L: BandLayout,
+): void {
+  const hp = Math.max(0, need - hits);
+  const text = `❤${hp}/${need}`;
+  c.save();
+  c.font = `bold 10px ${FONT}`;
+  c.textAlign = "center";
+  c.textBaseline = "top";
+  const w = c.measureText(text).width + 6;
+  const y = clamp(gy + 9, L.bandY + 1, L.bandY + L.bandH - 13);
+  c.fillStyle = "rgba(40,26,14,0.85)";
+  roundRect(c, gx - w / 2, y, w, 12, 3);
+  c.fill();
+  c.fillStyle = hp > need * 0.5 ? "#9bf6a0" : hp > need * 0.25 ? "#e8b94a" : "#e2573c";
+  c.fillText(text, gx, y + 1);
+  c.restore();
+  c.textAlign = "left";
 }
 
 /** Pips above a ripe crop showing how many of the required steal-clicks have landed. */
@@ -889,16 +943,29 @@ function onClick(e: MouseEvent): void {
     return;
   }
   if (store.raid.role === "defending") {
-    // Click the raider's ghost cursor to land an eviction hit.
-    const g = store.raid.raiderCursor;
-    let landed = false;
-    if (g) {
+    // Click near an intruder's ghost cursor to land an eviction hit on the NEAREST one in range.
+    const raiders = store.raid.raiders || {};
+    let bestUid: string | null = null;
+    let bestD: number = BALANCE.raidGame.evictHitRadius;
+    let bx = 0;
+    let by = 0;
+    for (const uid of Object.keys(raiders)) {
+      const g = raiders[uid].cursor;
+      if (!g) continue;
       const gx = g.x * L.W;
       const gy = L.bandY + g.y * L.bandH;
-      landed = Math.hypot(x - gx, y - gy) <= BALANCE.raidGame.evictHitRadius;
-      if (landed) addEffect("pop", gx, gy);
+      const d = Math.hypot(x - gx, y - gy);
+      if (d <= bestD) {
+        bestD = d;
+        bestUid = uid;
+        bx = gx;
+        by = gy;
+      }
     }
-    registerEvictClick(landed);
+    if (bestUid) {
+      addEffect("pop", bx, by);
+      registerEvictClick(bestUid, true);
+    }
     return;
   }
 

@@ -75,6 +75,19 @@ export interface LeftMessage {
 
 export type RaidRole = "none" | "raiding" | "defending";
 
+/** One intruder as seen by the defender — the defending strip holds a map of these (N raiders at once). */
+export interface DefenderRaiderView {
+  uid: string;
+  nick: string;
+  cursorSkin: string; // the raider's equipped cursor id — their ghost wears it
+  rawCursor?: { x: number; y: number }; // latest network position (band-normalised 0..1)
+  cursor?: { x: number; y: number }; // smoothed ghost — CLICK this
+  evictHits: number; // hits landed on this raider so far
+  evictHitsNeeded: number; // hits needed to evict this raider (from levels)
+  startedAt: number;
+  resolved?: boolean; // this raider has been evicted (flag written); ignore further hits
+}
+
 export interface RaidState {
   role: RaidRole;
   // raiding (I am the thief): click ripe crops to steal while dodging the owner's cursor.
@@ -91,14 +104,12 @@ export interface RaidState {
   stealProgress?: Record<string, number>; // slot → clicks landed so far
   stolenCoins?: number; // running total looted this raid
   stolenCount?: number; // crops fully stolen this raid (for the 서리 log)
-  // defending (my plot is being robbed): click the raider's cursor to evict.
-  raiderUid?: string;
-  raiderNick?: string;
-  raiderCursorSkin?: string; // the raider's equipped cursor id — their ghost wears it (defending view)
-  raiderCursor?: { x: number; y: number }; // smoothed raider ghost (band-normalised 0..1) — CLICK this
-  evictHits?: number; // hits landed on the raider so far
-  evictHitsNeeded?: number; // hits needed to evict (from levels)
-  // shared timing:
+  evictHits?: number; // MY health as the thief: hits the defender has landed on me (synced from my slot)
+  evictHitsNeeded?: number; // hits the defender needs to evict me (from levels)
+  // defending (my plot is being robbed): click each raider's cursor to evict them individually.
+  // N raiders can hit one field at once, so the defending side is a map keyed by raiderUid.
+  raiders?: Record<string, DefenderRaiderView>;
+  // shared timing (raiding side only — the defender tracks per-raider startedAt in the map):
   startedAt?: number;
   durationMs?: number;
   resolved?: boolean;
