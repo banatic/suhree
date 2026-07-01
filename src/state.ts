@@ -75,6 +75,15 @@ export interface LeftMessage {
 
 export type RaidRole = "none" | "raiding" | "defending";
 
+/** A fellow thief robbing the same field, as seen by another raider — shown as a ghost (no threat). */
+export interface CoRaiderView {
+  uid: string;
+  nick: string;
+  cursorSkin: string; // their equipped cursor id — their ghost wears it
+  rawCursor?: { x: number; y: number }; // latest network position (band-normalised 0..1)
+  cursor?: { x: number; y: number }; // smoothed ghost
+}
+
 /** One intruder as seen by the defender — the defending strip holds a map of these (N raiders at once). */
 export interface DefenderRaiderView {
   uid: string;
@@ -106,6 +115,7 @@ export interface RaidState {
   stolenCount?: number; // crops fully stolen this raid (for the 서리 log)
   evictHits?: number; // MY health as the thief: hits the defender has landed on me (synced from my slot)
   evictHitsNeeded?: number; // hits the defender needs to evict me (from levels)
+  coRaiders?: Record<string, CoRaiderView>; // other thieves on THIS field — their cursors (key = uid)
   // defending (my plot is being robbed): click each raider's cursor to evict them individually.
   // N raiders can hit one field at once, so the defending side is a map keyed by raiderUid.
   raiders?: Record<string, DefenderRaiderView>;

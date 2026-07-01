@@ -52,6 +52,16 @@ export function tickCursorStream(): void {
       const cur = store.raid.ownerCursor || rawOwner;
       store.raid.ownerCursor = { x: cur.x + (rawOwner.x - cur.x) * a, y: cur.y + (rawOwner.y - cur.y) * a };
     }
+    // Smooth every fellow-thief ghost toward its raw (network) position.
+    const co = store.raid.coRaiders;
+    if (co) {
+      for (const rv of Object.values(co)) {
+        const raw = rv.rawCursor;
+        if (!raw) continue;
+        const cur = rv.cursor || raw;
+        rv.cursor = { x: cur.x + (raw.x - cur.x) * a, y: cur.y + (raw.y - cur.y) * a };
+      }
+    }
   } else {
     // Defending: smooth every intruder ghost toward its raw (network) position.
     const raiders = store.raid.raiders;

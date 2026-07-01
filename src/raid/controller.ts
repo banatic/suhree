@@ -48,6 +48,7 @@ let defenseSub: Unsubscribe | null = null; // the raiders map on MY field
 let raidDisconnect: OnDisconnect | null = null; // drops my slot if my socket dies mid-raid
 const alarmedUids = new Set<string>(); // raiders we've already sounded the alarm for
 const fetchingRaiders = new Set<string>(); // raiders whose user data we're fetching (avoid double-fetch)
+const fetchingCoRaiders = new Set<string>(); // fellow thieves (raiding side) we're fetching user data for
 
 const MESSAGES = [
   "잘 먹고 갑니다 😋",
@@ -136,19 +137,70 @@ export async function startRaid(targetUid: string, targetNick: string): Promise<
     stolenCount: 0,
     evictHits: 0,
     evictHitsNeeded: evictResist,
+    coRaiders: {},
     startedAt,
     durationMs,
     resolved: false,
   };
   startRaiderCursorSub(targetUid);
 
-  // Watch MY slot: detect eviction, and mirror the defender's running hit count so I can show my
-  // health (HP = evictHitsNeeded − evictHits).
-  raidNodeSub = onValue(r(paths.raidRaider(targetUid, me)), (snap) => {
-    const v = snap.val() as RaiderSlot | null;
-    if (!v || store.raid.role !== "raiding" || store.raid.resolved) return;
-    if (typeof v.evictHits === "number") store.raid.evictHits = v.evictHits;
-    if (v.evicted === true) void finishThiefRaid("evicted");
+  // Watch the whole raiders map on this field: (a) MY slot for eviction + the defender's running
+  // hit count (my HP), and (b) my fellow thieves' cursors so we can see each other robbing together.
+  raidNodeSub = onValue(r(paths.raidRaiders(targetUid)), (snap) => {
+    const raid = store.raid;
+    if (raid.role !== "raiding" || raid.resolved) return;
+    const all = (snap.val() as Record<string, RaiderSlot>) || {};
+
+    // (a) my own slot → HP + eviction
+    const mine = all[me];
+    if (mine) {
+      if (typeof mine.evictHits === "number") raid.evictHits = mine.evictHits;
+      if (mine.evicted === true) {
+        void finishThiefRaid("evicted");
+        return;
+      }
+    }
+
+    // (b) fellow raiders → track their cursors (fetch nick/skin once per newcomer)
+    const now = Date.now();
+    const map = (raid.coRaiders ??= {});
+    const activeOthers = new Set<string>();
+    for (const [uid, s] of Object.entries(all)) {
+      if (uid === me || !s || s.evicted === true) continue;
+      if (now - (s.startedAt || 0) >= BALANCE.raid.lockStaleMs) continue;
+      activeOthers.add(uid);
+      const cur = s.cursor;
+      const existing = map[uid];
+      if (existing) {
+        if (cur && typeof cur.x === "number" && typeof cur.y === "number") {
+          existing.rawCursor = { x: cur.x, y: cur.y };
+        }
+      } else if (!fetchingCoRaiders.has(uid)) {
+        fetchingCoRaiders.add(uid);
+        void (async () => {
+          let nick = "다른 도둑";
+          let cursorSkin = "cursor_default";
+          try {
+            const ru = (await get(r(paths.user(uid)))).val();
+            nick = ru?.nickname || nick;
+            cursorSkin = ru?.equippedCursor || "cursor_default";
+          } catch {
+            /* ignore */
+          }
+          fetchingCoRaiders.delete(uid);
+          if (store.raid.role !== "raiding" || store.raid.resolved) return;
+          const m2 = (store.raid.coRaiders ??= {});
+          if (m2[uid]) return; // a later snapshot beat us to it
+          m2[uid] = {
+            uid,
+            nick,
+            cursorSkin,
+            rawCursor: cur && typeof cur.x === "number" ? { x: cur.x, y: cur.y } : undefined,
+          };
+        })();
+      }
+    }
+    for (const uid of Object.keys(map)) if (!activeOthers.has(uid)) delete map[uid]; // left/evicted/stale
   });
 
   // Watch the target's live crops so a crop stolen by ANOTHER raider (or harvested by the owner)
@@ -326,6 +378,7 @@ async function cleanupThiefRaid(targetUid: string): Promise<void> {
     raidDisconnect = null;
   }
   await leaveRaid(targetUid, store.uid).catch(() => {});
+  fetchingCoRaiders.clear();
   store.raid = { role: "none" };
 }
 

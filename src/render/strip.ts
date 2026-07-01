@@ -557,6 +557,26 @@ function drawRaidingView(c: CanvasRenderingContext2D, L: BandLayout): void {
     ghostTrail.step(c, store.now); // keep fading even if the ghost briefly drops out
   }
 
+  // Fellow thieves robbing the SAME field — show their ghosts + names (no danger ring; not a threat).
+  const co = raid.coRaiders;
+  if (co) {
+    for (const u of [...raiderTrails.keys()]) if (!co[u]) raiderTrails.delete(u);
+    for (const uid of Object.keys(co)) {
+      const rv = co[uid];
+      const trail = raiderTrail(uid);
+      if (!rv.cursor) {
+        trail.step(c, store.now);
+        continue;
+      }
+      const gx = rv.cursor.x * L.W;
+      const gy = L.bandY + rv.cursor.y * L.bandH;
+      trail.emit(gx, gy, cursorSkin(rv.cursorSkin).trail, store.now, L.dir);
+      trail.step(c, store.now);
+      drawGhostCursor(c, gx - 1, gy - 8, Math.max(2, L.scale), rv.cursorSkin);
+      drawCursorNameTag(c, gx, gy, rv.nick || "도둑", L);
+    }
+  }
+
   drawEffects(c, L);
 
   // header: looted total + ripe remaining (+ weed hint)
