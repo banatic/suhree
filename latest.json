@@ -1,11 +1,11 @@
 {
-    "version": "0.2.7",
-    "notes": "💰 돈통 서리는 잠시 내려두었어요 — 너무 가혹해서 밸런스를 다시 살펴볼게요.\n⏱️ 레이드 제한시간 30초는 그대로예요.",
-    "pub_date": "2026-06-30T05:34:11.911Z",
+    "version": "0.3.0",
+    "notes": "👥 이제 한 친구의 밭을 여러 명이 동시에 서리할 수 있어요! (협동 레이드)\n🌾 같은 작물은 먼저 다 턴 사람이 차지 — 선착순!\n🛡️ 밭 주인은 여러 침입자 커서를 각각 쫓아내세요.",
+    "pub_date": "2026-07-01T06:09:41.861Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMktrYjdiSTU5N1dDRTEvUGY2elVZcnE3elJ5MERicDJtcGpBaHVWVDhrTTNERVRubDR6YU5wSTV5WVdGS1haRWZ1eTlIQTZRNlFrbjc5ZUlNM09TUEFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyNzk3NzkxCWZpbGU6c3VocmVlXzAuMi43X3g2NF9lbi1VUy5tc2kKaHplZlozZmlaSmUzWXp4cVpDN0JFY3pkaC95bS9wQ2tGN0xJaEtLLzA4MDdzaHF2SUk5Y0poeVFBa29sYlJpVkhXQVhhTWM2RjRpbkUxNzhyTzhaQkE9PQo=",
-            "url": "https://github.com/banatic/suhree/releases/download/v0.2.7/suhree_0.2.7_x64_en-US.msi"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkc4Y0QvVVZUajdPL1c5RXFqa1RlSTh1Um8xcWlLdy9QbW16RU1KV1BFSnM4SzJMRlNMTHFjbDd1MUtFcFVCVWxucWlaMzdxUEtnNXE4ZXNRVnJrakFJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyODg2MzE2CWZpbGU6c3VocmVlXzAuMy4wX3g2NF9lbi1VUy5tc2kKMGZoRmY4VHpqbkkxUC9QVm1TZEhvWFlYbEJtRzNJSUZDTmcvdXZhZlVZYmtwVFFsRWpFQkJDaHE1R0Y4TnBQUnJwZ0R3SzB6YWdhMFFlRnd2VGhFQlE9PQo=",
+            "url": "https://github.com/banatic/suhree/releases/download/v0.3.0/suhree_0.3.0_x64_en-US.msi"
         }
     }
 }
