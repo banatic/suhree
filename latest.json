@@ -1,11 +1,11 @@
 {
-    "version": "0.3.0",
-    "notes": "👥 이제 한 친구의 밭을 여러 명이 동시에 서리할 수 있어요! (협동 레이드)\n🌾 같은 작물은 먼저 다 턴 사람이 차지 — 선착순!\n🛡️ 밭 주인은 여러 침입자 커서를 각각 쫓아내세요.",
-    "pub_date": "2026-07-01T06:09:41.861Z",
+    "version": "0.3.1",
+    "notes": "👀 이제 같은 밭을 함께 터는 다른 도둑들의 커서도 보여요!",
+    "pub_date": "2026-07-01T06:24:35.548Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkc4Y0QvVVZUajdPL1c5RXFqa1RlSTh1Um8xcWlLdy9QbW16RU1KV1BFSnM4SzJMRlNMTHFjbDd1MUtFcFVCVWxucWlaMzdxUEtnNXE4ZXNRVnJrakFJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyODg2MzE2CWZpbGU6c3VocmVlXzAuMy4wX3g2NF9lbi1VUy5tc2kKMGZoRmY4VHpqbkkxUC9QVm1TZEhvWFlYbEJtRzNJSUZDTmcvdXZhZlVZYmtwVFFsRWpFQkJDaHE1R0Y4TnBQUnJwZ0R3SzB6YWdhMFFlRnd2VGhFQlE9PQo=",
-            "url": "https://github.com/banatic/suhree/releases/download/v0.3.0/suhree_0.3.0_x64_en-US.msi"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkZNNkNSRTc4UVd1SHdLZC9GaE11ZmxFRjJ1YlAvNVFtVWRObjI0M0tZeGpnNWNiaXhqSGFuVFZ1L3YyQWV6Ym1TRHBWZTV6OGlwTnNJUFdUM0lZOWdzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyODg3MTY5CWZpbGU6c3VocmVlXzAuMy4xX3g2NF9lbi1VUy5tc2kKM2FNV1ltdFAwaER5ckhUZ3ZJRGxUeDFSbmpNMmExOGd6dVdxTG5wSFV1ejY1UG1ZelRBUW42R2xDSHBWYkdmbnY1aU4xQ3F5ZmRBVFlXYjdWOE45QWc9PQo=",
+            "url": "https://github.com/banatic/suhree/releases/download/v0.3.1/suhree_0.3.1_x64_en-US.msi"
         }
     }
 }
