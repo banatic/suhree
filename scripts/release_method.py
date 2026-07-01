@@ -415,10 +415,11 @@ if __name__ == "__main__":
     # ▼▼▼ 릴리스할 때 여기 notes 만 바꾸고 `npm run release` ▼▼▼
     #   version: "patch"(기본·자동 +0.0.1) / "minor" / "major" / "auto", 또는 "0.2.0" 처럼 명시.
     CONFIG = ReleaseConfig(
-        version="0.2.7",  # 명시 버전 — package.json/Cargo.toml/tauri.conf.json 0.2.7로 일괄 변경
+        version="0.3.0",  # 명시 버전 — package.json/Cargo.toml/tauri.conf.json 0.3.0으로 일괄 변경
         notes=(
-            "💰 돈통 서리는 잠시 내려두었어요 — 너무 가혹해서 밸런스를 다시 살펴볼게요.\n"
-            "⏱️ 레이드 제한시간 30초는 그대로예요."
+            "👥 이제 한 친구의 밭을 여러 명이 동시에 서리할 수 있어요! (협동 레이드)\n"
+            "🌾 같은 작물은 먼저 다 턴 사람이 차지 — 선착순!\n"
+            "🛡️ 밭 주인은 여러 침입자 커서를 각각 쫓아내세요."
         ),
         pub_date=None,  # None이면 현재 UTC 시간 사용
         skip_build=False,
