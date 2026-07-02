@@ -42,6 +42,7 @@ import {
   stolenBreakdown,
   claimDexReward,
 } from "../game/dex";
+import { fetchStats, todayKey, EMPTY_BUCKET, type StatsData, type StatBucket } from "../game/stats";
 
 let panelEl: HTMLDivElement | null = null;
 
@@ -116,6 +117,10 @@ export function togglePanel(kind: PanelKind): void {
     chatHoverArmed = false; // re-arm only after the mouse enters the panel
   }
   if (store.ui.panel === "ranking") void refreshRankingCoins();
+  if (store.ui.panel === "stats") {
+    statsDetailUid = null; // always open on the overview
+    void refreshStats();
+  }
   if (store.ui.panel === "spy") void refreshSpy();
   renderPanels();
   publishHitRegions();
@@ -274,7 +279,7 @@ function shopPanel(): HTMLElement {
       row(
         el("span", { class: "dot", style: `background:${t.color}` }),
         el("span", { class: "grow" }, `${t.label}`),
-        el("span", { class: "muted small" }, `씨 ${t.price} · 수확 ${t.harvestValue}`),
+        el("span", { class: "muted small" }, `씨 ${t.price} · 수확 ${t.harvestValue} · ⏱ ${fmtGrowTime(cropTotalMs(t.id))}`),
         el(
           "span",
           { class: "small", style: `color:${up ? "#3f7a30" : "#b5402e"};font-weight:bold` },
@@ -650,6 +655,15 @@ function cropTotalMs(tier: number): number {
   return t ? t.stages.seed + t.stages.sprout + t.stages.growing : 0;
 }
 
+/** Human grow time for the seed list: "40초" / "2분 40초" / "24분". */
+function fmtGrowTime(ms: number): string {
+  const totalSec = Math.round(ms / 1000);
+  if (totalSec < 60) return `${totalSec}초`;
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return s === 0 ? `${m}분` : `${m}분 ${s}초`;
+}
+
 async function refreshSpy(): Promise<void> {
   spyLoading = true;
   if (store.ui.panel === "spy") renderPanels();
@@ -784,6 +798,182 @@ function raidlogPanel(): HTMLElement {
     }
   }
   wrap.append(card);
+  return wrap;
+}
+
+// ── 서리 통계 (personal steal stats) ─────────────────────────────────────────────
+//
+// Everything is derived from stats nodes: MINE (what I did — "한 서리") + every friend's (what they
+// did to me — "당한 서리"). Since raids only ever target friends, summing friends' vs[me] is my
+// complete incoming total. Clicking a friend opens a symmetric head-to-head detail.
+
+let myStats: StatsData | null = null;
+let friendStats = new Map<string, StatsData | null>();
+let statsLoading = false;
+let statsDetailUid: string | null = null; // which friend's head-to-head is open (null = overview)
+
+/** Refetch my stats + every friend's stats, then re-render the open panel. */
+async function refreshStats(): Promise<void> {
+  statsLoading = true;
+  if (store.ui.panel === "stats") renderPanels();
+  const fs = [...store.friends]; // snapshot the order so results line up
+  const results = await Promise.all([fetchStats(store.uid), ...fs.map((f) => fetchStats(f.uid))]);
+  myStats = results[0];
+  const map = new Map<string, StatsData | null>();
+  fs.forEach((f, i) => map.set(f.uid, results[i + 1]));
+  friendStats = map;
+  statsLoading = false;
+  if (store.ui.panel === "stats") renderPanels();
+}
+
+/** Lifetime/today aggregate bucket for a stats node (today zeros out once the KST day rolls over). */
+function aggBucket(s: StatsData | null, scope: "life" | "today", today: string): StatBucket {
+  if (!s) return EMPTY_BUCKET;
+  if (scope === "life") return s.out;
+  return s.day.date === today ? s.day.out : EMPTY_BUCKET;
+}
+
+/** Lifetime/today per-victim bucket for a stats node. */
+function vsBucket(s: StatsData | null, victim: string, scope: "life" | "today", today: string): StatBucket {
+  if (!s) return EMPTY_BUCKET;
+  if (scope === "life") return s.vs[victim] ?? EMPTY_BUCKET;
+  return s.day.date === today ? (s.day.vs[victim] ?? EMPTY_BUCKET) : EMPTY_BUCKET;
+}
+
+function addBuckets(a: StatBucket, b: StatBucket): StatBucket {
+  return { raids: a.raids + b.raids, crops: a.crops + b.crops, coins: a.coins + b.coins };
+}
+
+/** My total incoming ("당한 서리") for a scope = sum of every friend's vs[me]. */
+function incomingTotal(scope: "life" | "today", today: string): StatBucket {
+  let acc = { ...EMPTY_BUCKET };
+  for (const f of store.friends) acc = addBuckets(acc, vsBucket(friendStats.get(f.uid) ?? null, store.uid, scope, today));
+  return acc;
+}
+
+/** One "한 서리 / 당한 서리" line: label + counts, coloured by direction. */
+function statLine(label: string, b: StatBucket, dir: "out" | "in"): HTMLElement {
+  const sign = dir === "out" ? "+" : "−";
+  const color = dir === "out" ? "#3f7a30" : "#b5402e";
+  return row(
+    el("span", { class: "stat-dir", style: `color:${color};font-weight:bold` }, label),
+    el("span", { class: "grow small muted" }, `${b.raids}회 · 작물 ${b.crops}개`),
+    el("span", { class: "small", style: `color:${color};font-weight:bold` }, `${sign}${b.coins}💰`),
+  );
+}
+
+/** A titled card with the two directional lines for one scope. */
+function scopeCard(title: string, out: StatBucket, incoming: StatBucket): HTMLElement {
+  return el(
+    "div",
+    { class: "card" },
+    el("div", { class: "card-title" }, title),
+    statLine("한 서리", out, "out"),
+    statLine("당한 서리", incoming, "in"),
+  );
+}
+
+function statsOverview(wrap: HTMLElement, today: string): void {
+  wrap.append(el("div", { class: "muted" }, "내 서리 활동을 한눈에 볼 수 있어요. 친구를 누르면 서로의 전적이 보여요."));
+
+  wrap.append(scopeCard("🌾 Lifetime · 전체 기간", aggBucket(myStats, "life", today), incomingTotal("life", today)));
+  wrap.append(scopeCard("📅 오늘 · KST", aggBucket(myStats, "today", today), incomingTotal("today", today)));
+
+  const list = el("div", { class: "card" }, el("div", { class: "card-title" }, "친구별 전적"));
+  if (store.friends.length === 0) {
+    list.append(el("div", { class: "muted" }, "친구를 추가하면 서로의 서리 전적이 쌓여요."));
+  } else if (statsLoading && friendStats.size === 0) {
+    list.append(el("div", { class: "muted" }, "불러오는 중…"));
+  } else {
+    // Most-active rivalries first (my raids + theirs, lifetime).
+    const sorted = [...store.friends].sort((a, b) => {
+      const ta = vsBucket(myStats, a.uid, "life", today).raids + vsBucket(friendStats.get(a.uid) ?? null, store.uid, "life", today).raids;
+      const tb = vsBucket(myStats, b.uid, "life", today).raids + vsBucket(friendStats.get(b.uid) ?? null, store.uid, "life", today).raids;
+      return tb - ta;
+    });
+    for (const f of sorted) {
+      const mine = vsBucket(myStats, f.uid, "life", today).raids;
+      const theirs = vsBucket(friendStats.get(f.uid) ?? null, store.uid, "life", today).raids;
+      list.append(
+        el(
+          "div",
+          { class: "stat-friend", onclick: () => setStatsDetail(f.uid) },
+          el("span", { class: "dot", style: `background:${f.online ? "#5fd07a" : "#777"}` }),
+          nickWithTitle(f.nickname, f.equippedTitle),
+          el("span", { class: "small muted" }, `내가 ${mine} / 상대 ${theirs}`),
+          el("span", { class: "stat-arrow" }, "›"),
+        ),
+      );
+    }
+  }
+  wrap.append(list);
+  wrap.append(btn("새로고침", () => void refreshStats(), "btn small"));
+}
+
+function setStatsDetail(uid: string | null): void {
+  statsDetailUid = uid;
+  renderPanels();
+}
+
+/** Head-to-head detail card for one scope (my raids on them vs. theirs on me). */
+function h2hCard(title: string, mineOnThem: StatBucket, theirsOnMe: StatBucket): HTMLElement {
+  const card = el("div", { class: "card" }, el("div", { class: "card-title" }, title));
+  card.append(statLine("내가 턴 것", mineOnThem, "out"));
+  card.append(statLine("상대가 턴 것", theirsOnMe, "in"));
+  // A tiny verdict so the rivalry reads at a glance (by crops stolen, then coins).
+  const myScore = mineOnThem.crops;
+  const theirScore = theirsOnMe.crops;
+  if (myScore !== theirScore) {
+    const win = myScore > theirScore;
+    card.append(
+      el(
+        "div",
+        { class: "small", style: `color:${win ? "#3f7a30" : "#b5402e"};font-weight:bold;text-align:center` },
+        win ? `내가 ${myScore - theirScore}개 우세 😎` : `${theirScore - myScore}개 뒤지는 중 😤`,
+      ),
+    );
+  } else if (myScore > 0) {
+    card.append(el("div", { class: "small muted", style: "text-align:center" }, "막상막하 🤝"));
+  }
+  return card;
+}
+
+function statsDetail(wrap: HTMLElement, today: string, uid: string): void {
+  const f = store.friends.find((x) => x.uid === uid);
+  if (!f) {
+    // Friend vanished (removed) — fall back to the overview.
+    statsDetailUid = null;
+    statsOverview(wrap, today);
+    return;
+  }
+  wrap.append(btn("← 뒤로", () => setStatsDetail(null), "btn small stat-back"));
+  wrap.append(
+    row(
+      el("span", { class: "dot", style: `background:${f.online ? "#5fd07a" : "#777"}` }),
+      nickWithTitle(f.nickname, f.equippedTitle),
+      el("span", { class: "small muted" }, "와의 서리 전적"),
+    ),
+  );
+
+  const fs = friendStats.get(uid) ?? null;
+  wrap.append(
+    h2hCard(
+      "🌾 Lifetime · 전체 기간",
+      vsBucket(myStats, uid, "life", today),
+      vsBucket(fs, store.uid, "life", today),
+    ),
+  );
+  wrap.append(
+    h2hCard("📅 오늘 · KST", vsBucket(myStats, uid, "today", today), vsBucket(fs, store.uid, "today", today)),
+  );
+  wrap.append(btn("새로고침", () => void refreshStats(), "btn small"));
+}
+
+function statsPanel(): HTMLElement {
+  const wrap = el("div", { class: "panel-body" });
+  const today = todayKey();
+  if (statsDetailUid) statsDetail(wrap, today, statsDetailUid);
+  else statsOverview(wrap, today);
   return wrap;
 }
 
@@ -1040,6 +1230,7 @@ const TITLES: Record<PanelKind, string> = {
   cosmetics: "꾸미기",
   dex: "도감",
   raidlog: "서리 기록",
+  stats: "서리 통계",
   spy: "🔮 작물 점지소",
   settings: "설정",
 };
@@ -1079,6 +1270,9 @@ export function renderPanels(): void {
       break;
     case "raidlog":
       body = raidlogPanel();
+      break;
+    case "stats":
+      body = statsPanel();
       break;
     case "spy":
       body = spyPanel();

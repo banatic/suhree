@@ -550,6 +550,40 @@ body {
   opacity: 0.55;
 }
 
+/* ── 서리 통계 ──────────────────────────────────────────── */
+
+/* Direction label ("한 서리" / "당한 서리" / "내가 턴 것") — fixed width so the counts line up. */
+.stat-dir {
+  flex: 0 0 auto;
+  width: 68px;
+  font-size: 12px;
+}
+
+/* Clickable friend row in the overview → opens the head-to-head detail. */
+.stat-friend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 4px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.stat-friend:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.stat-arrow {
+  flex: 0 0 auto;
+  color: var(--wood);
+  font-weight: bold;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.btn.stat-back {
+  align-self: flex-start;
+}
+
 /* ── Changelog (settings) ──────────────────────────────── */
 
 .changelog {

@@ -12,6 +12,7 @@ import {
   RIPE_PUMPKIN,
   COIN,
   SCARECROW,
+  SPRITE_W,
   type Sprite,
 } from "./sprites";
 import { drawGhostCursor } from "./cursorGhost";
@@ -104,6 +105,7 @@ const HUD_LABELS: { id: string; label: string }[] = [
   { id: "cosmetics", label: "꾸미기" },
   { id: "dex", label: "도감" },
   { id: "raidlog", label: "서리기록" },
+  { id: "stats", label: "통계" },
   { id: "spy", label: "🔮점지" },
   { id: "settings", label: "설정" },
 ];
@@ -256,6 +258,10 @@ export function renderStrip(): void {
   else drawFarmView(c, L);
 
   drawToast(c, L);
+
+  // Keep the at-rest crop hit boxes in sync as crops grow / get harvested (no hover event fires
+  // then). Cheap signature check — only re-publishes to Rust on an actual change.
+  maybeRepublishHitRegions(L);
 }
 
 function drawFarmView(c: CanvasRenderingContext2D, L: BandLayout): void {
@@ -1095,11 +1101,66 @@ export function setupStripInteractions(): void {
 
 // ── Hit regions (published to Rust) ─────────────────────────────────────────────
 
+/**
+ * Occupied-pixel bounding box (CSS px) of a crop's CURRENT sprite in its slot. The sprite is a
+ * 16-wide grid; we scan for the non-empty column/row extent so a thin sprout blocks a tiny box and
+ * a fat pumpkin a wide one — clicks in the air around and between crops fall straight through.
+ */
+function cropHitRect(L: BandLayout, s: Slot, sp: Sprite): Rect | null {
+  const sc = L.scale;
+  let minC = Infinity;
+  let maxC = -Infinity;
+  let minR = Infinity;
+  let maxR = -Infinity;
+  for (let y = 0; y < sp.rows.length; y++) {
+    const row = sp.rows[y];
+    for (let x = 0; x < row.length; x++) {
+      const ch = row[x];
+      if (ch === "." || ch === " ") continue;
+      if (x < minC) minC = x;
+      if (x > maxC) maxC = x;
+      if (y < minR) minR = y;
+      if (y > maxR) maxR = y;
+    }
+  }
+  if (maxC < 0) return null; // blank sprite (shouldn't happen)
+  const n = sp.rows.length;
+  const left = s.cx - (SPRITE_W / 2) * sc;
+  const padX = 2; // a hair of slack for sway so edge pixels stay grabbable
+  const padY = 3; // ditto for the ripe-crop bob
+  const x0 = left + minC * sc - padX;
+  const x1 = left + (maxC + 1) * sc + padX;
+  // Rows draw from the base upward (bottom dock) or downward (top dock) — see drawCropSprite.
+  const yA = L.dir < 0 ? L.soilY - (n - minR) * sc : L.soilY + (n - 1 - maxR) * sc;
+  const yB = L.dir < 0 ? L.soilY - (n - (maxR + 1)) * sc : L.soilY + (n - minR) * sc;
+  const top = Math.min(yA, yB) - padY;
+  return { x: x0, y: top, w: x1 - x0, h: Math.abs(yB - yA) + padY * 2 };
+}
+
+/** A snug box around a weed (owner clicks it to pull), sized to the drawn stalks. */
+function weedHitRect(L: BandLayout, s: Slot): Rect {
+  const sc = L.scale;
+  const w = 11 * sc;
+  const h = 9 * sc + 4;
+  const top = L.dir < 0 ? L.soilY - h : L.soilY;
+  return { x: s.cx - w / 2, y: top, w, h };
+}
+
+/** The sprite a slot is currently drawing (null when empty), for the tight hit box. */
+function slotSprite(s: Slot): Sprite | null {
+  const crop = store.crops[String(s.i)];
+  if (!crop) return null;
+  return spriteFor(stageOf(crop.plantedAt, crop.tier, store.now), crop.tier);
+}
+
 export function publishHitRegions(): void {
   const W = window.innerWidth;
   const H = window.innerHeight;
   const L = layout();
   const regions: NormRect[] = [];
+  const push = (x: number, y: number, w: number, h: number): void => {
+    regions.push({ x: x / W, y: y / H, w: w / W, h: h / H });
+  };
 
   const cropTop = L.dir < 0 ? L.soilY - L.maxCropPx : L.bandY;
   const cropBot = L.dir < 0 ? L.bandY + L.bandH : L.soilY + L.maxCropPx;
@@ -1107,36 +1168,76 @@ export function publishHitRegions(): void {
   const h = Math.abs(cropBot - cropTop);
 
   if (store.raid.role !== "none") {
-    // full-width during a raid so the action button is always reachable
-    regions.push({ x: 0, y: y0 / H, w: 1, h: h / H });
-  } else {
-    // at rest: only the plot row blocks clicks (everything else passes through)
+    // full-width during a raid so the action button + every crop are always reachable
+    push(0, y0, W, h);
+  } else if (hovered) {
+    // engaged (HUD up): the whole plot row + HUD bar capture clicks, so you can plant on empty
+    // slots, harvest, and hit menu buttons exactly as before.
     const padX = 8;
-    regions.push({
-      x: Math.max(0, L.slotSpan.x0 - padX) / W,
-      y: y0 / H,
-      w: (L.slotSpan.x1 - L.slotSpan.x0 + padX * 2) / W,
-      h: h / H,
-    });
-    // hovering reveals the HUD bar → include it so its buttons are clickable
-    if (hovered || hudT > 0.05) {
-      const hud = hudLayout(L);
-      const top = Math.min(hud.barYOpen, L.bandY);
-      const bot = Math.max(hud.barYOpen + HUD_H, L.bandY + L.bandH);
-      regions.push({ x: 0, y: top / H, w: 1, h: (bot - top) / H });
+    push(Math.max(0, L.slotSpan.x0 - padX), y0, L.slotSpan.x1 - L.slotSpan.x0 + padX * 2, h);
+    const hud = hudLayout(L);
+    const top = Math.min(hud.barYOpen, L.bandY);
+    const bot = Math.max(hud.barYOpen + HUD_H, L.bandY + L.bandH);
+    push(0, top, W, bot - top);
+  } else {
+    // AT REST: block ONLY the crops (pixel-tight to each sprite) + a thin soil strip. Everything
+    // else — the tall empty air above the row, the gaps between crops — passes clicks through to
+    // whatever's behind. The soil strip is the always-there "handle": grazing it rolls the HUD up
+    // (which re-opens the full row above), and clicking it plants on that slot.
+    for (const s of L.slots) {
+      if (store.weeds[String(s.i)]) {
+        const r = weedHitRect(L, s);
+        push(r.x, r.y, r.w, r.h);
+        continue;
+      }
+      const sp = slotSprite(s);
+      if (!sp) continue;
+      const r = cropHitRect(L, s, sp);
+      if (r) push(r.x, r.y, r.w, r.h);
     }
+    const soilH = 8; // thin, right at the taskbar edge — barely blocks, keeps summon+plant working
+    const soilY = L.dir < 0 ? L.soilY - soilH + 2 : L.soilY - 2;
+    push(Math.max(0, L.slotSpan.x0 - 4), soilY, L.slotSpan.x1 - L.slotSpan.x0 + 8, soilH);
   }
 
   const pr = getPanelRect();
-  if (pr) regions.push({ x: pr.left / W, y: pr.top / H, w: pr.width / W, h: pr.height / H });
+  if (pr) push(pr.left, pr.top, pr.width, pr.height);
 
   const cp = getChatPopupRect();
-  if (cp) regions.push({ x: cp.left / W, y: cp.top / H, w: cp.width / W, h: cp.height / H });
+  if (cp) push(cp.left, cp.top, cp.width, cp.height);
 
   const ln = getLootNoteRect();
-  if (ln) regions.push({ x: ln.left / W, y: ln.top / H, w: ln.width / W, h: ln.height / H });
+  if (ln) push(ln.left, ln.top, ln.width, ln.height);
 
   void updateHitRegions(regions);
+  lastHitSig = hitRegionSig(L);
+}
+
+// The tight per-crop boxes depend on live crop stages, so they drift as crops grow/are harvested
+// while the strip just sits at rest (no hover event to trigger a republish). renderStrip calls this
+// every frame; it re-publishes only when the region-affecting state actually changes (cheap string
+// compare, no per-frame IPC).
+let lastHitSig = "";
+function hitRegionSig(L: BandLayout): string {
+  if (store.raid.role !== "none") return "raid";
+  let s = hovered ? "H|" : "0|";
+  for (const slot of L.slots) {
+    const key = String(slot.i);
+    if (store.weeds[key]) {
+      s += "w";
+      continue;
+    }
+    const crop = store.crops[key];
+    if (!crop) {
+      s += ".";
+      continue;
+    }
+    s += stageOf(crop.plantedAt, crop.tier, store.now) + crop.tier + ",";
+  }
+  return s;
+}
+function maybeRepublishHitRegions(L: BandLayout): void {
+  if (hitRegionSig(L) !== lastHitSig) publishHitRegions();
 }
 
 // ── helpers ────────────────────────────────────────────────────────────────────

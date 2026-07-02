@@ -158,6 +158,46 @@
         "at": { ".validate": "newData.isNumber()" },
         "$other": { ".validate": false }
       }
+    },
+
+    "stats": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "$uid === auth.uid",
+        "out": {
+          "raids": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+          "crops": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+          "coins": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+          "$other": { ".validate": false }
+        },
+        "vs": {
+          "$victim": {
+            "raids": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+            "crops": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+            "coins": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+            "$other": { ".validate": false }
+          }
+        },
+        "day": {
+          "date": { ".validate": "newData.isString() && newData.val().length <= 10" },
+          "out": {
+            "raids": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+            "crops": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+            "coins": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+            "$other": { ".validate": false }
+          },
+          "vs": {
+            "$victim": {
+              "raids": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+              "crops": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+              "coins": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+              "$other": { ".validate": false }
+            }
+          },
+          "$other": { ".validate": false }
+        },
+        "$other": { ".validate": false }
+      }
     }
   }
 }

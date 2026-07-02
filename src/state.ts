@@ -135,6 +135,7 @@ export type PanelKind =
   | "cosmetics"
   | "dex"
   | "raidlog"
+  | "stats"
   | "spy"
   | "settings";
 
@@ -190,35 +191,18 @@ export function consumePanelsDirty(): boolean {
   return false;
 }
 
-// Toasts QUEUE so a burst of messages (rapid harvests, raid endings) plays one after another
-// instead of each instantly overwriting the last. The band render pulls the active line every
-// frame via currentToast(), which also advances the queue as each toast expires.
-interface ToastItem {
-  msg: string;
-  ms: number;
-}
-const toastQueue: ToastItem[] = [];
-
+// Toasts are LATEST-WINS (no queue): a new line replaces whatever's showing immediately. These are
+// transient status blips (수확·침입 등) — losing the previous one instantly is fine, and queuing just
+// delayed the message the user actually cares about right now. The band render pulls the active line
+// every frame via currentToast().
 export function toast(msg: string, ms = 2600): void {
-  // Skip an immediate duplicate of what's already pending/showing (reconnect bursts, double taps).
-  const last = toastQueue.length ? toastQueue[toastQueue.length - 1].msg : store.ui.toast;
-  if (msg === last && (toastQueue.length > 0 || Date.now() < store.ui.toastUntil)) return;
-  toastQueue.push({ msg, ms });
-  if (toastQueue.length > 4) toastQueue.splice(0, toastQueue.length - 4); // cap a runaway backlog
+  store.ui.toast = msg;
+  store.ui.toastUntil = Date.now() + ms;
   markPanelsDirty();
 }
 
-/** The toast to render right now, advancing the queue as each one expires (null = show nothing). */
+/** The toast to render right now (null once it has expired). */
 export function currentToast(now = Date.now()): string | null {
-  if (now >= store.ui.toastUntil) {
-    const next = toastQueue.shift();
-    if (next) {
-      store.ui.toast = next.msg;
-      store.ui.toastUntil = now + next.ms;
-    } else {
-      store.ui.toast = null;
-    }
-  }
   return store.ui.toast && now < store.ui.toastUntil ? store.ui.toast : null;
 }
 

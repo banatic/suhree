@@ -32,6 +32,7 @@ export const paths = {
   messages: (uid: string) => `messages/${uid}`,
   chat: () => `chat`,
   raidlog: () => `raidlog`,
+  stats: (uid: string) => `stats/${uid}`,
 };
 
 export function r(path: string): DatabaseReference {

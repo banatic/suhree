@@ -31,6 +31,7 @@ import { startRaiderCursorSub, stopCursorSub } from "./cursorStream";
 import { playAlarm, playSteal, playWin } from "./alarm";
 import { promptLootNote } from "../render/lootNote";
 import { logRaid } from "../firebase/raidlog";
+import { recordRaidStat } from "../game/stats";
 import { announceToChat } from "../firebase/chat";
 
 // One raider's slot as stored under raids/{target}/raiders/{raiderUid}.
@@ -331,7 +332,12 @@ async function finishThiefRaid(reason: "fled" | "evicted" | "timeout" | "cleared
   else toast(`도망쳤다!${tail} · 쿨다운 ${mins}분`);
 
   // Record the steal in the server-wide 서리 feed (one append per looted raid).
-  if (looted > 0) void logRaid(targetUid, targetNick, looted, raid.stolenCount ?? 0);
+  const stolen = raid.stolenCount ?? 0;
+  if (looted > 0) void logRaid(targetUid, targetNick, looted, stolen);
+
+  // Bump my personal 서리 통계 (lifetime + today, aggregate + this victim). Gated on crops stolen so
+  // busted/empty runs don't count as raids; my own node only, so no rule/permission juggling.
+  if (stolen > 0) void recordRaidStat(targetUid, looted, stolen);
 
   // Mirror EVERY raid — success or failure — into the village chat so the whole server sees it.
   void announceToChat(raidChatLine(targetNick, reason, looted, raid.stolenCount ?? 0));

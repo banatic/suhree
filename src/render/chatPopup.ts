@@ -4,7 +4,7 @@
 // the canvas band), so the slide is a CSS transform transition.
 
 import { store, bandHeightCss, bandDock } from "../state";
-import { togglePanel } from "./panels";
+import { togglePanel, getPanelRect } from "./panels";
 import { publishHitRegions } from "./strip";
 
 interface Pending {
@@ -34,12 +34,37 @@ function ensureEl(): HTMLDivElement {
   return popupEl;
 }
 
-/** Enqueue a popup for one incoming message. Suppressed while the chat is open or hidden. */
+/** Enqueue a popup for one incoming message. Suppressed only while the chat panel is open (the
+ * message is already in the list) or the app is hidden. When any OTHER panel is open the popup
+ * floats just ABOVE it (see positionPopup) so it never covers the panel. */
 export function showChatPopup(nick: string, text: string): void {
   if (!store.chatNotify || store.hiddenFullscreen || store.ui.panel === "chat") return;
   if (queue.length >= MAX_QUEUE) queue.shift();
   queue.push({ nick, text });
   if (!showing) showNext();
+}
+
+/**
+ * Rest the popup in the bottom-right, clear of the band — UNLESS a panel is open, in which case it
+ * floats just above the panel's top edge (both are right-anchored, so stacking it above avoids the
+ * overlap), clamped to stay fully on-screen.
+ */
+function positionPopup(el: HTMLDivElement): void {
+  el.style.right = "10px";
+  el.style.top = "auto";
+  const H = window.innerHeight;
+  const base = bandDock() === "bottom" ? bandHeightCss() + 12 : 12;
+  const pr = getPanelRect();
+  if (pr) {
+    const gap = 8;
+    const popupH = el.offsetHeight || 72;
+    let bottom = H - pr.top + gap; // popup's bottom edge sits `gap` px above the panel's top edge
+    bottom = Math.min(bottom, H - popupH - 8); // keep the whole popup on-screen
+    bottom = Math.max(bottom, base); // never below its usual resting spot
+    el.style.bottom = bottom + "px";
+  } else {
+    el.style.bottom = base + "px";
+  }
 }
 
 function showNext(): void {
@@ -50,11 +75,6 @@ function showNext(): void {
   }
   showing = true;
   const el = ensureEl();
-
-  // Anchor to the bottom-right, clear of the band (the dock can be top or bottom).
-  el.style.right = "10px";
-  el.style.bottom = (bandDock() === "bottom" ? bandHeightCss() + 12 : 12) + "px";
-  el.style.top = "auto";
 
   const head = document.createElement("div");
   head.className = "cp-head";
@@ -70,6 +90,7 @@ function showNext(): void {
   body.textContent = item.text;
 
   el.replaceChildren(head, body);
+  positionPopup(el); // after content so offsetHeight is measurable (for the above-panel clamp)
 
   // Restart the slide from the hidden state (force a reflow between remove/add).
   el.classList.remove("show");
