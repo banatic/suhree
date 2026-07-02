@@ -415,9 +415,11 @@ if __name__ == "__main__":
     # ▼▼▼ 릴리스할 때 여기 notes 만 바꾸고 `npm run release` ▼▼▼
     #   version: "patch"(기본·자동 +0.0.1) / "minor" / "major" / "auto", 또는 "0.2.0" 처럼 명시.
     CONFIG = ReleaseConfig(
-        version="0.3.1",  # 명시 버전 — package.json/Cargo.toml/tauri.conf.json 0.3.1로 일괄 변경
+        version="0.3.2",  # 명시 버전 — package.json/Cargo.toml/tauri.conf.json 0.3.2로 일괄 변경
         notes=(
-            "👀 이제 같은 밭을 함께 터는 다른 도둑들의 커서도 보여요!"
+            "📊 서리 통계 페이지가 생겼어요 — 전체/오늘의 '한 서리·당한 서리'와 친구별 1:1 전적을 확인하세요!\n"
+            "🖱️ 작물에만 딱 맞게 클릭이 통과돼, 빈 밭 뒤 프로그램을 그대로 쓸 수 있어요.\n"
+            "🔔 채팅 알림이 열린 창을 가리지 않고 위쪽에 떠요."
         ),
         pub_date=None,  # None이면 현재 UTC 시간 사용
         skip_build=False,
