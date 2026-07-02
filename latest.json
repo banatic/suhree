@@ -1,11 +1,11 @@
 {
-    "version": "0.3.2",
-    "notes": "📊 서리 통계 페이지가 생겼어요 — 전체/오늘의 '한 서리·당한 서리'와 친구별 1:1 전적을 확인하세요!\n🖱️ 작물에만 딱 맞게 클릭이 통과돼, 빈 밭 뒤 프로그램을 그대로 쓸 수 있어요.\n🔔 채팅 알림이 열린 창을 가리지 않고 위쪽에 떠요.",
-    "pub_date": "2026-07-02T02:20:14.740Z",
+    "version": "0.3.3",
+    "notes": "🎨 밭 꾸미기 에셋을 새로 그렸어요 — 울타리·꽃밭·연못은 아기자기한 픽셀 감성, 등불·전구·무지개는 은은하게 반짝여요.\n🌌 배경 테마도 화사하게 — 노을엔 지는 해, 밤하늘엔 달과 별똥별, 오로라는 색색으로 일렁여요.\n🌸 벚꽃길에 꽃가지가 생겨 마우스를 올리면 꽃잎이 흩날려요.",
+    "pub_date": "2026-07-02T05:26:00.972Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkw2RFpLUFphWmhyZmNuRHRzbHBacXJHUUNKVDVGZjNNZVFMdGlRR3c5TTBWdWpvd1ZWY3hPL0lnY0RlZGp0UUVlR2FROTI5ZlVlRmV0eHBwZUlNblFvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyOTU4OTg3CWZpbGU6c3VocmVlXzAuMy4yX3g2NF9lbi1VUy5tc2kKN0F0KzFpQ0dIcEtiSVZpY0dBaitmbDl5aHU0bnd6QmlXd05Pelo1eS9zdW1uUzRIcVU1dzVHb3YrQXFnZFUrQ2l2MEdhWUx2RklsTEJiYS9TcVdpQlE9PQo=",
-            "url": "https://github.com/banatic/suhree/releases/download/v0.3.2/suhree_0.3.2_x64_en-US.msi"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkEydThodWVCaDZoV0tJeU9JQVQzWWpRM3M3aXF2MVQwdzROanZJU3I0THArbDBaOGlXNXgxVjdPS3VCakl0MHprNW9ORGk4SEFCR3Y5YXlXakZITFFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyOTcwMDc1CWZpbGU6c3VocmVlXzAuMy4zX3g2NF9lbi1VUy5tc2kKSmZoQk51OUpQUC9wVTdOY0E1WFVBOFFwY0FRNTNydUVieC81SWx6K1RjOG45cTE3STZUTTlZdGxLMDBTOWMyZURTZEx0bXlnUTg4dEh4U3RJZG13Qmc9PQo=",
+            "url": "https://github.com/banatic/suhree/releases/download/v0.3.3/suhree_0.3.3_x64_en-US.msi"
         }
     }
 }
