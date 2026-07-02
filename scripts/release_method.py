@@ -415,11 +415,11 @@ if __name__ == "__main__":
     # ▼▼▼ 릴리스할 때 여기 notes 만 바꾸고 `npm run release` ▼▼▼
     #   version: "patch"(기본·자동 +0.0.1) / "minor" / "major" / "auto", 또는 "0.2.0" 처럼 명시.
     CONFIG = ReleaseConfig(
-        version="0.3.2",  # 명시 버전 — package.json/Cargo.toml/tauri.conf.json 0.3.2로 일괄 변경
+        version="0.3.3",  # 명시 버전 — package.json/Cargo.toml/tauri.conf.json 0.3.3으로 일괄 변경
         notes=(
-            "📊 서리 통계 페이지가 생겼어요 — 전체/오늘의 '한 서리·당한 서리'와 친구별 1:1 전적을 확인하세요!\n"
-            "🖱️ 작물에만 딱 맞게 클릭이 통과돼, 빈 밭 뒤 프로그램을 그대로 쓸 수 있어요.\n"
-            "🔔 채팅 알림이 열린 창을 가리지 않고 위쪽에 떠요."
+            "🎨 밭 꾸미기 에셋을 새로 그렸어요 — 울타리·꽃밭·연못은 아기자기한 픽셀 감성, 등불·전구·무지개는 은은하게 반짝여요.\n"
+            "🌌 배경 테마도 화사하게 — 노을엔 지는 해, 밤하늘엔 달과 별똥별, 오로라는 색색으로 일렁여요.\n"
+            "🌸 벚꽃길에 꽃가지가 생겨 마우스를 올리면 꽃잎이 흩날려요."
         ),
         pub_date=None,  # None이면 현재 UTC 시간 사용
         skip_build=False,
