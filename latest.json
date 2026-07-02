@@ -1,11 +1,11 @@
 {
-    "version": "0.3.1",
-    "notes": "👀 이제 같은 밭을 함께 터는 다른 도둑들의 커서도 보여요!",
-    "pub_date": "2026-07-01T06:24:35.548Z",
+    "version": "0.3.2",
+    "notes": "📊 서리 통계 페이지가 생겼어요 — 전체/오늘의 '한 서리·당한 서리'와 친구별 1:1 전적을 확인하세요!\n🖱️ 작물에만 딱 맞게 클릭이 통과돼, 빈 밭 뒤 프로그램을 그대로 쓸 수 있어요.\n🔔 채팅 알림이 열린 창을 가리지 않고 위쪽에 떠요.",
+    "pub_date": "2026-07-02T02:20:14.740Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkZNNkNSRTc4UVd1SHdLZC9GaE11ZmxFRjJ1YlAvNVFtVWRObjI0M0tZeGpnNWNiaXhqSGFuVFZ1L3YyQWV6Ym1TRHBWZTV6OGlwTnNJUFdUM0lZOWdzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyODg3MTY5CWZpbGU6c3VocmVlXzAuMy4xX3g2NF9lbi1VUy5tc2kKM2FNV1ltdFAwaER5ckhUZ3ZJRGxUeDFSbmpNMmExOGd6dVdxTG5wSFV1ejY1UG1ZelRBUW42R2xDSHBWYkdmbnY1aU4xQ3F5ZmRBVFlXYjdWOE45QWc9PQo=",
-            "url": "https://github.com/banatic/suhree/releases/download/v0.3.1/suhree_0.3.1_x64_en-US.msi"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkw2RFpLUFphWmhyZmNuRHRzbHBacXJHUUNKVDVGZjNNZVFMdGlRR3c5TTBWdWpvd1ZWY3hPL0lnY0RlZGp0UUVlR2FROTI5ZlVlRmV0eHBwZUlNblFvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyOTU4OTg3CWZpbGU6c3VocmVlXzAuMy4yX3g2NF9lbi1VUy5tc2kKN0F0KzFpQ0dIcEtiSVZpY0dBaitmbDl5aHU0bnd6QmlXd05Pelo1eS9zdW1uUzRIcVU1dzVHb3YrQXFnZFUrQ2l2MEdhWUx2RklsTEJiYS9TcVdpQlE9PQo=",
+            "url": "https://github.com/banatic/suhree/releases/download/v0.3.2/suhree_0.3.2_x64_en-US.msi"
         }
     }
 }
