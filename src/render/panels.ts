@@ -1046,6 +1046,16 @@ function cosmeticsPanel(): HTMLElement {
   wrap.append(
     cosmeticSection(uid, "cursor", "커서 (모양 + 잔상)", BALANCE.cosmetics.cursors, u?.equippedCursor || "cursor_default"),
   );
+
+  wrap.append(
+    cosmeticSection(
+      uid,
+      "weed",
+      "잡초 스킨 (습격 때 친구 밭에 심기)",
+      BALANCE.cosmetics.weedSkins,
+      u?.equippedWeedSkin || "weed_default",
+    ),
+  );
   return wrap;
 }
 

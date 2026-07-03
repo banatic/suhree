@@ -20,6 +20,7 @@ import { cursorSkin } from "./cursorArt";
 import { createTrail, type Trail } from "./cursorTrail";
 import { drawTheme } from "./theme";
 import { drawDecorById } from "./decorArt";
+import { drawWeedSkin } from "./weedArt";
 import type { CosmeticScene } from "./cosmeticScene";
 import { cancelRaid, registerStealClick, registerEvictClick, registerEvictGraze } from "../raid/controller";
 import { plantWeed, removeWeed } from "../game/weeds";
@@ -74,6 +75,12 @@ let hudT = 0; // 0..1 roll-up progress
 let winkStart = 0; // first-run "wink" timestamp
 let lastRaidRole = "none";
 let lastPointer: { x: number; y: number } | null = null; // last in-canvas mouse pos (CSS px)
+
+// Farm collapse: tuck the whole band away so clicks fall through to what's behind it (e.g. the
+// taskbar). The little brown tab at the band's inner edge stays visible + clickable to bring it
+// back. Persisted so the choice survives a restart; a raid always overrides it (see isCollapsed).
+const COLLAPSE_KEY = "suhree_farm_collapsed";
+let farmCollapsed = localStorage.getItem(COLLAPSE_KEY) === "1";
 const effects: Effect[] = [];
 // Trail wakes: the owner ghost's while I raid, and your own cursor's while you hover the band.
 const ghostTrail = createTrail();
@@ -234,15 +241,7 @@ export function renderStrip(): void {
   c.clearRect(0, 0, window.innerWidth, window.innerHeight);
   if (store.hiddenFullscreen || !store.ready) return;
 
-  // hover roll-up easing (+ first-run wink)
-  let target = hovered ? 1 : 0;
-  if (winkStart) {
-    const p = (store.now - winkStart) / 700;
-    if (p < 1) target = Math.max(target, Math.sin(p * Math.PI) * 0.5);
-    else winkStart = 0;
-  }
-  hudT += (target - hudT) * BALANCE.strip.hoverEase;
-  if (hudT < 0.001) hudT = 0;
+  const L = layout();
 
   if (store.raid.role !== lastRaidRole) {
     lastRaidRole = store.raid.role;
@@ -252,7 +251,27 @@ export function renderStrip(): void {
     publishHitRegions();
   }
 
-  const L = layout();
+  // Collapsed: the farm is tucked away and everything but the little brown tab passes clicks
+  // through. Draw only the tab (click it to bring the farm back) and keep the HUD idle.
+  if (isCollapsed()) {
+    hudT = 0;
+    drawCollapseTab(c, L);
+    drawToast(c, L);
+    maybeRepublishHitRegions(L);
+    return;
+  }
+
+  // hover roll-up easing (+ first-run wink). Poising over the collapse tab does NOT summon the HUD
+  // (hudEngaged excludes it), so the tab stays cleanly clickable.
+  let target = hudEngaged(L) ? 1 : 0;
+  if (winkStart) {
+    const p = (store.now - winkStart) / 700;
+    if (p < 1) target = Math.max(target, Math.sin(p * Math.PI) * 0.5);
+    else winkStart = 0;
+  }
+  hudT += (target - hudT) * BALANCE.strip.hoverEase;
+  if (hudT < 0.001) hudT = 0;
+
   if (store.raid.role === "raiding") drawRaidingView(c, L);
   else if (store.raid.role === "defending") drawDefendingView(c, L);
   else drawFarmView(c, L);
@@ -272,7 +291,8 @@ function drawFarmView(c: CanvasRenderingContext2D, L: BandLayout): void {
     const key = String(s.i);
     if (store.weeds[key]) {
       drawShadow(c, s.cx, L.soilY, L.slotW);
-      drawWeed(c, L, s);
+      drawWeed(c, L, s, store.weeds[key].skin);
+      drawWeedTag(c, L, s, store.weeds[key].nick);
       const pulled = weedPullClicks[key] ?? 0;
       if (pulled > 0) drawStealPips(c, L, s, pulled, BALANCE.weed.removeClicks);
       continue;
@@ -293,7 +313,7 @@ function drawFarmView(c: CanvasRenderingContext2D, L: BandLayout): void {
   drawEffects(c, L);
   drawSelfTrail(c, L);
   drawHUD(c, L);
-  drawPullTab(c, L);
+  drawCollapseTab(c, L);
 }
 
 /** Your own cursor's trail while you hover your strip — personal flair (the OS arrow stays as-is). */
@@ -381,27 +401,15 @@ function drawEmptyMarker(c: CanvasRenderingContext2D, L: BandLayout, s: Slot): v
 // Owner-side pull progress is local (resets on reload) — it just gates the final remove.
 const weedPullClicks: Record<string, number> = {};
 
-function drawWeed(c: CanvasRenderingContext2D, L: BandLayout, s: Slot): void {
-  const x = s.cx;
-  const y = L.soilY;
-  const up = L.dir; // -1 = grows up (bottom dock), +1 = down (top dock)
-  const h = 9 * L.scale;
-  const sway = Math.sin(store.now / 700 + s.i) * 1.2 * L.scale;
-  c.save();
-  c.strokeStyle = "#5d8a39";
-  c.lineWidth = Math.max(1, 1.4 * L.scale);
-  c.lineCap = "round";
-  for (const a of [-0.55, -0.2, 0.2, 0.55]) {
-    c.beginPath();
-    c.moveTo(x, y);
-    c.quadraticCurveTo(x + a * 5 * L.scale, y + up * h * 0.6, x + a * 9 * L.scale + sway, y + up * h);
-    c.stroke();
-  }
-  c.beginPath();
-  c.moveTo(x, y);
-  c.lineTo(x + sway * 0.4, y + up * h * 1.15);
-  c.stroke();
-  c.restore();
+function drawWeed(c: CanvasRenderingContext2D, L: BandLayout, s: Slot, skin?: string): void {
+  drawWeedSkin(c, skin, {
+    cx: s.cx,
+    soilY: L.soilY,
+    scale: L.scale,
+    dir: L.dir,
+    nowMs: store.now,
+    seed: s.i,
+  });
 }
 
 /** Faint "+" on an empty slot during a raid — telegraphs that you can plant a weed here. */
@@ -419,6 +427,31 @@ function drawWeedTargetHint(c: CanvasRenderingContext2D, L: BandLayout, s: Slot)
   c.lineTo(s.cx, y + r);
   c.stroke();
   c.restore();
+}
+
+/** Small "○○ 다녀감" nickname stamp above a planted weed — marks who griefed this slot. */
+function drawWeedTag(c: CanvasRenderingContext2D, L: BandLayout, s: Slot, nick?: string): void {
+  if (!nick) return;
+  const text = nick.length > 8 ? nick.slice(0, 8) + "…" : nick;
+  c.save();
+  c.font = `bold 9px ${FONT}`;
+  const w = c.measureText(text).width + 8;
+  const tagH = 12;
+  // Anchor just past the weed's tip, then clamp the whole tag inside the band.
+  const tip = L.soilY + L.dir * (9 * L.scale + 4);
+  let y = L.dir < 0 ? tip - tagH : tip;
+  y = clamp(y, L.bandY + 1, L.bandY + L.bandH - tagH - 1);
+  const x = clamp(s.cx - w / 2, 2, L.W - w - 2);
+  c.globalAlpha = 0.92;
+  c.fillStyle = "rgba(40,26,14,0.82)";
+  roundRect(c, x, y, w, tagH, 3);
+  c.fill();
+  c.fillStyle = "#e6c98f";
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  c.fillText(text, x + w / 2, y + tagH / 2 + 0.5);
+  c.restore();
+  c.textAlign = "left";
 }
 
 function cropOverrides(tier: number): Record<string, string> {
@@ -493,24 +526,81 @@ function drawHUD(c: CanvasRenderingContext2D, L: BandLayout): void {
   c.textAlign = "left";
 }
 
-function drawPullTab(c: CanvasRenderingContext2D, L: BandLayout): void {
-  if (hudT > 0.6) return;
-  const a = 1 - hudT / 0.6;
-  const w = 20;
+// ── Collapse tab (the little brown handle at the band's inner edge) ───────────────
+// Repurposed from the old hover hint: it now toggles the whole farm away/back. The chevron points
+// toward the screen edge to COLLAPSE (farm showing) and toward the interior to EXPAND (collapsed).
+
+function isCollapsed(): boolean {
+  // A raid always wins — you must be able to see & defend your plot even if you'd tucked it away.
+  return farmCollapsed && store.raid.role === "none";
+}
+
+function setCollapsed(v: boolean): void {
+  if (farmCollapsed === v) return;
+  farmCollapsed = v;
+  localStorage.setItem(COLLAPSE_KEY, v ? "1" : "0");
+  hovered = false; // drop any stale hover so the HUD doesn't linger after collapsing
+  publishHitRegions();
+}
+
+/** The clickable box around the collapse tab (generous — bigger than the drawn art). */
+function collapseTabRect(L: BandLayout): Rect {
+  const w = 40;
+  const h = 22;
   const x = L.W / 2 - w / 2;
-  const y = L.dock === "bottom" ? L.bandY - 5 : L.bandY + L.bandH + 1;
+  const y = L.dock === "bottom" ? L.bandY - h + 6 : L.bandY + L.bandH - 6;
+  return { x, y, w, h };
+}
+
+/**
+ * True when the HUD should be up: hovering the band, but NOT merely poised over the collapse tab.
+ * (Being over the tab captures clicks — via its hit region — without summoning the menu, so the tab
+ * stays reachable instead of vanishing behind a rolled-up HUD.)
+ */
+function hudEngaged(L: BandLayout): boolean {
+  if (!hovered) return false;
+  if (lastPointer && inRect(lastPointer.x, lastPointer.y, collapseTabRect(L))) return false;
+  return true;
+}
+
+function drawCollapseTab(c: CanvasRenderingContext2D, L: BandLayout): void {
+  const cx = L.W / 2;
+  const collapsed = isCollapsed();
+  const edgeDir = L.dock === "bottom" ? 1 : -1; // toward the screen edge the band tucks into
+  const cd = collapsed ? -edgeDir : edgeDir; // chevron direction: edge = collapse, interior = expand
+  const barCY = L.dock === "bottom" ? L.bandY - 6 : L.bandY + L.bandH + 6;
+
   c.save();
-  c.globalAlpha = 0.55 * a;
-  c.fillStyle = "#9c6b38";
-  roundRect(c, x, y, w, 4, 2);
+  // subtle pill so it reads as a control (and is findable when it's the only thing on screen)
+  const bw = 34;
+  const bh = 15;
+  c.globalAlpha = collapsed ? 0.92 : 0.7;
+  c.fillStyle = "rgba(58,42,26,0.82)";
+  roundRect(c, cx - bw / 2, barCY - bh / 2, bw, bh, 6);
   c.fill();
-  // chevron hint (points toward where the HUD appears)
-  c.fillStyle = "#f6eedd";
-  const cy = L.dock === "bottom" ? y - 2 : y + 6;
-  const d = L.dock === "bottom" ? -1 : 1;
-  c.fillRect(L.W / 2 - 3, cy, 2, 2);
-  c.fillRect(L.W / 2 - 1, cy + 2 * d, 2, 2);
-  c.fillRect(L.W / 2 + 1, cy, 2, 2);
+  c.lineWidth = 1;
+  c.strokeStyle = "#caa15e";
+  roundRect(c, cx - bw / 2, barCY - bh / 2, bw, bh, 6);
+  c.stroke();
+
+  // brown grip bar (the "little brown bar" this was born from)
+  c.globalAlpha = 1;
+  c.fillStyle = "#9c6b38";
+  roundRect(c, cx - 9, barCY - 4, 18, 3, 1.5);
+  c.fill();
+
+  // chevron
+  c.strokeStyle = "#f6eedd";
+  c.lineWidth = 2;
+  c.lineJoin = "round";
+  c.lineCap = "round";
+  const chY = barCY + 3;
+  const chW = 5;
+  c.beginPath();
+  c.moveTo(cx - chW, chY - cd * 2);
+  c.lineTo(cx, chY + cd * 2);
+  c.lineTo(cx + chW, chY - cd * 2);
+  c.stroke();
   c.restore();
 }
 
@@ -537,7 +627,8 @@ function drawRaidingView(c: CanvasRenderingContext2D, L: BandLayout): void {
       if (st === "ripe") drawStealPips(c, L, s, raid.stealProgress?.[key] ?? 0, need);
     } else if (raid.targetWeeds?.[key]) {
       drawShadow(c, s.cx, L.soilY, L.slotW);
-      drawWeed(c, L, s);
+      drawWeed(c, L, s, raid.targetWeeds[key].skin);
+      drawWeedTag(c, L, s, raid.targetWeeds[key].nick);
     } else {
       drawWeedTargetHint(c, L, s); // empty → click to plant a weed
     }
@@ -646,7 +737,8 @@ function drawDefendingView(c: CanvasRenderingContext2D, L: BandLayout): void {
     const key = String(s.i);
     if (store.weeds[key]) {
       drawShadow(c, s.cx, L.soilY, L.slotW);
-      drawWeed(c, L, s);
+      drawWeed(c, L, s, store.weeds[key].skin);
+      drawWeedTag(c, L, s, store.weeds[key].nick);
       continue;
     }
     const crop = store.crops[key];
@@ -939,10 +1031,26 @@ function inRect(x: number, y: number, r: Rect): boolean {
   return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 }
 
+/** The HUD chip id under (x,y) while the menu is rolled up, else null. */
+function hudButtonAt(L: BandLayout, x: number, y: number): string | null {
+  if (hudT <= 0.5) return null;
+  for (const b of hudLayout(L).buttons) if (inRect(x, y, b.rect)) return b.id;
+  return null;
+}
+
 function onClick(e: MouseEvent): void {
   if (store.hiddenFullscreen || !store.ready) return;
   const { x, y } = cssCoords(e);
   const L = layout();
+
+  // Collapse tab — the little brown handle at the band's inner edge. Works whenever the farm (not a
+  // raid) is on screen. When the menu is up, a click on a real chip goes to the chip, so the tab
+  // sitting under the HUD's bottom edge never hijacks menu clicks.
+  if (store.raid.role === "none" && inRect(x, y, collapseTabRect(L)) && !hudButtonAt(L, x, y)) {
+    setCollapsed(!farmCollapsed);
+    return;
+  }
+  if (isCollapsed()) return; // collapsed: only the tab is interactive; everything else fell through
 
   if (store.raid.role === "raiding") {
     if (inRect(x, y, actionButtonRect(L, "left"))) {
@@ -1167,10 +1275,16 @@ export function publishHitRegions(): void {
   const y0 = Math.min(cropTop, cropBot);
   const h = Math.abs(cropBot - cropTop);
 
-  if (store.raid.role !== "none") {
+  const tab = collapseTabRect(L);
+
+  if (isCollapsed()) {
+    // Collapsed: only the little tab blocks clicks — the whole rest of the band falls through to
+    // whatever's behind it (the point of the feature). The tab is how you bring the farm back.
+    push(tab.x, tab.y, tab.w, tab.h);
+  } else if (store.raid.role !== "none") {
     // full-width during a raid so the action button + every crop are always reachable
     push(0, y0, W, h);
-  } else if (hovered) {
+  } else if (hudEngaged(L)) {
     // engaged (HUD up): the whole plot row + HUD bar capture clicks, so you can plant on empty
     // slots, harvest, and hit menu buttons exactly as before.
     const padX = 8;
@@ -1179,6 +1293,7 @@ export function publishHitRegions(): void {
     const top = Math.min(hud.barYOpen, L.bandY);
     const bot = Math.max(hud.barYOpen + HUD_H, L.bandY + L.bandH);
     push(0, top, W, bot - top);
+    push(tab.x, tab.y, tab.w, tab.h);
   } else {
     // AT REST: block ONLY the crops (pixel-tight to each sprite) + a thin soil strip. Everything
     // else — the tall empty air above the row, the gaps between crops — passes clicks through to
@@ -1198,6 +1313,7 @@ export function publishHitRegions(): void {
     const soilH = 8; // thin, right at the taskbar edge — barely blocks, keeps summon+plant working
     const soilY = L.dir < 0 ? L.soilY - soilH + 2 : L.soilY - 2;
     push(Math.max(0, L.slotSpan.x0 - 4), soilY, L.slotSpan.x1 - L.slotSpan.x0 + 8, soilH);
+    push(tab.x, tab.y, tab.w, tab.h);
   }
 
   const pr = getPanelRect();
@@ -1219,8 +1335,9 @@ export function publishHitRegions(): void {
 // compare, no per-frame IPC).
 let lastHitSig = "";
 function hitRegionSig(L: BandLayout): string {
+  if (isCollapsed()) return "collapsed";
   if (store.raid.role !== "none") return "raid";
-  let s = hovered ? "H|" : "0|";
+  let s = hudEngaged(L) ? "H|" : "0|";
   for (const slot of L.slots) {
     const key = String(slot.i);
     if (store.weeds[key]) {

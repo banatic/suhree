@@ -13,9 +13,12 @@ export async function plantWeed(victimUid: string, slot: number): Promise<boolea
   if (raid.role !== "raiding" || raid.resolved || raid.targetUid !== victimUid) return false;
   const key = String(slot);
   if (raid.targetCrops?.[key] || raid.targetWeeds?.[key]) return false; // slot must be empty
-  raid.targetWeeds = { ...(raid.targetWeeds ?? {}), [key]: { by: store.uid, at: Date.now() } }; // optimistic
+  const nick = store.user?.nickname || "누군가";
+  const skin = store.user?.equippedWeedSkin;
+  const mark = skin && skin !== "weed_default" ? { skin } : {};
+  raid.targetWeeds = { ...(raid.targetWeeds ?? {}), [key]: { by: store.uid, at: Date.now(), nick, ...mark } }; // optimistic
   try {
-    await set(r(paths.weed(victimUid, slot)), { by: store.uid, at: serverTimestamp() });
+    await set(r(paths.weed(victimUid, slot)), { by: store.uid, at: serverTimestamp(), nick, ...mark });
     return true;
   } catch {
     if (raid.targetWeeds) delete raid.targetWeeds[key];

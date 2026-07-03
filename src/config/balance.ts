@@ -323,6 +323,21 @@ export const BALANCE = {
       { id: "cursor_bandit", label: "밤손님 장갑 · 연기", price: 0, rarity: "영웅", req: "scytheMaster" },
       { id: "cursor_rainbow", label: "무지개 자취", price: 0, rarity: "전설", req: "dexComplete" },
     ],
+    // 잡초 스킨: what you plant in a friend's empty slot while raiding (owner clicks it away). Same
+    // grief mechanic as the classic weed — only the look changes. Art lives in render/weedArt.ts,
+    // keyed by id; the planter's nickname is stamped above it. The planted skin id + nick ride on the
+    // weed record (plots/$uid/weeds/$slot), so it shows for the owner and every co-raider.
+    weedSkins: [
+      { id: "weed_default", label: "잡초", price: 0, rarity: "일반" },
+      { id: "weed_sign", label: "팻말 “다녀감”", price: 120, rarity: "일반" },
+      { id: "weed_foxtail", label: "강아지풀", price: 150, rarity: "일반" },
+      { id: "weed_dandelion", label: "민들레꽃", price: 220, rarity: "희귀" },
+      { id: "weed_flag", label: "깃발", price: 250, rarity: "희귀" },
+      { id: "weed_poop", label: "똥", price: 350, rarity: "희귀" },
+      { id: "weed_mushroom", label: "독버섯", price: 400, rarity: "희귀" },
+      { id: "weed_clover", label: "네잎클로버", price: 700, rarity: "영웅" },
+      { id: "weed_rainbowpoop", label: "무지개똥", price: 3500, rarity: "영웅" },
+    ],
     // Coin thresholds for the "rich"-style title/theme reqs (see game/unlocks.ts).
     scytheMasterLv: 10,
     scarecrowMasterLv: 10,

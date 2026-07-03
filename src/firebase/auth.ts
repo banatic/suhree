@@ -67,6 +67,7 @@ export async function ensureUserRecord(uid: string, nickname: string): Promise<U
     equippedTheme: "theme_day",
     equippedTitle: "title_none",
     equippedCursor: "cursor_default",
+    equippedWeedSkin: "weed_default",
   };
   await set(r(paths.user(uid)), record);
   return record;

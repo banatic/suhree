@@ -75,6 +75,8 @@
           "$slot": {
             "by": { ".validate": "newData.isString()" },
             "at": { ".validate": "newData.isNumber()" },
+            "nick": { ".validate": "newData.isString() && newData.val().length <= 16" },
+            "skin": { ".validate": "newData.isString() && newData.val().length <= 32" },
             "$other": { ".validate": false }
           }
         }

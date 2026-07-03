@@ -14,6 +14,8 @@ export interface CropData {
 export interface WeedData {
   by: string; // uid of the raider who planted this weed
   at: number;
+  nick?: string; // planter's nickname at plant time — shown as a tag above the weed ("다녀감" 도장)
+  skin?: string; // planter's equipped 잡초 스킨 id (falls back to the default weed art if absent)
 }
 
 export interface FriendData {
@@ -59,6 +61,7 @@ export interface UserRecord {
   equippedTheme?: string; // band background theme (defaults to "theme_day")
   equippedTitle?: string; // title shown next to my nick (defaults to "title_none")
   equippedCursor?: string; // raid cursor shape + trail (defaults to "cursor_default")
+  equippedWeedSkin?: string; // 잡초 스킨 planted in friends' plots (defaults to "weed_default")
   cosmetics?: Record<string, boolean | string>;
   // Crop 도감: per-tier { h: harvested count, s: { victimUid: stolen count } }.
   dex?: Record<string, { h?: number; s?: Record<string, number> }>;

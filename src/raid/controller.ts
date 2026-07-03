@@ -45,6 +45,7 @@ interface RaiderSlot {
 
 let raidNodeSub: Unsubscribe | null = null; // my own slot on the target (HP + evicted)
 let raidCropsSub: Unsubscribe | null = null; // the target's live crops (so others' steals disappear)
+let raidWeedsSub: Unsubscribe | null = null; // the target's live weeds (so co-raiders' weeds sync in)
 let defenseSub: Unsubscribe | null = null; // the raiders map on MY field
 let raidDisconnect: OnDisconnect | null = null; // drops my slot if my socket dies mid-raid
 const alarmedUids = new Set<string>(); // raiders we've already sounded the alarm for
@@ -218,6 +219,15 @@ export async function startRaid(targetUid: string, targetNick: string): Promise<
     }
   });
 
+  // Watch the target's live weeds so a weed a FELLOW raider plants (or the owner pulls) shows up on
+  // my strip too — otherwise I'd only have the one-time snapshot from when I joined and could try to
+  // plant on a slot someone else already took. Mirrors raidCropsSub above.
+  raidWeedsSub = onValue(r(paths.weeds(targetUid)), (snap) => {
+    const raid = store.raid;
+    if (raid.role !== "raiding" || raid.resolved) return;
+    raid.targetWeeds = (snap.val() as Record<string, WeedData>) || {};
+  });
+
   toast(`${targetNick} 의 밭에 잠입! 익은 작물을 클릭해 털고, 주인 커서를 피하세요 (작물당 ${cropClicks}번)`);
 }
 
@@ -374,6 +384,10 @@ async function cleanupThiefRaid(targetUid: string): Promise<void> {
   if (raidCropsSub) {
     raidCropsSub();
     raidCropsSub = null;
+  }
+  if (raidWeedsSub) {
+    raidWeedsSub();
+    raidWeedsSub = null;
   }
   if (raidDisconnect) {
     try {
