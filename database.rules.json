@@ -18,6 +18,7 @@
         "equippedTheme": { ".validate": "newData.isString() && newData.val().length <= 24" },
         "equippedTitle": { ".validate": "newData.isString() && newData.val().length <= 24" },
         "equippedCursor": { ".validate": "newData.isString() && newData.val().length <= 24" },
+        "equippedWeedSkin": { ".validate": "newData.isString() && newData.val().length <= 24" },
         "cosmetics": {
           "$cid": { ".validate": "newData.isBoolean() || newData.isString()" }
         },
