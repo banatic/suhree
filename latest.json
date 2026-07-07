@@ -1,11 +1,11 @@
 {
-    "version": "0.3.9",
-    "notes": "👻 레이드 커서 은신(Sneak) 디테일 개선 — 투명해질 때(속도가 줄어들 때) 바로 투명해지지 않고 잔상처럼 천천히 투명해지도록 가속도(관성) 느낌을 추가했습니다. 조금만 빨라도 쉽게 모습을 드러내도록 민감도도 함께 상향되었습니다!",
-    "pub_date": "2026-07-07T01:31:35.168Z",
+    "version": "0.3.10",
+    "notes": "👑 관리자 닉네임 보호 기능 추가 — '정충봉' 닉네임은 오직 관리자 계정만 선점하여 사용할 수 있도록 보호 룰을 신설했습니다. 비관리자가 사용 시 경고 메시지가 표시됩니다.",
+    "pub_date": "2026-07-07T05:55:16.109Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkdvaGZqZi9WdzlOTU5xaTJReGt3ak1wRGkvOVVZTGJrUDU1bHRtbzBrejRLY1RvUjY1NWlzVG1EL1RqaVVld21NeExFYnliNlJCVTVrTzlTTTJueFFVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzMzg3OTk5CWZpbGU6c3VocmVlXzAuMy45X3g2NF9lbi1VUy5tc2kKTjNVWkdFZkc4RGdxeUtHWGhiS0RVYS9rNVp4VTlvMkVxNGRDMnhmUkN0L2k5SHlGK05rV2dOVWhzNkJaQmF5Wmlqb09vRFpTcmVRR2tHS3ZmdDBVQUE9PQo=",
-            "url": "https://github.com/banatic/suhree/releases/download/v0.3.9/suhree_0.3.9_x64_en-US.msi"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkZTMG8wbTY0NWVHN01DbmhoOUNLcjVnVVlzek5CQXYvY0NYQTVJNnBIOFJPSGR1YVd6MnJRQ1V0UjRCenp6UTVhT1VudGsyWkg1Z1BWd2gzL0pqTlEwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzNDAzOTE0CWZpbGU6c3VocmVlXzAuMy4xMF94NjRfZW4tVVMubXNpCjRoZldCelZYM1NnS1BCVGE1cmRaMnB2Vno0c1BhVm5PWTdqZTU4OEN0aGw4ODZOQVRXMHZ1dHMxWXV5a21NMzl3K0NpUlEveTM0ekw3TWtVYmtTWkFBPT0K",
+            "url": "https://github.com/banatic/suhree/releases/download/v0.3.10/suhree_0.3.10_x64_en-US.msi"
         }
     }
 }
