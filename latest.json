@@ -1,11 +1,11 @@
 {
-    "version": "0.3.4",
-    "notes": "🙈 밭 접기 — 밭 가운데 작은 갈색 바를 누르면 밭을 접어 뒤 화면(작업 표시줄 등)을 클릭할 수 있어요. 다시 누르면 펴지고, 서리 중엔 자동으로 펴져요.\n🌿 잡초 스킨 8종 — 꾸미기에서 친구 밭에 심을 잡초를 골라요! 팻말·강아지풀·민들레꽃·깃발·똥·독버섯·네잎클로버·무지개똥.\n🏷️ 잡초에 심은 사람 닉네임이 도장처럼 남아요 — 여러 명이 같이 털 때도 실시간으로 보여요.",
-    "pub_date": "2026-07-03T01:17:27.009Z",
+    "version": "0.3.5",
+    "notes": "✨ 꾸미기 대폭 확장 — 귀여운 신규 커서(꼬마 유령, 토끼), 장식(곰돌이 피크닉, 하트 풍선, 토끼 굴), 테마(솜사탕, 은하수), 잡초(새싹, 고양이, 선물상자)와 쪽지 스킨이 추가되었습니다!\n👻 레이드 커서 은신(Sneak) — 서리 시 커서를 천천히 움직이면 닌자처럼 투명해지는 은신 기능이 추가되었습니다. 동시 서리 시에도 적용됩니다!",
+    "pub_date": "2026-07-07T01:02:11.551Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkZqeEQzL3lJUlNpRE56Mzd2SldGYldGeDcxQ3grTytQaW9ZSEk1eEJhVTdJME5RejNlVzhVVmtxaVBFRDRmVjVGYkd4REk1QzA0Y0l6UWJjVW1NSndVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzMDQxNTY4CWZpbGU6c3VocmVlXzAuMy40X3g2NF9lbi1VUy5tc2kKRWhpaGZac0diWDE5Z3djZ05EUWtwejF2NWZyWEJkM0VKQXhpT0g0ZHRaeHlRb2RNZGtRYUpWZ0ZsRTBMNDYvM1hEVlhhT21ZQ3dsYlJpYk4wUVd4Q2c9PQo=",
-            "url": "https://github.com/banatic/suhree/releases/download/v0.3.4/suhree_0.3.4_x64_en-US.msi"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkNCTTRLeTFGY0Fib3I2MjJnMFJNOG9Ea2FPVnVBOFZJUXFxd1ROT1E1Ti9GRnJsek5JWDZXZUhqV2ZMdWdTczZ4eXgxcGdpKzhuWmV6M25ZbkVPVVE4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzMzg2MzcyCWZpbGU6c3VocmVlXzAuMy41X3g2NF9lbi1VUy5tc2kKbUpVclVkUHIwUWR0a2RmSkhJM0pVZ29PTjhyNlllMTBmUHJTTVlMaHREOW9raXd3SlFieTYvbUZZN3A4bzUyOS9hZzhGRG4yRmRsWTBwSlNPNExJQ2c9PQo=",
+            "url": "https://github.com/banatic/suhree/releases/download/v0.3.5/suhree_0.3.5_x64_en-US.msi"
         }
     }
 }
