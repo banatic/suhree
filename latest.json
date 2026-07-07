@@ -1,11 +1,11 @@
 {
-    "version": "0.3.7",
-    "notes": "✨ 꾸미기 대폭 확장 — 귀여운 신규 커서(꼬마 유령, 토끼), 장식(곰돌이 피크닉, 하트 풍선, 토끼 굴), 테마(솜사탕, 은하수), 잡초(새싹, 고양이, 선물상자)와 쪽지 스킨이 추가되었습니다!\n👻 레이드 커서 은신(Sneak) — 서리 시 커서를 천천히 움직이면 닌자처럼 투명해지는 은신 기능이 추가되었습니다. 동시 서리 시에도 적용됩니다!",
-    "pub_date": "2026-07-07T01:16:51.479Z",
+    "version": "0.3.9",
+    "notes": "👻 레이드 커서 은신(Sneak) 디테일 개선 — 투명해질 때(속도가 줄어들 때) 바로 투명해지지 않고 잔상처럼 천천히 투명해지도록 가속도(관성) 느낌을 추가했습니다. 조금만 빨라도 쉽게 모습을 드러내도록 민감도도 함께 상향되었습니다!",
+    "pub_date": "2026-07-07T01:31:35.168Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkpUMENFb3NsZzRKd1g4bUhHb29HSW51c3JBMkxieHZzYWc2S0ZEYWNlMXpmd1U4UnI0MWtlQlRXYUNFcE4vZ3ZBbmhQaHJ0dER5Z21MQm1oWmxrTGdrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzMzg3MjU0CWZpbGU6c3VocmVlXzAuMy43X3g2NF9lbi1VUy5tc2kKNjlPc01mN2gwQzhYbFVhODFPYlV0dkFicDdVVVBVajdHWTJacE9Cc3RzemFHV3dHTVVwM2xHMVF6T01YU3BNRnc5UXZQOVc4V2FCN095TjVCQmJNQnc9PQo=",
-            "url": "https://github.com/banatic/suhree/releases/download/v0.3.7/suhree_0.3.7_x64_en-US.msi"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkdvaGZqZi9WdzlOTU5xaTJReGt3ak1wRGkvOVVZTGJrUDU1bHRtbzBrejRLY1RvUjY1NWlzVG1EL1RqaVVld21NeExFYnliNlJCVTVrTzlTTTJueFFVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzMzg3OTk5CWZpbGU6c3VocmVlXzAuMy45X3g2NF9lbi1VUy5tc2kKTjNVWkdFZkc4RGdxeUtHWGhiS0RVYS9rNVp4VTlvMkVxNGRDMnhmUkN0L2k5SHlGK05rV2dOVWhzNkJaQmF5Wmlqb09vRFpTcmVRR2tHS3ZmdDBVQUE9PQo=",
+            "url": "https://github.com/banatic/suhree/releases/download/v0.3.9/suhree_0.3.9_x64_en-US.msi"
         }
     }
 }
