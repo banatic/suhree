@@ -36,8 +36,10 @@ export const BALANCE = {
     toolbarHeightLogical: 116,
     hoverEase: 0.26, // per-frame lerp toward the hover target (frame-rate-normalised at paint time)
     // Adaptive paint rate. The band always has SOME motion (crop sway, snow, drifting decor), so we
-    // pick a repaint rate by what's moving: interactive bursts (hover/raid/effects) get fpsActive,
-    // gentle idle ambience gets the slower fpsAmbient, a truly static band paints only on change.
+    // pick a repaint rate by what's moving: a HUD roll-up/down in flight gets the full fpsSmooth (its
+    // fast transition shows stepping at lower rates), interactive bursts (hover/raid/effects) get
+    // fpsActive, gentle idle ambience gets the slower fpsAmbient, a static band paints only on change.
+    fpsSmooth: 60,
     fpsActive: 30,
     fpsAmbient: 15,
     preferredMonitor: "primary" as "primary" | "cursor",

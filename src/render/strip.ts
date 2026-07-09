@@ -296,8 +296,16 @@ export function renderStrip(): void {
     if (sig === lastPaintSig) return; // nothing moving and nothing changed → keep the last frame
     lastPaintSig = sig;
   } else {
-    const interval = 1000 / (kind === "interactive" ? BALANCE.strip.fpsActive : BALANCE.strip.fpsAmbient);
-    if (now - lastPaintAt < interval) return; // still within this rate's frame budget → skip
+    // Full fpsSmooth whenever the cursor is over the band: the whole hover interaction — roll-up,
+    // menu, self-trail — stays buttery at 60fps. Off the band, interactive bursts (raid/effects/
+    // roll-down) get fpsActive and gentle idle ambience gets the slower fpsAmbient.
+    const fps = hovered
+      ? BALANCE.strip.fpsSmooth
+      : kind === "interactive"
+        ? BALANCE.strip.fpsActive
+        : BALANCE.strip.fpsAmbient;
+    // 2ms tolerance so a 60fps budget isn't halved by sub-ms rAF jitter on a 60Hz display.
+    if (now - lastPaintAt < 1000 / fps - 2) return; // still within this rate's frame budget → skip
     lastPaintSig = ""; // ensure the first static frame after motion stops repaints once
   }
   const dt = Math.min(50, lastPaintAt ? now - lastPaintAt : 16.67); // clamp so a post-idle paint eases
@@ -319,12 +327,8 @@ export function renderStrip(): void {
 
   // hover roll-up easing (+ first-run wink). Poising over the collapse tab does NOT summon the HUD
   // (hudEngaged excludes it), so the tab stays cleanly clickable.
-  let target = hudEngaged(L) ? 1 : 0;
-  if (winkStart) {
-    const p = (store.now - winkStart) / 700;
-    if (p < 1) target = Math.max(target, Math.sin(p * Math.PI) * 0.5);
-    else winkStart = 0;
-  }
+  const target = hudTargetNow(L);
+  if (winkStart && (store.now - winkStart) / 700 >= 1) winkStart = 0; // wink finished → clear it
   // Frame-rate-independent ease: the same time-constant whether we paint at 30 or 60 fps.
   const k = 1 - Math.pow(1 - BALANCE.strip.hoverEase, dt / 16.67);
   hudT += (target - hudT) * k;
@@ -371,6 +375,18 @@ function anyTrailActive(): boolean {
 function hasAny(o: Record<string, unknown>): boolean {
   for (const _k in o) return true;
   return false;
+}
+
+/** The hover HUD's current target (0 = hidden … 1 = fully up), including the first-run wink bump.
+ *  Read-only — the wink's expiry is cleared in the paint pass. Used both to ease hudT and to tell the
+ *  paint scheduler a roll-up/down is mid-flight (|target − hudT| > ε → paint at fpsSmooth). */
+function hudTargetNow(L: BandLayout): number {
+  let target = hudEngaged(L) ? 1 : 0;
+  if (winkStart) {
+    const p = (store.now - winkStart) / 700;
+    if (p < 1) target = Math.max(target, Math.sin(p * Math.PI) * 0.5);
+  }
+  return target;
 }
 
 /** What (if anything) is moving on the band this frame — decides the repaint rate. */
