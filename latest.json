@@ -1,11 +1,11 @@
 {
-    "version": "0.3.10",
-    "notes": "👑 관리자 닉네임 보호 기능 추가 — '정충봉' 닉네임은 오직 관리자 계정만 선점하여 사용할 수 있도록 보호 룰을 신설했습니다. 비관리자가 사용 시 경고 메시지가 표시됩니다.",
-    "pub_date": "2026-07-07T05:55:16.109Z",
+    "version": "0.3.11",
+    "notes": "🟢 친구 접속 상태 표시 정확도 개선 — 앱을 종료했는데도 계속 온라인으로 표시되던 문제를 수정했습니다. 이제 접속을 끊으면 정상적으로 오프라인으로 전환됩니다.",
+    "pub_date": "2026-07-09T00:09:17.286Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkZTMG8wbTY0NWVHN01DbmhoOUNLcjVnVVlzek5CQXYvY0NYQTVJNnBIOFJPSGR1YVd6MnJRQ1V0UjRCenp6UTVhT1VudGsyWkg1Z1BWd2gzL0pqTlEwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzNDAzOTE0CWZpbGU6c3VocmVlXzAuMy4xMF94NjRfZW4tVVMubXNpCjRoZldCelZYM1NnS1BCVGE1cmRaMnB2Vno0c1BhVm5PWTdqZTU4OEN0aGw4ODZOQVRXMHZ1dHMxWXV5a21NMzl3K0NpUlEveTM0ekw3TWtVYmtTWkFBPT0K",
-            "url": "https://github.com/banatic/suhree/releases/download/v0.3.10/suhree_0.3.10_x64_en-US.msi"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMk9VOVAwamJreWJ2Um8wU3RSY0t5V3d0dDFUcmRpVmYvSXA5Tk8zSytaL0d5dGF0M01GRFhpZXAraXU0UjNrZVFOdm9hZzl5ckFpV0FZY3ZLcDdybUE4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzNTU1ODkyCWZpbGU6c3VocmVlXzAuMy4xMV94NjRfZW4tVVMubXNpCnYzb3hBMkRHNFFJNTVxaXArWjFxVzRIRmdTQkV1TTNLRm5QODh1dy96S0tMbDYxUS9FUVU3NHZ5SGUxVElHTHJQTXVNL081dzFlK3QzMUtEQXExbEJnPT0K",
+            "url": "https://github.com/banatic/suhree/releases/download/v0.3.11/suhree_0.3.11_x64_en-US.msi"
         }
     }
 }
