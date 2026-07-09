@@ -19,6 +19,12 @@ export interface CropTier {
   sprite: "radish" | "wheat" | "pumpkin";
   /** Palette accent used by the renderer for this tier's crop. */
   color: string;
+  /** SPECIAL (endgame) crop: drawn with a glow and unlocked via a gate, not available from the start. */
+  special?: true;
+  /** Glow/halo colour for a special crop (falls back to a lightened `color`). */
+  glow?: string;
+  /** Unlock gate for a special crop. `req` = milestone key (see unlocks.reqMet); `afterTier`+`harvests` = chain. */
+  unlock?: { req?: string; afterTier?: number; harvests?: number };
 }
 
 export const BALANCE = {
@@ -260,6 +266,75 @@ export const BALANCE = {
         sprite: "pumpkin",
         color: "#e34a78",
       },
+      // ── ✨ SPECIAL 라인 (엔드게임) ─────────────────────────────────────────────
+      // 처음부터 못 심음 — 게이팅으로 순서대로 해금되는 빛나는 작물들. 경제 밸런스와 무관한
+      // 과시/수집 트랙(기존 도감 완성과 별개). 첫 작물은 도감 완성으로 열리고, 이후엔
+      // 직전 스페셜을 N번 수확해야 다음이 열리는 체인. 색은 전부 발광(`glow`)으로 렌더.
+      {
+        id: 16,
+        name: "star_radish",
+        label: "별무",
+        price: 30000,
+        harvestValue: 90000,
+        stages: { seed: 720000, sprout: 1080000, growing: 1800000 }, // 60 min
+        sprite: "radish",
+        color: "#ffd95c",
+        special: true,
+        glow: "#fff3b0",
+        unlock: { req: "dexComplete" },
+      },
+      {
+        id: 17,
+        name: "crystal_wheat",
+        label: "수정밀",
+        price: 60000,
+        harvestValue: 180000,
+        stages: { seed: 828000, sprout: 1242000, growing: 2070000 }, // 69 min
+        sprite: "wheat",
+        color: "#7fdcff",
+        special: true,
+        glow: "#c4f1ff",
+        unlock: { afterTier: 16, harvests: 400 },
+      },
+      {
+        id: 18,
+        name: "ember_pumpkin",
+        label: "불꽃호박",
+        price: 120000,
+        harvestValue: 360000,
+        stages: { seed: 936000, sprout: 1404000, growing: 2340000 }, // 78 min
+        sprite: "pumpkin",
+        color: "#ff7a4d",
+        special: true,
+        glow: "#ffb894",
+        unlock: { afterTier: 17, harvests: 1000 },
+      },
+      {
+        id: 19,
+        name: "aurora_radish",
+        label: "오로라무",
+        price: 250000,
+        harvestValue: 750000,
+        stages: { seed: 1044000, sprout: 1566000, growing: 2610000 }, // 87 min
+        sprite: "radish",
+        color: "#c58cff",
+        special: true,
+        glow: "#e6c6ff",
+        unlock: { afterTier: 18, harvests: 2500 },
+      },
+      {
+        id: 20,
+        name: "sunfruit",
+        label: "태양과",
+        price: 500000,
+        harvestValue: 1500000,
+        stages: { seed: 1152000, sprout: 1728000, growing: 2880000 }, // 96 min
+        sprite: "pumpkin",
+        color: "#ffcf3a",
+        special: true,
+        glow: "#fff0a0",
+        unlock: { afterTier: 19, harvests: 6000 },
+      },
     ] as CropTier[],
   },
 
@@ -285,6 +360,9 @@ export const BALANCE = {
       { id: "decor_pond", label: "연못", price: 1600, rarity: "영웅" },
       { id: "decor_lights", label: "전구 장식", price: 3500, rarity: "영웅" },
       { id: "decor_rainbow", label: "무지개", price: 0, rarity: "전설", req: "dexComplete" },
+      { id: "decor_balloons", label: "하트 풍선", price: 200, rarity: "일반" },
+      { id: "decor_picnic", label: "곰돌이 피크닉", price: 800, rarity: "희귀" },
+      { id: "decor_bunny", label: "토끼 굴", price: 2000, rarity: "영웅" },
     ],
     // Band BACKGROUND themes (the sky behind the soil). Drawn in render/theme.ts, keyed by id.
     themes: [
@@ -293,6 +371,8 @@ export const BALANCE = {
       { id: "theme_night", label: "밤하늘", price: 900, rarity: "희귀" },
       { id: "theme_snow", label: "눈 내리는 밤", price: 1800, rarity: "영웅" },
       { id: "theme_aurora", label: "오로라", price: 0, rarity: "전설", req: "plotMax" },
+      { id: "theme_cottoncandy", label: "솜사탕 구름", price: 1200, rarity: "희귀" },
+      { id: "theme_milkyway", label: "별사탕 은하수", price: 2500, rarity: "영웅" },
     ],
     // Titles shown next to the nickname in chat + ranking. Buyable ones are a coin sink; the rest
     // are bragging rights for hitting a milestone. (No art; pure label.)
@@ -310,6 +390,8 @@ export const BALANCE = {
       { id: "skin_plain", label: "쪽지", price: 0 },
       { id: "skin_crow", label: "까마귀 깃털", price: 80 },
       { id: "skin_heart", label: "하트 도장", price: 120 },
+      { id: "skin_bear", label: "곰돌이 젤리", price: 120 },
+      { id: "skin_ribbon", label: "핑크 리본", price: 150 },
       { id: "skin_skull", label: "해골 낙서", price: 200 },
     ],
     // Raid cursor: a SHAPE + a TRAIL (잔상). Shown to your opponent during a raid (and behind your
@@ -317,8 +399,10 @@ export const BALANCE = {
     cursors: [
       { id: "cursor_default", label: "기본 화살표", price: 0, rarity: "일반" },
       { id: "cursor_paw", label: "고양이 발 · 먼지", price: 300, rarity: "일반" },
+      { id: "cursor_bunny", label: "토끼 · 먼지", price: 500, rarity: "일반" },
       { id: "cursor_heart", label: "하트 · 꽃잎", price: 700, rarity: "희귀" },
       { id: "cursor_sparkle", label: "반짝 별 · 별가루", price: 1500, rarity: "희귀" },
+      { id: "cursor_ghost", label: "꼬마 유령 · 반짝이", price: 2200, rarity: "희귀" },
       { id: "cursor_flame", label: "불꽃 · 화염", price: 3000, rarity: "영웅" },
       { id: "cursor_bandit", label: "밤손님 장갑 · 연기", price: 0, rarity: "영웅", req: "scytheMaster" },
       { id: "cursor_rainbow", label: "무지개 자취", price: 0, rarity: "전설", req: "dexComplete" },
@@ -329,13 +413,16 @@ export const BALANCE = {
     // weed record (plots/$uid/weeds/$slot), so it shows for the owner and every co-raider.
     weedSkins: [
       { id: "weed_default", label: "잡초", price: 0, rarity: "일반" },
+      { id: "weed_sprout", label: "새싹", price: 100, rarity: "일반" },
       { id: "weed_sign", label: "팻말 “다녀감”", price: 120, rarity: "일반" },
       { id: "weed_foxtail", label: "강아지풀", price: 150, rarity: "일반" },
       { id: "weed_dandelion", label: "민들레꽃", price: 220, rarity: "희귀" },
       { id: "weed_flag", label: "깃발", price: 250, rarity: "희귀" },
       { id: "weed_poop", label: "똥", price: 350, rarity: "희귀" },
       { id: "weed_mushroom", label: "독버섯", price: 400, rarity: "희귀" },
+      { id: "weed_gift", label: "깜짝 선물상자", price: 500, rarity: "희귀" },
       { id: "weed_clover", label: "네잎클로버", price: 700, rarity: "영웅" },
+      { id: "weed_sleepingcat", label: "식빵 굽는 고양이", price: 2000, rarity: "영웅" },
       { id: "weed_rainbowpoop", label: "무지개똥", price: 3500, rarity: "영웅" },
     ],
     // Coin thresholds for the "rich"-style title/theme reqs (see game/unlocks.ts).

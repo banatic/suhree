@@ -59,10 +59,16 @@ export function renderFarmPreview(
   // (3) a few crop blobs standing on the soil (top-tier crop colour).
   const tier = opts.topTier;
   if (tier != null && Number.isInteger(tier) && tier >= 0 && tier < BALANCE.crops.tiers.length) {
-    const color = BALANCE.crops.tiers[tier].color;
+    const ct = BALANCE.crops.tiers[tier];
+    const color = ct.color;
+    const glow = ct.glow; // special crops flex a halo even in the friend preview
     const n = 4;
     const r = 3 * scene.scale;
     const stemH = 7 * scene.scale;
+    if (glow) {
+      ctx.shadowColor = glow;
+      ctx.shadowBlur = 5 * scene.scale;
+    }
     for (let i = 0; i < n; i++) {
       const cx = rowX0 + (rowX1 - rowX0) * ((i + 0.5) / n);
       ctx.strokeStyle = "#4f7a3a"; // stem
@@ -76,6 +82,7 @@ export function renderFarmPreview(
       ctx.arc(cx, soilY - stemH - r * 0.4, r, 0, Math.PI * 2);
       ctx.fill();
     }
+    ctx.shadowBlur = 0; // don't let the halo bleed into decor drawn next
   }
 
   // (4) decor on top.

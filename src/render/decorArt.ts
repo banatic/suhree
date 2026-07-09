@@ -83,6 +83,23 @@ export function drawDecorById(decorId: string, s: CosmeticScene): void {
         const capY = up < 0 ? y0 : y0 + postH - edge;
         ctx.fillStyle = woodDk;
         ctx.fillRect(xi, capY, postW, edge); // darker cap at the sky end
+        
+        // Cute flower vine
+        ctx.strokeStyle = "#7bb552";
+        ctx.lineWidth = Math.max(1, 1.2 * scale);
+        ctx.beginPath();
+        ctx.moveTo(xi + postW/2, y0 + postH);
+        ctx.quadraticCurveTo(xi + postW + 3*scale, y0 + postH/2, xi + postW/2, y0 + 2*scale);
+        ctx.stroke();
+        // pink flower
+        ctx.fillStyle = "#ff9ec4";
+        ctx.beginPath();
+        ctx.arc(xi + postW, y0 + postH/2, 1.8 * scale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#fff3c0";
+        ctx.beginPath();
+        ctx.arc(xi + postW, y0 + postH/2, 0.7 * scale, 0, Math.PI * 2);
+        ctx.fill();
       }
       break;
     }
@@ -220,12 +237,12 @@ export function drawDecorById(decorId: string, s: CosmeticScene): void {
         // flower head
         const fx = x + sway;
         const fy = topY;
-        const pr = 2.3 * scale;
+        const pr = 3 * scale; // cuter, bigger flower
         ctx.fillStyle = petalC[i % petalC.length];
         for (let k = 0; k < 5; k++) {
           const a = i * 0.7 + (k / 5) * Math.PI * 2;
           ctx.beginPath();
-          ctx.arc(fx + Math.cos(a) * pr, fy + Math.sin(a) * pr, pr * 0.66, 0, Math.PI * 2);
+          ctx.arc(fx + Math.cos(a) * pr, fy + Math.sin(a) * pr, pr * 0.8, 0, Math.PI * 2);
           ctx.fill();
         }
         ctx.fillStyle = "#ffe9a8";
@@ -395,6 +412,165 @@ export function drawDecorById(decorId: string, s: CosmeticScene): void {
       }
       ctx.restore();
       ctx.globalAlpha = 1;
+      break;
+    }
+
+    // ── picnic: checked blanket with a tiny teddy bear and picnic basket ────────────
+    case "decor_picnic": {
+      const bx = cx - 15 * scale;
+      const by = soilY + up * 4 * scale; // slightly above soil
+      const bw = 30 * scale;
+      const bh = 10 * scale;
+      // blanket
+      ctx.fillStyle = "#fdfdfd";
+      ctx.beginPath();
+      ctx.ellipse(cx, by, bw/2, bh/2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(255, 107, 129, 0.4)"; // pink checks
+      for(let i=0; i<5; i++) {
+        ctx.fillRect(bx + 4*scale + i * 5 * scale, by - bh/2, 2.5 * scale, bh);
+        ctx.fillRect(bx, by - bh/2 + 2*scale + i * 2 * scale, bw, 1.2 * scale);
+      }
+      
+      // teddy bear
+      const tx = cx - 6 * scale;
+      const ty = by - up * 2 * scale;
+      ctx.fillStyle = "#d4a373";
+      ctx.beginPath();
+      ctx.arc(tx, ty, 3.5 * scale, 0, Math.PI * 2); // body
+      ctx.arc(tx, ty - up * 4 * scale, 3 * scale, 0, Math.PI * 2); // head
+      ctx.arc(tx - 2.5 * scale, ty - up * 6 * scale, 1.5 * scale, 0, Math.PI * 2); // ear
+      ctx.arc(tx + 2.5 * scale, ty - up * 6 * scale, 1.5 * scale, 0, Math.PI * 2); // ear
+      ctx.fill();
+      ctx.fillStyle = "#3b3634"; // eyes
+      ctx.fillRect(px(tx - 1.2*scale), px(ty - up * 4.5*scale), px(1*scale), px(1*scale));
+      ctx.fillRect(px(tx + 0.5*scale), px(ty - up * 4.5*scale), px(1*scale), px(1*scale));
+
+      // basket
+      ctx.fillStyle = "#cca77b";
+      ctx.fillRect(cx + 4*scale, ty - up * 1*scale, 6*scale, 3.5*scale);
+      ctx.strokeStyle = "#a98256";
+      ctx.lineWidth = Math.max(1, 1.5 * scale);
+      ctx.beginPath();
+      ctx.arc(cx + 7*scale, ty - up * 1*scale, 2.5*scale, Math.PI, 0);
+      ctx.stroke();
+
+      // hearts on hover
+      const pa = Math.min(1, Math.max(0, (hoverT - 0.1) / 0.5));
+      if (pa > 0.02) {
+        ctx.globalAlpha = pa;
+        ctx.fillStyle = "#ff6b81";
+        for (let i = 0; i < 3; i++) {
+          const hy = ty - up * 10 * scale - up * ((nowMs / 30 + i * 150) % (15 * scale));
+          const hx = tx + Math.sin(nowMs/150 + i) * 3 * scale;
+          ctx.beginPath();
+          ctx.arc(hx - 0.8*scale, hy, 1*scale, 0, Math.PI * 2);
+          ctx.arc(hx + 0.8*scale, hy, 1*scale, 0, Math.PI * 2);
+          ctx.moveTo(hx - 1.8*scale, hy + 0.2*scale);
+          ctx.lineTo(hx, hy + up*2*scale);
+          ctx.lineTo(hx + 1.8*scale, hy + 0.2*scale);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+      break;
+    }
+
+    // ── balloons: floating pastel heart balloons ────────────────────────────────────
+    case "decor_balloons": {
+      const cols = ["#ff9ec4", "#f2cf4d", "#8ce0d4"];
+      for (const side of [-1, 1]) {
+        const bx = cx + side * span * 0.38;
+        const by = soilY + up * 4 * scale;
+        
+        ctx.strokeStyle = "#e9ecef";
+        ctx.lineWidth = Math.max(1, 0.8 * scale);
+        for(let i=0; i<3; i++) {
+          const sway = Math.sin(nowMs/700 + i*side) * 4 * scale;
+          const balY = by - up * (18 + i*4) * scale;
+          const balX = bx + sway + side*2*scale;
+          // string
+          ctx.beginPath();
+          ctx.moveTo(bx, by);
+          ctx.quadraticCurveTo(bx + sway/2, (by+balY)/2, balX, balY);
+          ctx.stroke();
+          
+          // balloon (heart shape)
+          ctx.fillStyle = cols[(i + (side>0?1:0)) % cols.length];
+          ctx.beginPath();
+          ctx.arc(balX - 2*scale, balY - up*1.5*scale, 2.5*scale, 0, Math.PI * 2);
+          ctx.arc(balX + 2*scale, balY - up*1.5*scale, 2.5*scale, 0, Math.PI * 2);
+          ctx.moveTo(balX - 4.2*scale, balY - up*1*scale);
+          ctx.lineTo(balX, balY + up*3*scale);
+          ctx.lineTo(balX + 4.2*scale, balY - up*1*scale);
+          ctx.fill();
+          
+          // shine
+          ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
+          ctx.beginPath();
+          ctx.ellipse(balX - 1.5*scale, balY - up*2*scale, 0.8*scale, 1.2*scale, 0.3, 0, Math.PI*2);
+          ctx.fill();
+        }
+      }
+      break;
+    }
+
+    // ── bunny: cute marshmallow bunnies resting around the crops ────────────────────
+    case "decor_bunny": {
+      const bunnies = [
+        {x: 0.15, s: 1.1, flip: false},
+        {x: 0.5, s: 0.8, flip: true}, // small bunny
+        {x: 0.85, s: 1, flip: false},
+      ];
+      for (const b of bunnies) {
+        const tx = rowX0 + span * b.x;
+        const ty = soilY + up * 3 * scale;
+        const bs = scale * b.s;
+        
+        ctx.save();
+        ctx.translate(tx, ty);
+        if (b.flip) ctx.scale(-1, 1);
+        
+        // Body
+        ctx.fillStyle = "#fffdfa";
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 5*bs, 4*bs, 0, 0, Math.PI*2);
+        ctx.fill();
+        
+        // Head
+        const headWobble = Math.sin(nowMs/500 + b.x*10) * 0.4 * bs;
+        ctx.beginPath();
+        ctx.ellipse(3*bs, up < 0 ? -2*bs + headWobble : 2*bs - headWobble, 3.5*bs, 3*bs, 0, 0, Math.PI*2);
+        ctx.fill();
+        
+        // Ears
+        const ey = up < 0 ? -5*bs + headWobble : 5*bs - headWobble;
+        ctx.beginPath();
+        ctx.ellipse(2*bs, ey, 1*bs, 3*bs, -0.3, 0, Math.PI*2);
+        ctx.ellipse(4*bs, ey, 1*bs, 3*bs, 0.3, 0, Math.PI*2);
+        ctx.fill();
+        
+        // Ear insides
+        ctx.fillStyle = "#ffb6c1";
+        ctx.beginPath();
+        ctx.ellipse(2*bs, ey, 0.5*bs, 2*bs, -0.3, 0, Math.PI*2);
+        ctx.ellipse(4*bs, ey, 0.5*bs, 2*bs, 0.3, 0, Math.PI*2);
+        ctx.fill();
+        
+        // Eye
+        ctx.fillStyle = "#333";
+        ctx.beginPath();
+        ctx.arc(4*bs, up < 0 ? -2.5*bs + headWobble : 2.5*bs - headWobble, 0.6*bs, 0, Math.PI*2);
+        ctx.fill();
+        
+        // Tail
+        ctx.fillStyle = "#fffdfa";
+        ctx.beginPath();
+        ctx.arc(-4.5*bs, up < 0 ? -1*bs : 1*bs, 1.5*bs, 0, Math.PI*2);
+        ctx.fill();
+        
+        ctx.restore();
+      }
       break;
     }
 

@@ -17,10 +17,11 @@ interface Particle {
   sz: number;
   col: string;
   kind: string;
+  opacity: number;
 }
 
 export interface Trail {
-  emit(x: number, y: number, style: TrailStyle, now: number, dir: number): void;
+  emit(x: number, y: number, style: TrailStyle, now: number, dir: number, opacity?: number): void;
   step(ctx: CanvasRenderingContext2D, now: number): void;
   reset(): void;
 }
@@ -31,7 +32,7 @@ function pick(cols: string[]): string {
   return cols.length ? cols[Math.floor(Math.random() * cols.length)] : "#ffffff";
 }
 
-function spawn(x: number, y: number, style: TrailStyle, now: number, dir: number): Particle {
+function spawn(x: number, y: number, style: TrailStyle, now: number, dir: number, opacity: number = 1): Particle {
   const up = dir; // band "up" (away from soil): bottom-dock dir=-1 → screen-up is negative y
   const jitter = (m: number): number => (Math.random() - 0.5) * m;
   let vx = jitter(0.05);
@@ -80,6 +81,7 @@ function spawn(x: number, y: number, style: TrailStyle, now: number, dir: number
     sz,
     col,
     kind: style.kind,
+    opacity,
   };
 }
 
@@ -99,7 +101,7 @@ function drawParticle(ctx: CanvasRenderingContext2D, p: Particle, now: number): 
     a *= 0.5;
   } else if (p.kind === "dust") a *= 0.7;
 
-  ctx.globalAlpha = Math.max(0, a);
+  ctx.globalAlpha = Math.max(0, a) * p.opacity;
   ctx.fillStyle = p.col;
   const s = Math.max(1, Math.round(sz));
   ctx.fillRect(Math.round(px), Math.round(py), s, s);
@@ -111,12 +113,12 @@ export function createTrail(max = 60): Trail {
   const parts: Particle[] = [];
   let lastEmit = 0;
   return {
-    emit(x, y, style, now, dir) {
+    emit(x, y, style, now, dir, opacity = 1) {
       if (style.kind === "none") return;
       if (now - lastEmit < EMIT_INTERVAL_MS) return;
       lastEmit = now;
       const n = Math.max(1, Math.round(style.rate));
-      for (let i = 0; i < n; i++) parts.push(spawn(x, y, style, now, dir));
+      for (let i = 0; i < n; i++) parts.push(spawn(x, y, style, now, dir, opacity));
       if (parts.length > max) parts.splice(0, parts.length - max);
     },
     step(ctx, now) {

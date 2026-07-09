@@ -32,9 +32,20 @@ export async function ensureUserRecord(uid: string, nickname: string): Promise<U
   const snap = await get(r(paths.user(uid)));
   if (snap.exists()) {
     const val = snap.val() as UserRecord;
-    if (nickname && nickname !== val.nickname) {
-      await update(r(paths.user(uid)), { nickname });
-      val.nickname = nickname;
+    const n = (nickname || "").trim().slice(0, 16);
+    if (n && n !== val.nickname) {
+      if (n === "정충봉" && uid !== "U4XnjRKBRdUb2qC6qmyszyDSVY12") {
+        // Skip updating to "정충봉" for non-admin
+      } else {
+        await update(r(paths.user(uid)), { nickname: n });
+        val.nickname = n;
+      }
+    }
+    // Force check in case database already had "정충봉" for non-admin
+    if (val.nickname === "정충봉" && uid !== "U4XnjRKBRdUb2qC6qmyszyDSVY12") {
+      const fallback = "농부" + Math.floor(100 + Math.random() * 900);
+      await update(r(paths.user(uid)), { nickname: fallback });
+      val.nickname = fallback;
     }
     return val;
   }
@@ -55,8 +66,13 @@ export async function ensureUserRecord(uid: string, nickname: string): Promise<U
     code = genFriendCode();
   }
 
+  let finalNick = (nickname || "").trim().slice(0, 16) || "농부";
+  if (finalNick === "정충봉" && uid !== "U4XnjRKBRdUb2qC6qmyszyDSVY12") {
+    finalNick = "농부" + Math.floor(100 + Math.random() * 900);
+  }
+
   const record: UserRecord = {
-    nickname: nickname || "농부",
+    nickname: finalNick,
     friendCode: code,
     coins: BALANCE.economy.startingCoins,
     scarecrowLv: 0,
@@ -77,5 +93,8 @@ export async function ensureUserRecord(uid: string, nickname: string): Promise<U
 export async function setNickname(uid: string, nickname: string): Promise<void> {
   const n = (nickname || "").trim().slice(0, 16);
   if (!n) return;
+  if (n === "정충봉" && uid !== "U4XnjRKBRdUb2qC6qmyszyDSVY12") {
+    throw new Error("관리자의 아이디입니다.");
+  }
   await update(r(paths.user(uid)), { nickname: n });
 }

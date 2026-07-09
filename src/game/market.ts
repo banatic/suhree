@@ -48,6 +48,7 @@ export function topCropTier(): number {
   let best = 0;
   let bestF = -Infinity;
   for (let t = 0; t < BALANCE.crops.tiers.length; t++) {
+    if (BALANCE.crops.tiers[t].special) continue; // specials aren't a "grow this today" nudge
     const f = priceFactor(t, day);
     if (f > bestF) {
       bestF = f;

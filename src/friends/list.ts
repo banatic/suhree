@@ -6,18 +6,26 @@ import { serverNow } from "../firebase/time";
 
 const presenceUnsubs = new Map<string, Unsubscribe>();
 const cooldownUnsubs = new Map<string, Unsubscribe>();
-const presenceMap = new Map<string, { lastSeen: number; conns: number }>();
+const presenceMap = new Map<string, { lastSeen: number; connStamps: number[] }>();
 let onlineTicker: number | null = null;
 
-// online ⇔ a fresh heartbeat OR a live socket marker (see firebase/presence.ts). Re-evaluated both
+// online ⇔ a fresh heartbeat OR a *fresh* socket marker (see firebase/presence.ts). Re-evaluated both
 // when the friend's presence node changes (coming online / marker removed) AND on a local timer (so a
 // friend who simply STOPS beating — backgrounded then closed — is detected: their lastSeen stops
 // changing, so onValue alone wouldn't fire once the socket marker is gone).
+//
+// We check each connection marker's timestamp, not merely its existence: onDisconnect().remove() is
+// NOT guaranteed to run (crash, ungraceful close, a network drop before the handler reached the
+// server), so a `push`ed marker can be orphaned forever. Counting keys blindly pinned such users
+// "online" permanently. Every live marker is re-stamped each heartbeat, so an orphan ages out of the
+// freshness window and stops counting.
 function isOnline(uid: string): boolean {
   const e = presenceMap.get(uid);
   if (!e) return false;
-  const fresh = serverNow() - e.lastSeen < BALANCE.presence.onlineThresholdMs;
-  return fresh || e.conns > 0;
+  const now = serverNow();
+  const threshold = BALANCE.presence.onlineThresholdMs;
+  if (now - e.lastSeen < threshold) return true;
+  return e.connStamps.some((t) => now - t < threshold);
 }
 
 function recomputeOnline(): void {
@@ -36,9 +44,12 @@ function subscribePresence(uid: string): void {
   if (presenceUnsubs.has(uid)) return;
   const un = onValue(r(paths.presence(uid)), (snap) => {
     const p = (snap.val() as { lastSeen?: number; connections?: Record<string, unknown> }) || {};
+    const connStamps = p.connections
+      ? Object.values(p.connections).filter((v): v is number => typeof v === "number")
+      : [];
     presenceMap.set(uid, {
       lastSeen: typeof p.lastSeen === "number" ? p.lastSeen : 0,
-      conns: p.connections ? Object.keys(p.connections).length : 0,
+      connStamps,
     });
     recomputeOnline();
   });

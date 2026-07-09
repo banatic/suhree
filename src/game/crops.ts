@@ -5,6 +5,7 @@ import { store, toast } from "../state";
 import { addCoins, trySpend } from "./economy";
 import { sellValue } from "./market";
 import { recordDex } from "./dex";
+import { cropUnlocked, cropLockReason } from "./unlocks";
 
 export type Stage = "empty" | "seed" | "sprout" | "growing" | "ripe";
 
@@ -57,6 +58,10 @@ export function ripeValue(tier: number): number {
 export async function plant(uid: string, slot: number, tier: number): Promise<boolean> {
   const t = tierOf(tier);
   if (!t) return false;
+  if (!cropUnlocked(tier)) {
+    toast(`🔒 ${cropLockReason(tier) ?? "아직 심을 수 없어요"}`);
+    return false;
+  }
   if (store.crops[String(slot)]) {
     toast("이미 작물이 있어요");
     return false;

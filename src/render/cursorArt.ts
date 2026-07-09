@@ -23,32 +23,34 @@ export interface CursorSkin {
 
 const NO_TRAIL: TrailStyle = { kind: "none", colors: [], rate: 0, life: 0, size: 0 };
 
-// ── Shapes (pixel grids; custom chars are coloured via the skin's `overrides`) ──────────────
 const PAW: Sprite = {
   rows: [
-    ".oo....oo.",
-    "opAo..oApo",
-    "opAo..oApo",
-    "...o..o...",
-    ".oooooooo.",
-    "oPPPPPPPPo",
-    "oPPPPPPPPo",
-    "oPPPPPPPPo",
-    ".oPPPPPPo.",
-    "..oooooo..",
+    ".oo.oo.oo.oo.",
+    "oAooAooAooAoo",
+    "opooPooPooPoo",
+    ".oo.oo.oo.oo.",
+    "...oooooo...",
+    "..oPPPPPPo..",
+    ".oPPPPPPPPo.",
+    ".oPPPPPPPPo.",
+    "..oPPPPPPo..",
+    "...oooooo..."
   ],
 };
 
 const HEART: Sprite = {
   rows: [
-    ".oo..oo..",
-    "oHhooHho.",
-    "oHHHHHHHo",
-    "oHHHHHHHo",
-    ".oHHHHHo.",
-    "..oHHHo..",
-    "...oHo...",
-    "....o....",
+    "..ooo...ooo..",
+    ".oHhho.oHhho.",
+    "oHHHHHoHHHHHo",
+    "oHHHHHHHHHHHo",
+    "oHHHHHHHHHHHo",
+    ".oHHHHHHHHHo.",
+    "..oHHHHHHHo..",
+    "...oHHHHHo...",
+    "....oHHHo....",
+    ".....oHo.....",
+    "......o......"
   ],
 };
 
@@ -62,7 +64,7 @@ const STAR: Sprite = {
     "o.yYYYy.o",
     "...yYy...",
     "....y....",
-    "....o....",
+    "....o...."
   ],
 };
 
@@ -77,7 +79,7 @@ const FLAME: Sprite = {
     ".yRRRRRy.",
     ".oRRRRRo.",
     "..oRRRo..",
-    "...ooo...",
+    "...ooo..."
   ],
 };
 
@@ -91,11 +93,43 @@ const GLOVE: Sprite = {
     ".kkkkkkk.",
     ".wkkkkkw.",
     ".wwwwwww.",
-    "..wwwww..",
+    "..wwwww.."
+  ],
+};
+
+const GHOST: Sprite = {
+  rows: [
+    "...oooo...",
+    "..oWWWwo..",
+    ".oWWWWwWo.",
+    ".oWbWWbWo.",
+    "oWWWWWWWWo",
+    "oWWwWWwWWo",
+    "oWWWWWWWWo",
+    "oWWWWWWWWo",
+    "oWoWoWoWoW",
+    ".o.o.o.o.o"
+  ],
+};
+
+const BUNNY: Sprite = {
+  rows: [
+    ".oo...oo.",
+    "oPPo.oPPo",
+    "oPPo.oPPo",
+    "oPPo.oPPo",
+    ".oooooooo.",
+    "oWWWWWWWWo",
+    "oWbWWWWbWo",
+    "oWWWpWWWWo",
+    ".oWWWWWWo.",
+    "..oooooo.."
   ],
 };
 
 const PINK = { A: "#ffd0e0", p: "#ff7faf", P: "#ff9ec4", H: "#ff5f95", h: "#ffd0e0" };
+const GHOST_COL = { W: "#f8f9fa", w: "#e9ecef", b: "#343a40" };
+const BUNNY_COL = { W: "#fff0f5", b: "#495057", p: "#ffb6c1", P: "#ffc0cb" };
 
 export const CURSOR_SKINS: Record<string, CursorSkin> = {
   cursor_default: { sprite: GHOST_CURSOR, trail: NO_TRAIL },
@@ -126,6 +160,16 @@ export const CURSOR_SKINS: Record<string, CursorSkin> = {
     overrides: { w: "#ffffff" },
     trail: { kind: "rainbow", colors: [], rate: 2, life: 800, size: 2 },
   },
+  cursor_ghost: {
+    sprite: GHOST,
+    overrides: GHOST_COL,
+    trail: { kind: "sparkle", colors: ["#cba6f7", "#f5c2e7", "#b4befe"], rate: 1, life: 800, size: 2 },
+  },
+  cursor_bunny: {
+    sprite: BUNNY,
+    overrides: BUNNY_COL,
+    trail: { kind: "dust", colors: ["#fd7e14", "#ffc107", "#40c057"], rate: 1, life: 600, size: 2 },
+  }
 };
 
 /** Resolve a cursor id to its skin, falling back to the plain default arrow. */

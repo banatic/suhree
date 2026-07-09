@@ -49,6 +49,12 @@ export function drawTheme(themeId: string, s: CosmeticScene): void {
     case "theme_aurora":
       drawAurora(s, far, near);
       break;
+    case "theme_cottoncandy":
+      drawCottonCandy(s, far, near);
+      break;
+    case "theme_milkyway":
+      drawMilkyWay(s, far, near);
+      break;
     // unknown / missing id → nothing
   }
   s.ctx.restore();
@@ -288,3 +294,88 @@ const AURORA_RIBBONS = [
   { r: 172, g: 122, b: 242, base: 0.6, amp: 0.14, thick: 0.18, sp: 2300 },
   { r: 242, g: 122, b: 198, base: 0.72, amp: 0.11, thick: 0.15, sp: 2800 },
 ];
+
+// Cotton candy: baby pink and sky blue gradient with fluffy moving clouds
+function drawCottonCandy(s: CosmeticScene, far: number, near: number): void {
+  const ctx = s.ctx;
+  const y0 = Math.min(far, near);
+  const h = Math.abs(near - far);
+  
+  const g = ctx.createLinearGradient(0, far, 0, near);
+  g.addColorStop(0, "rgba(164,213,248,0.5)"); // sky blue zenith
+  g.addColorStop(1, "rgba(255,192,203,0.5)"); // baby pink horizon
+  ctx.fillStyle = g;
+  ctx.fillRect(s.bandX, y0, s.bandW, h);
+
+  // fluffy clouds
+  ctx.fillStyle = "rgba(255,255,255,0.7)";
+  for (let i = 0; i < 4; i++) {
+    // 0..bandW, wrap around seamlessly
+    const speed = 30 + i * 15;
+    const drift = ((s.nowMs / speed + i * 400) % (s.bandW + 200)) - 100;
+    const cx = s.bandX + s.bandW - drift;
+    const cy = y0 + h * (0.2 + 0.2 * i);
+    const cr = h * 0.15;
+    
+    ctx.beginPath();
+    ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+    ctx.arc(cx - cr*1.2, cy + cr*0.3, cr*0.8, 0, Math.PI * 2);
+    ctx.arc(cx + cr*1.2, cy + cr*0.3, cr*0.8, 0, Math.PI * 2);
+    ctx.arc(cx - cr*2, cy + cr*0.5, cr*0.5, 0, Math.PI * 2);
+    ctx.arc(cx + cr*2, cy + cr*0.5, cr*0.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// Milky way: pastel purple with star candies and a soft river of light
+function drawMilkyWay(s: CosmeticScene, far: number, near: number): void {
+  const ctx = s.ctx;
+  const y0 = Math.min(far, near);
+  const h = Math.abs(near - far);
+  
+  const g = ctx.createLinearGradient(0, far, 0, near);
+  g.addColorStop(0, "rgba(87,69,113,0.6)"); // purple zenith
+  g.addColorStop(1, "rgba(166,133,186,0.5)"); // pastel purple horizon
+  ctx.fillStyle = g;
+  ctx.fillRect(s.bandX, y0, s.bandW, h);
+
+  // milky way river (diagonal soft light)
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  ctx.fillStyle = "rgba(255,240,245,0.15)";
+  ctx.beginPath();
+  ctx.moveTo(s.bandX, y0 + h * 0.2);
+  ctx.lineTo(s.bandX + s.bandW, y0 + h * 0.8);
+  ctx.lineTo(s.bandX + s.bandW, y0 + h);
+  ctx.lineTo(s.bandX, y0 + h * 0.4);
+  ctx.fill();
+  ctx.restore();
+
+  // star candies
+  const cols = ["#ffb3ba", "#ffdfba", "#ffffba", "#baffc9", "#bae1ff"];
+  for (let i = 0; i < 20; i++) {
+    const x = s.bandX + rnd(i) * s.bandW;
+    const y = y0 + (0.1 + 0.8 * rnd(i + 50)) * h;
+    const size = (rnd(i + 3) > 0.8) ? 2.5 * s.scale : 1.5 * s.scale;
+    const twinkle = 0.5 + 0.5 * Math.sin(s.nowMs / 400 + i);
+    
+    ctx.save();
+    ctx.globalAlpha = 0.4 + 0.6 * twinkle;
+    ctx.fillStyle = cols[i % cols.length];
+    ctx.translate(x, y);
+    ctx.rotate(s.nowMs/1000 + i);
+    
+    // star shape (4 points)
+    ctx.beginPath();
+    ctx.moveTo(0, -size);
+    ctx.lineTo(size/3, -size/3);
+    ctx.lineTo(size, 0);
+    ctx.lineTo(size/3, size/3);
+    ctx.lineTo(0, size);
+    ctx.lineTo(-size/3, size/3);
+    ctx.lineTo(-size, 0);
+    ctx.lineTo(-size/3, -size/3);
+    ctx.fill();
+    ctx.restore();
+  }
+}

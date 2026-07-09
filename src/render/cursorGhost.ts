@@ -8,10 +8,11 @@ export function drawGhostCursor(
   yCss: number,
   scale: number,
   cursorId?: string,
+  opacity: number = 0.85,
 ): void {
   const skin = cursorSkin(cursorId);
   ctx.save();
-  ctx.globalAlpha = 0.85;
+  ctx.globalAlpha = opacity;
   drawSprite(ctx, skin.sprite, Math.round(xCss), Math.round(yCss), scale, skin.overrides);
   ctx.restore();
 }

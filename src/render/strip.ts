@@ -88,6 +88,24 @@ const selfTrail = createTrail();
 // Defending against N intruders: one trail + one graze-throttle per raider (keyed by raiderUid).
 const raiderTrails = new Map<string, Trail>();
 const grazeAt = new Map<string, number>();
+const opacityTracker = new Map<string, { x: number; y: number; time: number; opacity: number }>();
+
+function getCursorOpacity(uid: string, x: number, y: number, now: number): number {
+  const last = opacityTracker.get(uid);
+  if (!last) {
+    opacityTracker.set(uid, { x, y, time: now, opacity: 0.05 });
+    return 0.05;
+  }
+  const dt = Math.max(1, now - last.time);
+  const dist = Math.hypot(x - last.x, y - last.y);
+  const speed = dist / dt; 
+  let targetOpacity = 0.05 + (speed * 3.5);
+  targetOpacity = Math.max(0.05, Math.min(0.95, targetOpacity));
+  const approach = targetOpacity > last.opacity ? 0.25 : 0.015;
+  const newOpacity = last.opacity + (targetOpacity - last.opacity) * approach;
+  opacityTracker.set(uid, { x, y, time: now, opacity: newOpacity });
+  return newOpacity;
+}
 
 function raiderTrail(uid: string): Trail {
   let t = raiderTrails.get(uid);
@@ -213,13 +231,22 @@ function chipW(label: string, extra = 0): number {
   return label.length * 14 + 18 + extra;
 }
 
+/** The 씨앗 chip shows the CURRENTLY SELECTED seed's name (e.g. "무", "별무"), not a static label. */
+function hudLabelFor(b: { id: string; label: string }): string {
+  if (b.id === "seed") return tierOf(store.selectedSeedTier)?.label ?? "씨앗";
+  return b.label;
+}
+
 function hudLayout(L: BandLayout): { coin: Rect; buttons: Btn[]; barYOpen: number; bg: Rect } {
   const barYOpen = L.dock === "bottom" ? L.bandY - HUD_H : L.bandY + L.bandH;
   const chipH = HUD_H - 8;
   const chipY = barYOpen + (HUD_H - chipH) / 2;
   const gap = 6;
   const coinW = 28 + String(coins()).length * 9;
-  const parts = visibleHudLabels().map((b) => ({ ...b, w: chipW(b.label, b.id === "seed" ? 12 : 0) }));
+  const parts = visibleHudLabels().map((b) => {
+    const label = hudLabelFor(b);
+    return { ...b, label, w: chipW(label, b.id === "seed" ? 12 : 0) };
+  });
   const totalW = coinW + gap + parts.reduce((a, p) => a + p.w + gap, 0) - gap;
   const startX = clamp(L.W / 2 - totalW / 2, 8, Math.max(8, L.W - totalW - 8));
   let x = startX;
@@ -248,6 +275,7 @@ export function renderStrip(): void {
     ghostTrail.reset(); // the ghost we're trailing just changed (or vanished)
     raiderTrails.clear(); // drop any per-intruder trails from a previous defence
     grazeAt.clear();
+    opacityTracker.clear();
     publishHitRegions();
   }
 
@@ -373,7 +401,15 @@ function drawCropAt(c: CanvasRenderingContext2D, L: BandLayout, s: Slot, tier: n
   const bob = st === "ripe" ? Math.abs(Math.sin(store.now / 500 + s.i)) * 1.5 : 0;
   const liftedSoil = L.soilY + (L.dir < 0 ? -bob : bob);
   const ov = cropOverrides(tier);
+  // Special crops glow — a soft halo so they read as prized even mid-growth.
+  const glow = tierOf(tier)?.glow;
+  if (glow) {
+    c.save();
+    c.shadowColor = glow;
+    c.shadowBlur = (st === "ripe" ? 6 : 4) * L.scale;
+  }
   drawCropSprite(c, sp, s.cx, liftedSoil, L.scale, L.dir, ov, sway);
+  if (glow) c.restore();
   if (st === "ripe" && Math.sin(store.now / 600 + s.cx) > 0.72) {
     const topY = L.dir < 0 ? liftedSoil - sp.rows.length * L.scale : liftedSoil + sp.rows.length * L.scale;
     const sz = Math.max(2, L.scale);
@@ -499,10 +535,16 @@ function drawHUD(c: CanvasRenderingContext2D, L: BandLayout): void {
     let textX = r.x + r.w / 2;
     if (b.id === "seed") {
       const tier = tierOf(store.selectedSeedTier);
+      c.save();
+      if (tier?.glow) {
+        c.shadowColor = tier.glow;
+        c.shadowBlur = 6;
+      }
       c.fillStyle = tier?.color || "#fff";
       c.beginPath();
       c.arc(r.x + 11, r.y + r.h / 2, 4.5, 0, Math.PI * 2);
       c.fill();
+      c.restore();
       c.lineWidth = 1;
       c.strokeStyle = "#2e2117";
       c.stroke();
@@ -667,10 +709,11 @@ function drawRaidingView(c: CanvasRenderingContext2D, L: BandLayout): void {
       }
       const gx = rv.cursor.x * L.W;
       const gy = L.bandY + rv.cursor.y * L.bandH;
-      trail.emit(gx, gy, cursorSkin(rv.cursorSkin).trail, store.now, L.dir);
+      const op = getCursorOpacity("coraider_" + uid, gx, gy, store.now);
+      trail.emit(gx, gy, cursorSkin(rv.cursorSkin).trail, store.now, L.dir, op);
       trail.step(c, store.now);
-      drawGhostCursor(c, gx - 1, gy - 8, Math.max(2, L.scale), rv.cursorSkin);
-      drawCursorNameTag(c, gx, gy, rv.nick || "도둑", L);
+      drawGhostCursor(c, gx - 1, gy - 8, Math.max(2, L.scale), rv.cursorSkin, Math.min(0.85, op));
+      drawCursorNameTag(c, gx, gy, rv.nick || "도둑", L, op);
     }
   }
 
@@ -773,6 +816,7 @@ function drawDefendingView(c: CanvasRenderingContext2D, L: BandLayout): void {
     }
     const gx = rv.cursor.x * L.W;
     const gy = L.bandY + rv.cursor.y * L.bandH;
+    const op = getCursorOpacity("raider_" + uid, gx, gy, store.now);
     // Hover-to-evict: grazing the ghost lands hits (throttled per raider) — no click needed.
     if (
       lastPointer &&
@@ -785,7 +829,7 @@ function drawDefendingView(c: CanvasRenderingContext2D, L: BandLayout): void {
       registerEvictGraze(uid);
     }
     c.save();
-    c.globalAlpha = 0.6 + 0.3 * Math.sin(store.now / 120);
+    c.globalAlpha = (0.6 + 0.3 * Math.sin(store.now / 120)) * op;
     c.strokeStyle = "#9bf6a0";
     c.lineWidth = 2;
     c.beginPath();
@@ -793,11 +837,11 @@ function drawDefendingView(c: CanvasRenderingContext2D, L: BandLayout): void {
     c.stroke();
     c.restore();
     // The intruder's cursor cosmetic (shape + trail) — trail behind, ghost + name tag + HP on top.
-    trail.emit(gx, gy, cursorSkin(rv.cursorSkin).trail, store.now, L.dir);
+    trail.emit(gx, gy, cursorSkin(rv.cursorSkin).trail, store.now, L.dir, op);
     trail.step(c, store.now);
-    drawGhostCursor(c, gx - 1, gy - 8, Math.max(2, L.scale), rv.cursorSkin);
-    drawCursorNameTag(c, gx, gy, rv.nick || "침입자", L);
-    drawIntruderHp(c, gx, gy, rv.evictHits, rv.evictHitsNeeded, L);
+    drawGhostCursor(c, gx - 1, gy - 8, Math.max(2, L.scale), rv.cursorSkin, Math.min(0.85, op));
+    drawCursorNameTag(c, gx, gy, rv.nick || "침입자", L, op);
+    drawIntruderHp(c, gx, gy, rv.evictHits, rv.evictHitsNeeded, L, op);
   }
 
   drawEffects(c, L);
@@ -811,10 +855,12 @@ function drawIntruderHp(
   hits: number,
   need: number,
   L: BandLayout,
+  opacity: number = 1
 ): void {
   const hp = Math.max(0, need - hits);
   const text = `❤${hp}/${need}`;
   c.save();
+  c.globalAlpha = opacity;
   c.font = `bold 10px ${FONT}`;
   c.textAlign = "center";
   c.textBaseline = "top";
@@ -851,9 +897,11 @@ function drawCursorNameTag(
   gy: number,
   name: string,
   L: BandLayout,
+  opacity: number = 1
 ): void {
   const text = name.length > 10 ? name.slice(0, 10) + "…" : name;
   c.save();
+  c.globalAlpha = opacity;
   c.font = `bold 11px ${FONT}`;
   const w = c.measureText(text).width + 10;
   const h = 14;

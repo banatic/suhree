@@ -38,14 +38,24 @@ export function isDiscovered(tier: number): boolean {
   return !!e && ((e.h ?? 0) > 0 || stolenTotal(tier) > 0);
 }
 
+/** SPECIAL crops are a separate endgame track — they don't count toward base dex completion. */
+function isBaseTier(tier: number): boolean {
+  return !BALANCE.crops.tiers[tier]?.special;
+}
+
+/** Number of BASE (non-special) crops in the ladder — the denominator for completion. */
+export function baseTierCount(): number {
+  return BALANCE.crops.tiers.filter((t) => !t.special).length;
+}
+
 export function discoveredCount(): number {
   let n = 0;
-  for (let t = 0; t < BALANCE.crops.tiers.length; t++) if (isDiscovered(t)) n++;
+  for (let t = 0; t < BALANCE.crops.tiers.length; t++) if (isBaseTier(t) && isDiscovered(t)) n++;
   return n;
 }
 
 export function allDiscovered(): boolean {
-  return discoveredCount() >= BALANCE.crops.tiers.length;
+  return discoveredCount() >= baseTierCount();
 }
 
 /**

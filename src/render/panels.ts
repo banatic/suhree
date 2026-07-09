@@ -15,8 +15,9 @@ import { BALANCE } from "../config/balance";
 import { r, paths } from "../firebase/db";
 import { serverNow } from "../firebase/time";
 import { buyPlotExpansion, buyLevel, buyCosmetic, equipCosmetic, type CosmeticType } from "../game/shop";
-import { cosmeticOwned, lockReason } from "../game/unlocks";
+import { cosmeticOwned, lockReason, cropUnlocked, cropLockReason } from "../game/unlocks";
 import { renderFarmPreview } from "./farmPreview";
+import { drawSprite, RIPE_RADISH, RIPE_WHEAT, RIPE_PUMPKIN, type Sprite } from "./sprites";
 import { drawGhostCursor } from "./cursorGhost";
 import { cursorSkin } from "./cursorArt";
 import { createTrail } from "./cursorTrail";
@@ -41,6 +42,7 @@ import {
   stolenTotal,
   stolenBreakdown,
   claimDexReward,
+  baseTierCount,
 } from "../game/dex";
 import { fetchStats, todayKey, EMPTY_BUCKET, type StatsData, type StatBucket } from "../game/stats";
 
@@ -258,6 +260,56 @@ function cosmeticSection(
 
 // ── Panels ───────────────────────────────────────────────────────────────────
 
+// ── Shop seed helpers (pixel crop icon + compact coins + tab state) ──────────────
+let seedTab: "normal" | "special" = "normal";
+
+function ripeSpriteFor(shape: string): Sprite {
+  return shape === "wheat" ? RIPE_WHEAT : shape === "pumpkin" ? RIPE_PUMPKIN : RIPE_RADISH;
+}
+
+function hexToRgb(h: string): [number, number, number] {
+  const s = h.replace("#", "");
+  return [parseInt(s.slice(0, 2), 16), parseInt(s.slice(2, 4), 16), parseInt(s.slice(4, 6), 16)];
+}
+function rgbToHex(r: number, g: number, b: number): string {
+  const c = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, "0");
+  return `#${c(r)}${c(g)}${c(b)}`;
+}
+function lightenHex(h: string, a: number): string {
+  const [r, g, b] = hexToRgb(h);
+  return rgbToHex(r + (255 - r) * a, g + (255 - g) * a, b + (255 - b) * a);
+}
+function darkenHex(h: string, a: number): string {
+  const [r, g, b] = hexToRgb(h);
+  return rgbToHex(r * (1 - a), g * (1 - a), b * (1 - a));
+}
+
+/** A tiny recoloured pixel sprite of the crop (same shapes the strip draws). */
+function makeCropIcon(t: (typeof BALANCE.crops.tiers)[number]): HTMLCanvasElement {
+  const sp = ripeSpriteFor(t.sprite);
+  const S = 3;
+  const cv = document.createElement("canvas");
+  cv.width = 16 * S;
+  cv.height = sp.rows.length * S;
+  cv.className = "tile-icon";
+  const ctx = cv.getContext("2d");
+  if (ctx) {
+    drawSprite(ctx, sp, 0, 0, S, {
+      f: t.color,
+      h: lightenHex(t.color, 0.22),
+      d: darkenHex(t.color, 0.26),
+    });
+  }
+  return cv;
+}
+
+/** Compact coin label for tight tiles: 45000 → "4.5만", 1500000 → "150만", 380 → "380". */
+function coinShort(n: number): string {
+  if (n < 10000) return String(n);
+  const man = n / 10000;
+  return `${man >= 100 ? Math.round(man) : Math.round(man * 10) / 10}만`;
+}
+
 function shopPanel(): HTMLElement {
   const uid = store.uid;
   const u = store.user;
@@ -271,29 +323,64 @@ function shopPanel(): HTMLElement {
     ),
   );
 
-  // seeds info — buy price is fixed; "오늘" shows today's sell price (base × market factor).
-  const seeds = el("div", { class: "card" }, el("div", { class: "card-title" }, "씨앗"));
-  for (const t of BALANCE.crops.tiers) {
+  // seeds — pixel grid tiles, split into 일반 / ✨스페셜 tabs (no long scroll). "오늘" = today's sell price.
+  const seedTile = (t: (typeof BALANCE.crops.tiers)[number]): HTMLElement => {
     const up = priceFactor(t.id) >= 1;
-    seeds.append(
-      row(
-        el("span", { class: "dot", style: `background:${t.color}` }),
-        el("span", { class: "grow" }, `${t.label}`),
-        el("span", { class: "muted small" }, `씨 ${t.price} · 수확 ${t.harvestValue} · ⏱ ${fmtGrowTime(cropTotalMs(t.id))}`),
-        el(
-          "span",
-          { class: "small", style: `color:${up ? "#3f7a30" : "#b5402e"};font-weight:bold` },
-          `→ ${sellValue(t.id)} ${up ? "📈" : "📉"}`,
-        ),
-        btn("선택", () => {
-          store.selectedSeedTier = t.id;
-          toast(`씨앗 선택: ${t.label}`);
-          renderPanels();
-        }),
-      ),
+    const selected = store.selectedSeedTier === t.id;
+    const tile = el("div", {
+      class: `seed-tile${selected ? " sel" : ""}${t.special ? " special" : ""}`,
+      onclick: () => {
+        store.selectedSeedTier = t.id;
+        toast(`씨앗 선택: ${t.label}`);
+        renderPanels();
+      },
+    });
+    tile.append(el("div", { class: "tile-ico" }, makeCropIcon(t)));
+    tile.append(el("div", { class: "tile-name" }, `${t.special ? "✨ " : ""}${t.label}`));
+    tile.append(
+      el("div", { class: `tile-sell ${up ? "up" : "down"}` }, `${coinShort(sellValue(t.id))} ${up ? "📈" : "📉"}`),
     );
+    tile.append(el("div", { class: "tile-meta" }, `⏱ ${fmtGrowTime(cropTotalMs(t.id))} · 씨 ${coinShort(t.price)}`));
+    if (selected) tile.append(el("div", { class: "tile-check" }, "✓"));
+    return tile;
+  };
+
+  const lockedTile = (t: (typeof BALANCE.crops.tiers)[number]): HTMLElement =>
+    el(
+      "div",
+      { class: "seed-tile special locked" },
+      el("div", { class: "tile-ico locked-ico" }, "✨"),
+      el("div", { class: "tile-name" }, "???"),
+      el("div", { class: "tile-lock" }, `🔒 ${cropLockReason(t.id) ?? "잠김"}`),
+    );
+
+  const tabBtn = (label: string, key: typeof seedTab): HTMLElement =>
+    el(
+      "button",
+      {
+        class: `seed-tab${seedTab === key ? " active" : ""}`,
+        onclick: () => {
+          seedTab = key;
+          renderPanels();
+        },
+      },
+      label,
+    );
+
+  const seedCard = el("div", { class: "card" });
+  seedCard.append(el("div", { class: "seed-tabs" }, tabBtn("일반", "normal"), tabBtn("✨ 스페셜", "special")));
+
+  const grid = el("div", { class: "seed-grid" });
+  if (seedTab === "normal") {
+    for (const t of BALANCE.crops.tiers) if (!t.special) grid.append(seedTile(t));
+  } else {
+    const specials = BALANCE.crops.tiers.filter((t) => t.special);
+    const unlocked = specials.filter((t) => cropUnlocked(t.id)).length;
+    seedCard.append(el("div", { class: "muted small" }, `해금 ${unlocked} / ${specials.length} · 도감 완성부터 순서대로 열려요`));
+    for (const t of specials) grid.append(cropUnlocked(t.id) ? seedTile(t) : lockedTile(t));
   }
-  wrap.append(seeds);
+  seedCard.append(grid);
+  wrap.append(seedCard);
 
   // plot expansion
   if (u) {
@@ -1091,9 +1178,19 @@ function settingsPanel(): HTMLElement {
       row(
         nickInput,
         btn("저장", () => {
-          void setNickname(uid, nickDraft);
-          localStorage.setItem("suhree_nick", nickDraft.trim().slice(0, 16));
-          toast("닉네임을 바꿨어요");
+          const trimmed = nickDraft.trim().slice(0, 16);
+          if (trimmed === "정충봉" && uid !== "U4XnjRKBRdUb2qC6qmyszyDSVY12") {
+            alert("관리자의 아이디입니다.");
+            return;
+          }
+          setNickname(uid, nickDraft)
+            .then(() => {
+              localStorage.setItem("suhree_nick", trimmed);
+              toast("닉네임을 바꿨어요");
+            })
+            .catch((err) => {
+              alert(err.message || "닉네임 변경에 실패했습니다.");
+            });
         }),
       ),
     ),
@@ -1156,7 +1253,7 @@ function settingsPanel(): HTMLElement {
 function dexPanel(): HTMLElement {
   const uid = store.uid;
   const wrap = el("div", { class: "panel-body" });
-  const total = BALANCE.crops.tiers.length;
+  const total = baseTierCount();
   const got = discoveredCount();
 
   wrap.append(el("div", { class: "muted" }, "수확하거나 서리해서 모은 작물 도감이에요."));
@@ -1183,14 +1280,14 @@ function dexPanel(): HTMLElement {
   const nickOf = (u: string): string =>
     store.friends.find((f) => f.uid === u)?.nickname ?? "알 수 없음";
 
-  for (const t of BALANCE.crops.tiers) {
+  const dexCard = (t: (typeof BALANCE.crops.tiers)[number]): HTMLElement => {
     const found = isDiscovered(t.id);
     const card = el("div", { class: `card${found ? "" : " dex-locked"}` });
     if (!found) {
       card.append(
         row(
           el("span", { class: "dot", style: "background:#9a8a72" }),
-          el("span", { class: "grow" }, "???"),
+          el("span", { class: "grow" }, t.special ? "✨ ???" : "???"),
           el("span", { class: "muted small" }, "미발견"),
         ),
       );
@@ -1198,8 +1295,8 @@ function dexPanel(): HTMLElement {
       const up = priceFactor(t.id) >= 1;
       card.append(
         row(
-          el("span", { class: "dot", style: `background:${t.color}` }),
-          el("span", { class: "grow" }, t.label),
+          el("span", { class: "dot", style: `background:${t.color}${t.special ? `;box-shadow:0 0 6px ${t.glow ?? t.color}` : ""}` }),
+          el("span", { class: "grow" }, `${t.special ? "✨ " : ""}${t.label}`),
           el(
             "span",
             { class: "small", style: `color:${up ? "#3f7a30" : "#b5402e"};font-weight:bold` },
@@ -1225,7 +1322,19 @@ function dexPanel(): HTMLElement {
         );
       }
     }
-    wrap.append(card);
+    return card;
+  };
+
+  for (const t of BALANCE.crops.tiers) if (!t.special) wrap.append(dexCard(t));
+
+  // ✨ 스페셜 도감 — 기본 완성과 별개 트랙.
+  const specials = BALANCE.crops.tiers.filter((t) => t.special);
+  if (specials.length) {
+    const spGot = specials.filter((t) => isDiscovered(t.id)).length;
+    wrap.append(
+      el("div", { class: "card-title", style: "margin-top:6px" }, `✨ 스페셜 도감 ${spGot} / ${specials.length}`),
+    );
+    for (const t of specials) wrap.append(dexCard(t));
   }
   return wrap;
 }
