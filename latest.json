@@ -1,11 +1,11 @@
 {
-    "version": "0.3.14",
-    "notes": "⚡ 농장이 훨씬 가벼워졌어요! 화면을 그리는 방식을 손봐서 가만히 둘 때 CPU를 확 덜 쓰도록 바꿨어요. 마우스를 올리거나 서리할 땐 여전히 부드럽게 움직이고, 아무것도 안 할 땐 조용히 쉽니다. 발열과 배터리에 도움이 돼요!",
-    "pub_date": "2026-07-09T08:38:36.416Z",
+    "version": "0.3.15",
+    "notes": "🖱️ 마우스를 농장에 올리면 메뉴가 한층 부드럽게(60fps) 올라와요! 만질 땐 매끄럽게 반응하고, 가만히 둘 땐 여전히 조용히 쉬어서 CPU도 아낍니다.",
+    "pub_date": "2026-07-09T23:26:38.977Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMk1pcnBENjcxSW0yYU0ybDNST0tJWlI5YUlHbFloZjNJSXZLVEZSTFhJbDkySlBUQTU1akJJS0RtVnljeU1Ia3RWTC9oeWZwN1NvOGNKeWJtZ1FhNmdRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzNTg2Njk3CWZpbGU6c3VocmVlXzAuMy4xNF94NjRfZW4tVVMubXNpClNWMGhEdDNnTHN2TWJVdUJEQXROUVZRa2s4M3orQy80T1V1MXNUajllOUxaMnBWejhkc25KVzFNMExsN2Z3Vjc0Y0plMzdzTHp5L3dZSkxueUlBTURRPT0K",
-            "url": "https://github.com/banatic/suhree/releases/download/v0.3.14/suhree_0.3.14_x64_en-US.msi"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkdBZUdjekJHOTVLOHUyN2ZTbHBpd09rZUlvNk1BVXNhREdMQW5ObWl6QkI2c0k3U2pYSzVxTkUzN1RmVGd1b0NSN1NsVTdVR3NHQ3IxdE1rcXQyK0FFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzNjM5ODI0CWZpbGU6c3VocmVlXzAuMy4xNV94NjRfZW4tVVMubXNpCmFNQ0FidGtwOXRYR2VQUVFDUElQRytIUFNxcGpDY2IrYlhHMzdSVmhSWGo5M29pQU4yUWpKVlZTUVUyQVUrenIyaXlmSnBRYUxwa252Z2pCOUlhdkJnPT0K",
+            "url": "https://github.com/banatic/suhree/releases/download/v0.3.15/suhree_0.3.15_x64_en-US.msi"
         }
     }
 }
