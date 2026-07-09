@@ -1,11 +1,11 @@
 {
-    "version": "0.3.11",
-    "notes": "🟢 친구 접속 상태 표시 정확도 개선 — 앱을 종료했는데도 계속 온라인으로 표시되던 문제를 수정했습니다. 이제 접속을 끊으면 정상적으로 오프라인으로 전환됩니다.",
-    "pub_date": "2026-07-09T00:09:17.286Z",
+    "version": "0.3.12",
+    "notes": "✨ 스페셜 작물 라인 추가! 도감을 완성하면 은은하게 빛나는 엔드게임 전용 작물이 열려요. 별무를 시작으로 수확을 거듭하면 수정밀·불꽃호박·오로라무·태양과가 차례차례 해금되는 장기 도전 과제예요. 내 밭은 물론 친구 밭 미리보기에서도 반짝반짝 빛나니, 진짜 농사 고수라는 걸 뽐내 보세요!",
+    "pub_date": "2026-07-09T04:46:50.760Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMk9VOVAwamJreWJ2Um8wU3RSY0t5V3d0dDFUcmRpVmYvSXA5Tk8zSytaL0d5dGF0M01GRFhpZXAraXU0UjNrZVFOdm9hZzl5ckFpV0FZY3ZLcDdybUE4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzNTU1ODkyCWZpbGU6c3VocmVlXzAuMy4xMV94NjRfZW4tVVMubXNpCnYzb3hBMkRHNFFJNTVxaXArWjFxVzRIRmdTQkV1TTNLRm5QODh1dy96S0tMbDYxUS9FUVU3NHZ5SGUxVElHTHJQTXVNL081dzFlK3QzMUtEQXExbEJnPT0K",
-            "url": "https://github.com/banatic/suhree/releases/download/v0.3.11/suhree_0.3.11_x64_en-US.msi"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMlBmcEVUeWFsNW83bnZ4dWNWMHNXZmpvOGJncUZQR0M0UHpyQU4rVkdDQzRWZkV6UHFRVm5kSitGVE1ScTU2UTVLTmNOKy91VzNsbXNpNXZGaWhIUndrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzNTcyNTQ0CWZpbGU6c3VocmVlXzAuMy4xMl94NjRfZW4tVVMubXNpCi9CQkJia0dDcXppbS9lK2Jadjc1eEFkQjJzRDc3ZHUyZWJJREpzcVEzS2o4cVkxUUVCNEhSVmZad24xNHNHeUo2SDBIbktFSkxSaDFNcUJVdis5MkRBPT0K",
+            "url": "https://github.com/banatic/suhree/releases/download/v0.3.12/suhree_0.3.12_x64_en-US.msi"
         }
     }
 }
