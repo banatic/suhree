@@ -23,6 +23,8 @@ interface Particle {
 export interface Trail {
   emit(x: number, y: number, style: TrailStyle, now: number, dir: number, opacity?: number): void;
   step(ctx: CanvasRenderingContext2D, now: number): void;
+  /** True while any particle is still alive — lets the paint scheduler keep drawing the fade-out. */
+  active(): boolean;
   reset(): void;
 }
 
@@ -130,6 +132,9 @@ export function createTrail(max = 60): Trail {
         }
         drawParticle(ctx, p, now);
       }
+    },
+    active() {
+      return parts.length > 0;
     },
     reset() {
       parts.length = 0;

@@ -76,6 +76,11 @@ let winkStart = 0; // first-run "wink" timestamp
 let lastRaidRole = "none";
 let lastPointer: { x: number; y: number } | null = null; // last in-canvas mouse pos (CSS px)
 
+// Adaptive paint scheduler state (see renderStrip): when we last actually painted, and the content
+// signature at that time (used to wake a fully-static band only when its image would change).
+let lastPaintAt = 0;
+let lastPaintSig = "";
+
 // Farm collapse: tuck the whole band away so clicks fall through to what's behind it (e.g. the
 // taskbar). The little brown tab at the band's inner edge stays visible + clickable to bring it
 // back. Persisted so the choice survives a restart; a raid always overrides it (see isCollapsed).
@@ -265,11 +270,9 @@ function hudLayout(L: BandLayout): { coin: Rect; buttons: Btn[]; barYOpen: numbe
 
 export function renderStrip(): void {
   const c = ensureCanvas();
-  c.clearRect(0, 0, window.innerWidth, window.innerHeight);
-  if (store.hiddenFullscreen || !store.ready) return;
 
-  const L = layout();
-
+  // Role-change bookkeeping runs EVERY frame (cheap; only acts on an actual change) so a throttled
+  // frame can never miss the trail reset / hit-region republish that a raid start/stop needs.
   if (store.raid.role !== lastRaidRole) {
     lastRaidRole = store.raid.role;
     ghostTrail.reset(); // the ghost we're trailing just changed (or vanished)
@@ -278,6 +281,31 @@ export function renderStrip(): void {
     opacityTracker.clear();
     publishHitRegions();
   }
+
+  const L = layout();
+
+  // ── Adaptive paint scheduler ──────────────────────────────────────────────────
+  // Everything on the band animates (crop sway, snow, drifting decor), so a plain "dirty-only" skip
+  // would almost never fire. Instead we throttle by WHAT is moving: interactive bursts (hover / raid
+  // / microeffects) repaint at fpsActive, gentle idle ambience at the slower fpsAmbient, and a truly
+  // static band not at all — until its content signature changes. This is the bulk of the CPU win.
+  const now = store.now;
+  const kind = animatingKind();
+  if (kind === "none") {
+    const sig = contentSig();
+    if (sig === lastPaintSig) return; // nothing moving and nothing changed → keep the last frame
+    lastPaintSig = sig;
+  } else {
+    const interval = 1000 / (kind === "interactive" ? BALANCE.strip.fpsActive : BALANCE.strip.fpsAmbient);
+    if (now - lastPaintAt < interval) return; // still within this rate's frame budget → skip
+    lastPaintSig = ""; // ensure the first static frame after motion stops repaints once
+  }
+  const dt = Math.min(50, lastPaintAt ? now - lastPaintAt : 16.67); // clamp so a post-idle paint eases
+  lastPaintAt = now;
+
+  // ── Paint ─────────────────────────────────────────────────────────────────────
+  clearBand(c, L); // dirty-rect: wipe only the band + its HUD/toast margin, not the whole overlay
+  if (store.hiddenFullscreen || !store.ready) return; // cleared above; nothing to draw yet
 
   // Collapsed: the farm is tucked away and everything but the little brown tab passes clicks
   // through. Draw only the tab (click it to bring the farm back) and keep the HUD idle.
@@ -297,7 +325,9 @@ export function renderStrip(): void {
     if (p < 1) target = Math.max(target, Math.sin(p * Math.PI) * 0.5);
     else winkStart = 0;
   }
-  hudT += (target - hudT) * BALANCE.strip.hoverEase;
+  // Frame-rate-independent ease: the same time-constant whether we paint at 30 or 60 fps.
+  const k = 1 - Math.pow(1 - BALANCE.strip.hoverEase, dt / 16.67);
+  hudT += (target - hudT) * k;
   if (hudT < 0.001) hudT = 0;
 
   if (store.raid.role === "raiding") drawRaidingView(c, L);
@@ -309,6 +339,86 @@ export function renderStrip(): void {
   // Keep the at-rest crop hit boxes in sync as crops grow / get harvested (no hover event fires
   // then). Cheap signature check — only re-publishes to Rust on an actual change.
   maybeRepublishHitRegions(L);
+}
+
+/** Wipe only the band and the interior strip its HUD/toast can occupy, not the whole full-screen
+ *  transparent overlay. The margin is a fixed, generous constant so the cleared region never shrinks
+ *  below what a previous frame drew (which would leave stale pixels). */
+function clearBand(c: CanvasRenderingContext2D, L: BandLayout): void {
+  const reserve = HUD_H + 26 + 22 + 16; // HUD roll-up + toast offset + toast height + slack
+  let y0: number;
+  let y1: number;
+  if (L.dir < 0) {
+    // band docked at the bottom → HUD/toast stack UP into the interior
+    y0 = L.bandY - reserve;
+    y1 = L.bandY + L.bandH + 6;
+  } else {
+    // band docked at the top → HUD/toast stack DOWN into the interior
+    y0 = L.bandY - 6;
+    y1 = L.bandY + L.bandH + reserve;
+  }
+  y0 = Math.max(0, y0);
+  y1 = Math.min(L.H, y1);
+  c.clearRect(0, y0, L.W, y1 - y0);
+}
+
+function anyTrailActive(): boolean {
+  if (selfTrail.active() || ghostTrail.active()) return true;
+  for (const t of raiderTrails.values()) if (t.active()) return true;
+  return false;
+}
+
+function hasAny(o: Record<string, unknown>): boolean {
+  for (const _k in o) return true;
+  return false;
+}
+
+/** What (if anything) is moving on the band this frame — decides the repaint rate. */
+function animatingKind(): "none" | "ambient" | "interactive" {
+  if (store.hiddenFullscreen || !store.ready) return "none";
+  // Interactive bursts: the user is touching it, a raid is live, or a microanimation is playing.
+  // (A visible toast is static text — it's handled by contentSig, so it doesn't force painting.)
+  if (
+    store.raid.role !== "none" ||
+    hovered ||
+    hudT > 0.02 ||
+    effects.length > 0 ||
+    winkStart !== 0 ||
+    anyTrailActive()
+  ) {
+    return "interactive";
+  }
+  if (isCollapsed()) return "none"; // just the static tab
+  // Ambient idle motion: crops/weeds sway, animated themes (snow/stars) and decor drift.
+  const theme = store.user?.equippedTheme;
+  const decor = store.user?.equippedDecor;
+  if ((theme && theme !== "theme_day") || (decor && decor !== "decor_none")) return "ambient";
+  if (hasAny(store.crops) || hasAny(store.weeds)) return "ambient";
+  return "none";
+}
+
+/** A cheap string that changes whenever a fully-static band's image would — the wake signal for the
+ *  "none" (no motion) state, so a plant/harvest/theme-swap/toast still repaints exactly once. */
+function contentSig(): string {
+  const s = store;
+  let sig =
+    (s.hiddenFullscreen ? "H" : "") +
+    (s.ready ? "R" : "") +
+    "|" + s.raid.role +
+    "|" + (isCollapsed() ? "C" : "") +
+    "|" + bandDock() +
+    "|" + Math.round(window.innerWidth) +
+    "|" + (s.user?.equippedTheme ?? "") +
+    "|" + (s.user?.equippedDecor ?? "") +
+    "|" + (s.user?.plotSize ?? "") +
+    "|" + (s.user?.scarecrowLv ?? 0) +
+    "|" + (currentToast(s.now) ?? "");
+  for (const key in s.crops) {
+    const cr = s.crops[key];
+    sig += "|" + key + cr.tier + stageOf(cr.plantedAt, cr.tier, s.now)[0];
+  }
+  for (const key in s.weeds) sig += "|w" + key + (s.weeds[key].skin ?? "");
+  return sig;
 }
 
 function drawFarmView(c: CanvasRenderingContext2D, L: BandLayout): void {
