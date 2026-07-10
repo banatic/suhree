@@ -1,6 +1,6 @@
 [package]
 name = "suhree"
-version = "0.3.15"
+version = "0.3.16"
 description = "suhree — taskbar farming desktop pet with stealth raids"
 authors = ["suhree"]
 edition = "2021"

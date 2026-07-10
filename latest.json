@@ -1,11 +1,11 @@
 {
-    "version": "0.3.15",
-    "notes": "🖱️ 마우스를 농장에 올리면 메뉴가 한층 부드럽게(60fps) 올라와요! 만질 땐 매끄럽게 반응하고, 가만히 둘 땐 여전히 조용히 쉬어서 CPU도 아낍니다.",
-    "pub_date": "2026-07-09T23:26:38.977Z",
+    "version": "0.3.16",
+    "notes": "🖼️ 채팅에 이미지 붙여넣기가 생겼어요! 스크린샷이나 사진을 복사한 뒤 채팅 입력창에서 Ctrl+V로 붙여넣고 보내면 사진이 함께 올라가요. 받은 사진을 누르면 크게 볼 수 있어요.",
+    "pub_date": "2026-07-10T00:04:59.900Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkdBZUdjekJHOTVLOHUyN2ZTbHBpd09rZUlvNk1BVXNhREdMQW5ObWl6QkI2c0k3U2pYSzVxTkUzN1RmVGd1b0NSN1NsVTdVR3NHQ3IxdE1rcXQyK0FFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzNjM5ODI0CWZpbGU6c3VocmVlXzAuMy4xNV94NjRfZW4tVVMubXNpCmFNQ0FidGtwOXRYR2VQUVFDUElQRytIUFNxcGpDY2IrYlhHMzdSVmhSWGo5M29pQU4yUWpKVlZTUVUyQVUrenIyaXlmSnBRYUxwa252Z2pCOUlhdkJnPT0K",
-            "url": "https://github.com/banatic/suhree/releases/download/v0.3.15/suhree_0.3.15_x64_en-US.msi"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkUvamxPYkFMRDk4c055bVl1YjUzMHhjNU04a2lFZ1Nxa2ttZkRjblBSNW5YbWg4TzV5czdhYW5VMm1JVGFwTnZXb05JaHEyNVVxdUNnNjlVcTIxTkFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzNjQyMDU0CWZpbGU6c3VocmVlXzAuMy4xNl94NjRfZW4tVVMubXNpCkhpdDI2QzBxQk84Q2FtWDREZ1VzTHF3VE5RaEFmVTdNbDM1dWtEc2xSdS8vdUFRMVVlTlp0MDJlb0o5Z2MxdnpOSzlqK09MV2lLMlFtU1pVRmZxOERRPT0K",
+            "url": "https://github.com/banatic/suhree/releases/download/v0.3.16/suhree_0.3.16_x64_en-US.msi"
         }
     }
 }
