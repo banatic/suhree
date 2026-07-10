@@ -27,6 +27,7 @@ import { addFriendByCode } from "../friends/add";
 import { setNickname } from "../firebase/auth";
 import { startRaid } from "../raid/controller";
 import { sendChat } from "../firebase/chat";
+import { compressPastedImage } from "./imageCompress";
 import { setPreferredMonitor, hideStrip, isTauri } from "../platform/tauri";
 import { publishHitRegions } from "./strip";
 import { dismissChatPopup } from "./chatPopup";
@@ -53,6 +54,10 @@ let panelEl: HTMLDivElement | null = null;
 let chatListEl: HTMLDivElement | null = null;
 let chatDraft = "";
 let lastChatSig = "";
+// A clipboard-pasted image staged for the next send (compressed JPEG data URL), plus its preview
+// strip. Kept module-level so it survives the 0.5s in-place refresh and a full panel rebuild.
+let chatPendingImg: string | null = null;
+let chatAttachEl: HTMLDivElement | null = null;
 // Chat auto-dismiss: once the mouse has entered the open chat panel, leaving it closes the panel.
 let chatHoverArmed = false;
 // Which folded 서리 groups the user has expanded (keyed by the run's first message id).
@@ -538,25 +543,36 @@ function chatPanel(): HTMLElement {
   renderChatList();
   wrap.append(chatListEl);
 
+  // Preview strip for a clipboard-pasted image waiting to be sent (hidden when none is staged).
+  chatAttachEl = el("div", { class: "chat-attach" }) as HTMLDivElement;
+  wrap.append(chatAttachEl);
+  renderChatAttach();
+
   const input = el("input", {
     class: "input",
-    placeholder: "메시지 입력…",
+    placeholder: "메시지 입력… (Ctrl+V로 이미지 붙여넣기)",
     maxLength: BALANCE.chat.maxLen,
     value: chatDraft,
     oninput: (e: any) => (chatDraft = e.target.value),
   }) as HTMLInputElement;
   const doSend = async (): Promise<void> => {
     const text = chatDraft;
+    const img = chatPendingImg;
+    if (!text.trim() && !img) return;
     chatDraft = "";
+    chatPendingImg = null;
     input.value = "";
+    renderChatAttach();
     input.focus();
-    const ok = await sendChat(text);
-    if (!ok && text.trim()) {
-      // Send failed (cooldown / network) — put the draft back so the user doesn't lose what they
-      // typed (unless they've already started typing something new in the meantime).
-      if (!input.value) {
+    const ok = await sendChat(text, img ?? undefined);
+    if (!ok) {
+      // Send failed (cooldown / network) — restore the draft AND the staged image so the user
+      // doesn't lose what they had (unless they've already started something new meanwhile).
+      if (!input.value && !chatPendingImg) {
         chatDraft = text;
         input.value = text;
+        chatPendingImg = img;
+        renderChatAttach();
       }
       toast("잠시 후 다시 보내주세요");
     }
@@ -567,6 +583,23 @@ function chatPanel(): HTMLElement {
       void doSend();
     }
   });
+  // Ctrl+V of an image: grab the first image item, compress it, and stage it for the next send.
+  input.addEventListener("paste", (e: ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    // DataTransferItemList isn't reliably for..of-iterable in the webview — index it.
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      if (it.kind === "file" && it.type.startsWith("image/")) {
+        const file = it.getAsFile();
+        if (file) {
+          e.preventDefault(); // don't also dump the filename/garbage into the text box
+          void attachPastedImage(file);
+        }
+        return;
+      }
+    }
+  });
   wrap.append(row(input, btn("보내기", () => void doSend())));
   // First open: focus + jump to newest.
   setTimeout(() => {
@@ -574,6 +607,40 @@ function chatPanel(): HTMLElement {
     if (chatListEl) chatListEl.scrollTop = chatListEl.scrollHeight;
   }, 0);
   return wrap;
+}
+
+/** Compress a pasted image and stage it in the attach strip (does not send yet). */
+async function attachPastedImage(file: File): Promise<void> {
+  const url = await compressPastedImage(file);
+  if (!url) {
+    toast("이미지를 붙일 수 없어요");
+    return;
+  }
+  chatPendingImg = url;
+  renderChatAttach();
+}
+
+/** Redraw the staged-image preview strip in place (keeps input focus/caret; no full rebuild). */
+function renderChatAttach(): void {
+  if (!chatAttachEl) return;
+  chatAttachEl.replaceChildren();
+  if (!chatPendingImg) {
+    chatAttachEl.style.display = "none";
+    return;
+  }
+  chatAttachEl.style.display = "flex";
+  chatAttachEl.append(
+    el("img", { class: "chat-attach-thumb", src: chatPendingImg }),
+    el("span", { class: "grow muted" }, "붙여넣은 이미지 · 보내기를 누르면 전송돼요"),
+    btn(
+      "✕",
+      () => {
+        chatPendingImg = null;
+        renderChatAttach();
+      },
+      "btn chat-attach-x",
+    ),
+  );
 }
 
 function chatSignature(): string {
@@ -606,15 +673,44 @@ function appendChatMsg(m: ChatMessage): void {
   // No title chip in chat — titles are long and would push the nick off-screen. Titles still
   // show in the friends/ranking panels.
   const nickEl = el("span", { class: "chat-nick" }, mine ? "나" : m.nick || "농부");
-  chatListEl.append(
-    el(
-      "div",
-      { class: `chat-msg${mine ? " me" : ""}` },
-      nickEl,
-      el("span", { class: "chat-text" }, m.text),
-      el("span", { class: "chat-time" }, fmtChatTime(m.at)),
-    ),
-  );
+  // Image messages stack vertically (nick → image → optional caption → time) via .has-img; plain
+  // text keeps the original single-line baseline row.
+  const parts: (Node | string)[] = [nickEl];
+  if (m.img) {
+    const src = m.img;
+    parts.push(el("img", { class: "chat-img", src, onclick: () => openLightbox(src) }));
+  }
+  if (m.text) parts.push(el("span", { class: "chat-text" }, m.text));
+  parts.push(el("span", { class: "chat-time" }, fmtChatTime(m.at)));
+  chatListEl.append(el("div", { class: `chat-msg${mine ? " me" : ""}${m.img ? " has-img" : ""}` }, ...parts));
+}
+
+// ── Image lightbox ────────────────────────────────────────────────────────────
+// A full-screen tap-to-close overlay for viewing a chat image at full size. It's a plain DOM
+// element (like #chat-popup), so its click region must be published to the Tauri hit-test — see
+// getLightboxRect + publishHitRegions.
+let lightboxEl: HTMLDivElement | null = null;
+
+function openLightbox(src: string): void {
+  if (!lightboxEl) {
+    lightboxEl = el("div", { id: "lightbox" }) as HTMLDivElement;
+    lightboxEl.addEventListener("click", closeLightbox);
+    document.getElementById("app")!.appendChild(lightboxEl);
+  }
+  lightboxEl.replaceChildren(el("img", { class: "lightbox-img", src }));
+  lightboxEl.style.display = "flex";
+  publishHitRegions(); // make the whole overlay clickable (tap anywhere closes)
+}
+
+function closeLightbox(): void {
+  if (lightboxEl) lightboxEl.style.display = "none";
+  publishHitRegions();
+}
+
+/** Full-window rect while the lightbox is open, else null. Consumed by strip.publishHitRegions. */
+export function getLightboxRect(): DOMRect | null {
+  if (lightboxEl && lightboxEl.style.display !== "none") return lightboxEl.getBoundingClientRect();
+  return null;
 }
 
 function appendRaidGroup(run: ChatMessage[]): void {

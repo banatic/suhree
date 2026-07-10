@@ -140,10 +140,12 @@
       ".read": "auth != null",
       "$msgId": {
         ".write": "auth != null && ((!data.exists() && newData.child('uid').val() === auth.uid) || (!newData.exists() && data.child('uid').val() === auth.uid))",
+        ".validate": "(newData.hasChild('text') && newData.child('text').val().length >= 1) || newData.hasChild('img')",
         "uid": { ".validate": "newData.isString() && newData.val() === auth.uid" },
         "nick": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16" },
-        "text": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 200" },
+        "text": { ".validate": "newData.isString() && newData.val().length <= 200" },
         "at": { ".validate": "newData.isNumber()" },
+        "img": { ".validate": "newData.isString() && newData.val().length <= 400000" },
         "$other": { ".validate": false }
       }
     },

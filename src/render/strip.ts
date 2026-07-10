@@ -24,7 +24,7 @@ import { drawWeedSkin } from "./weedArt";
 import type { CosmeticScene } from "./cosmeticScene";
 import { cancelRaid, registerStealClick, registerEvictClick, registerEvictGraze } from "../raid/controller";
 import { plantWeed, removeWeed } from "../game/weeds";
-import { togglePanel, getPanelRect } from "./panels";
+import { togglePanel, getPanelRect, getLightboxRect } from "./panels";
 import { getChatPopupRect } from "./chatPopup";
 import { getLootNoteRect } from "./lootNote";
 import { updateHitRegions, onStripHover, type NormRect } from "../platform/tauri";
@@ -1498,6 +1498,9 @@ export function publishHitRegions(): void {
 
   const ln = getLootNoteRect();
   if (ln) push(ln.left, ln.top, ln.width, ln.height);
+
+  const lb = getLightboxRect();
+  if (lb) push(lb.left, lb.top, lb.width, lb.height);
 
   void updateHitRegions(regions);
   lastHitSig = hitRegionSig(L);

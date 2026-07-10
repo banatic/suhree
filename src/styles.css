@@ -552,6 +552,65 @@ body {
   font-weight: bold;
 }
 
+/* ── Chat images (inline pasted photos) ────────────────────── */
+
+/* Image messages stack their parts instead of sitting on one baseline row. */
+.chat-msg.has-img {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+.chat-img {
+  max-width: 100%;
+  max-height: 180px;
+  border-radius: 8px;
+  border: 2px solid rgba(90, 67, 38, 0.4);
+  cursor: zoom-in;
+  object-fit: contain;
+}
+
+/* Staged pasted image awaiting send (above the input row). */
+.chat-attach {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  background: rgba(255, 255, 255, 0.42);
+  border: 2px dashed rgba(90, 67, 38, 0.4);
+  border-radius: 8px;
+}
+.chat-attach-thumb {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid rgba(90, 67, 38, 0.4);
+}
+.chat-attach .chat-attach-x {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+}
+
+/* Full-screen tap-to-close viewer for a chat image. */
+#lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.72);
+  cursor: zoom-out;
+}
+.lightbox-img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 8px;
+  box-shadow: 0 6px 30px rgba(0, 0, 0, 0.5);
+}
+
 /* ── Chat popup (KakaoTalk-style corner toast) ─────────────── */
 
 #chat-popup {

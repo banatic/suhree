@@ -36,6 +36,7 @@ export interface ChatMessage {
   nick: string;
   text: string;
   at: number;
+  img?: string; // optional inline JPEG data URL (clipboard-pasted image); base64, size-capped
 }
 
 export interface RaidLogEntry {

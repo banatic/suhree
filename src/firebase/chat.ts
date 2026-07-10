@@ -16,7 +16,7 @@ export function subscribeChat(): void {
   onValue(q, (snap) => {
     const v = (snap.val() as Record<string, any>) || {};
     const next: ChatMessage[] = Object.entries(v)
-      .map(([id, m]) => ({ id, uid: m.uid, nick: m.nick, text: m.text, at: m.at }) as ChatMessage)
+      .map(([id, m]) => ({ id, uid: m.uid, nick: m.nick, text: m.text, at: m.at, img: m.img }) as ChatMessage)
       .sort((a, b) => a.at - b.at);
 
     const prevNewest = store.chat.length ? store.chat[store.chat.length - 1].at : 0;
@@ -28,7 +28,10 @@ export function subscribeChat(): void {
     // first snapshot = backlog, and the last few only so a reconnect burst can't spam the corner).
     if (primed) {
       const incoming = next.filter((m) => m.at > prevNewest && m.uid !== store.uid).slice(-3);
-      for (const m of incoming) showChatPopup(m.nick || "농부", m.text);
+      for (const m of incoming) {
+        const preview = m.img ? (m.text ? "📷 " + m.text : "📷 사진") : m.text;
+        showChatPopup(m.nick || "농부", preview);
+      }
     }
     primed = true;
 
@@ -51,17 +54,20 @@ export async function announceToChat(text: string): Promise<void> {
   }
 }
 
-/** Send one line to the room. Returns false on empty/too-soon (local anti-spam). */
-export async function sendChat(text: string): Promise<boolean> {
+/** Send one line to the room, optionally with a pasted image (inline JPEG data URL). Returns false
+ *  on empty (no text AND no image) / too-soon (local anti-spam). */
+export async function sendChat(text: string, img?: string): Promise<boolean> {
   const t = (text || "").trim().slice(0, BALANCE.chat.maxLen);
-  if (!t) return false;
+  if (!t && !img) return false;
   const now = Date.now();
   if (now - lastSendAt < BALANCE.chat.cooldownMs) return false;
   lastSendAt = now;
 
   const nick = (store.user?.nickname || "농부").slice(0, 16);
   try {
-    await set(push(r(paths.chat())), { uid: store.uid, nick, text: t, at: serverTimestamp() });
+    const msg: Record<string, unknown> = { uid: store.uid, nick, text: t, at: serverTimestamp() };
+    if (img) msg.img = img;
+    await set(push(r(paths.chat())), msg);
     return true;
   } catch {
     return false;
