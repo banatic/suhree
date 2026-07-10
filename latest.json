@@ -1,11 +1,11 @@
 {
-    "version": "0.3.16",
-    "notes": "🖼️ 채팅에 이미지 붙여넣기가 생겼어요! 스크린샷이나 사진을 복사한 뒤 채팅 입력창에서 Ctrl+V로 붙여넣고 보내면 사진이 함께 올라가요. 받은 사진을 누르면 크게 볼 수 있어요.",
-    "pub_date": "2026-07-10T00:04:59.900Z",
+    "version": "0.3.17",
+    "notes": "🧹 특정 커서 잔상이 상점·꾸미기 같은 패널 위에 남아 계속 쌓이던 문제를 고쳤어요. 이제 잔상은 밭 위에서만 깔끔하게 나타났다 사라져요. ⚡ 서리(습격)를 하거나 당할 때 화면이 60fps로 더 부드러워져 상대 커서를 피하고 쫓아내기가 한결 매끄러워요.",
+    "pub_date": "2026-07-10T02:08:45.439Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkUvamxPYkFMRDk4c055bVl1YjUzMHhjNU04a2lFZ1Nxa2ttZkRjblBSNW5YbWg4TzV5czdhYW5VMm1JVGFwTnZXb05JaHEyNVVxdUNnNjlVcTIxTkFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzNjQyMDU0CWZpbGU6c3VocmVlXzAuMy4xNl94NjRfZW4tVVMubXNpCkhpdDI2QzBxQk84Q2FtWDREZ1VzTHF3VE5RaEFmVTdNbDM1dWtEc2xSdS8vdUFRMVVlTlp0MDJlb0o5Z2MxdnpOSzlqK09MV2lLMlFtU1pVRmZxOERRPT0K",
-            "url": "https://github.com/banatic/suhree/releases/download/v0.3.16/suhree_0.3.16_x64_en-US.msi"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkovZVNtUDJJOFZ6RXlXU1k3R1E2TkMzb1dUMEdDczlEbXNRVDdkbGFlNHRWME45em0reTM2VnVvbFFKeEVHOEkybFd2TXdPNVdKSkthRTRPZnMxWFE0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzNjQ5NDY2CWZpbGU6c3VocmVlXzAuMy4xN194NjRfZW4tVVMubXNpClhRUmpuVXI1bzcxaVhFS3JYVlluRnBZS0FlMEhkL2dXMzZXNGtRZGk4TXBpUFBGcUtHV0ZPcDRSTkJEbWQ1QXBIcmFxZ1d5ZW9NYS9abDFxYjNTb0RnPT0K",
+            "url": "https://github.com/banatic/suhree/releases/download/v0.3.17/suhree_0.3.17_x64_en-US.msi"
         }
     }
 }
