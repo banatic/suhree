@@ -296,14 +296,16 @@ export function renderStrip(): void {
     if (sig === lastPaintSig) return; // nothing moving and nothing changed → keep the last frame
     lastPaintSig = sig;
   } else {
-    // Full fpsSmooth whenever the cursor is over the band: the whole hover interaction — roll-up,
-    // menu, self-trail — stays buttery at 60fps. Off the band, interactive bursts (raid/effects/
-    // roll-down) get fpsActive and gentle idle ambience gets the slower fpsAmbient.
-    const fps = hovered
-      ? BALANCE.strip.fpsSmooth
-      : kind === "interactive"
-        ? BALANCE.strip.fpsActive
-        : BALANCE.strip.fpsAmbient;
+    // Full fpsSmooth whenever the cursor is over the band OR a raid is live: the hover interaction
+    // (roll-up, menu, self-trail) and the raid cat-and-mouse (dodging/grazing fast ghost cursors)
+    // both need 60fps to stay smooth. Other interactive bursts (effects, roll-down) get fpsActive,
+    // and gentle idle ambience gets the slower fpsAmbient.
+    const fps =
+      hovered || store.raid.role !== "none"
+        ? BALANCE.strip.fpsSmooth
+        : kind === "interactive"
+          ? BALANCE.strip.fpsActive
+          : BALANCE.strip.fpsAmbient;
     // 2ms tolerance so a 60fps budget isn't halved by sub-ms rAF jitter on a 60Hz display.
     if (now - lastPaintAt < 1000 / fps - 2) return; // still within this rate's frame budget → skip
     lastPaintSig = ""; // ensure the first static frame after motion stops repaints once
@@ -312,7 +314,7 @@ export function renderStrip(): void {
   lastPaintAt = now;
 
   // ── Paint ─────────────────────────────────────────────────────────────────────
-  clearBand(c, L); // dirty-rect: wipe only the band + its HUD/toast margin, not the whole overlay
+  clearCanvas(c, L); // wipe the whole overlay — the strip draws outside the band too (see clearCanvas)
   if (store.hiddenFullscreen || !store.ready) return; // cleared above; nothing to draw yet
 
   // Collapsed: the farm is tucked away and everything but the little brown tab passes clicks
@@ -345,25 +347,14 @@ export function renderStrip(): void {
   maybeRepublishHitRegions(L);
 }
 
-/** Wipe only the band and the interior strip its HUD/toast can occupy, not the whole full-screen
- *  transparent overlay. The margin is a fixed, generous constant so the cleared region never shrinks
- *  below what a previous frame drew (which would leave stale pixels). */
-function clearBand(c: CanvasRenderingContext2D, L: BandLayout): void {
-  const reserve = HUD_H + 26 + 22 + 16; // HUD roll-up + toast offset + toast height + slack
-  let y0: number;
-  let y1: number;
-  if (L.dir < 0) {
-    // band docked at the bottom → HUD/toast stack UP into the interior
-    y0 = L.bandY - reserve;
-    y1 = L.bandY + L.bandH + 6;
-  } else {
-    // band docked at the top → HUD/toast stack DOWN into the interior
-    y0 = L.bandY - 6;
-    y1 = L.bandY + L.bandH + reserve;
-  }
-  y0 = Math.max(0, y0);
-  y1 = Math.min(L.H, y1);
-  c.clearRect(0, y0, L.W, y1 - y0);
+/** Wipe the ENTIRE overlay canvas before painting. The window is tall (~480px: band at one edge,
+ *  transparent panel space filling the rest), and the strip draws OUTSIDE the band — most importantly
+ *  the cursor trail, which follows the pointer across an open panel high in the window. A band-only
+ *  dirty-rect left those pixels un-cleared, so trail particles piled up permanently across the upper
+ *  window. Clearing the full canvas is cheap (a GPU clear); the real CPU win here is the adaptive
+ *  frame-rate skip above, not a smaller clear rect. */
+function clearCanvas(c: CanvasRenderingContext2D, L: BandLayout): void {
+  c.clearRect(0, 0, L.W, L.H);
 }
 
 function anyTrailActive(): boolean {
@@ -473,7 +464,12 @@ function drawFarmView(c: CanvasRenderingContext2D, L: BandLayout): void {
 /** Your own cursor's trail while you hover your strip — personal flair (the OS arrow stays as-is). */
 function drawSelfTrail(c: CanvasRenderingContext2D, L: BandLayout): void {
   const style = cursorSkin(store.user?.equippedCursor).trail;
-  if (lastPointer && hovered && style.kind !== "none") {
+  // Only trail while the pointer is over the band/HUD strip — NOT up in panel space. `hovered` is true
+  // over any hit region (an open panel included), so without this gate the trail scatters particles
+  // across the tall overlay above the band.
+  const overBand =
+    !!lastPointer && Math.abs(lastPointer.y - (L.bandY + L.bandH / 2)) <= L.bandH / 2 + HUD_H;
+  if (lastPointer && hovered && overBand && style.kind !== "none") {
     selfTrail.emit(lastPointer.x, lastPointer.y, style, store.now, L.dir);
   }
   selfTrail.step(c, store.now); // step every frame so it keeps fading after the mouse leaves
