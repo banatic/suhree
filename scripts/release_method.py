@@ -417,8 +417,8 @@ if __name__ == "__main__":
     CONFIG = ReleaseConfig(
         version="patch",
         notes=(
-            "🖱️ 마우스를 농장에 올리면 메뉴가 한층 부드럽게(60fps) 올라와요! 만질 땐 매끄럽게 반응하고, "
-            "가만히 둘 땐 여전히 조용히 쉬어서 CPU도 아낍니다."
+            "🖼️ 채팅에 이미지 붙여넣기가 생겼어요! 스크린샷이나 사진을 복사한 뒤 채팅 입력창에서 "
+            "Ctrl+V로 붙여넣고 보내면 사진이 함께 올라가요. 받은 사진을 누르면 크게 볼 수 있어요."
         ),
         pub_date=None,  # None이면 현재 UTC 시간 사용
         skip_build=False,
