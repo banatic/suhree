@@ -1,11 +1,11 @@
 {
-    "version": "0.3.18",
-    "notes": "오프라인 서리 버그 수정",
-    "pub_date": "2026-07-13T23:42:07.860Z",
+    "version": "0.3.20",
+    "notes": "채팅 수정",
+    "pub_date": "2026-07-14T00:27:32.711Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkoxbk1WZUlqRFBSekVCejQ4MWtqNHVQY2RXc3RGVWdPV2FaQU9jMkZ4MDBBS09xVk9IL0U5T3NxMW1YcmZBN1dwNVNUSmpqVXFHMWl4bk84Qk51RmcwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzOTg2MzIwCWZpbGU6c3VocmVlXzAuMy4xOF94NjRfZW4tVVMubXNpCkh6REtaeDlQN0xQTXcxM3dodmZhZDRpTm9YZENydWNsbDF1TFV1MGI5cnlWZmkyWDZBNGRQV1pzbE1rdnpHMC9WMHNwc2o4dXl4aVluRTVDc1ZRTUFnPT0K",
-            "url": "https://github.com/banatic/suhree/releases/download/v0.3.18/suhree_0.3.18_x64_en-US.msi"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkk3OVZBZWJPMVBQb2FsbFBkZlROUTZxMmVyTWZlRHpRL0xsV1kzbEJWQjVWTm1QRGhUNW1pUDl4RXdjak1mM0ttVU9uMk9rb2R2WGJkZHgzUGtnK0F3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzOTg5MDUxCWZpbGU6c3VocmVlXzAuMy4yMF94NjRfZW4tVVMubXNpCmZUdTFBZjNlZFM3cXpUVGhlMEJSOXBldHFteVVaeTQ2Vk4zempHQWhqb0JYUG9GeXVHekY1bnhadi9PdlFrd1FKZ0ZrMWF4M3BuUUVwSHdoMVhGakJnPT0K",
+            "url": "https://github.com/banatic/suhree/releases/download/v0.3.20/suhree_0.3.20_x64_en-US.msi"
         }
     }
 }
