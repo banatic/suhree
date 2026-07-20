@@ -1,11 +1,11 @@
 {
-    "version": "0.3.20",
-    "notes": "채팅 수정",
-    "pub_date": "2026-07-14T00:27:32.711Z",
+    "version": "0.3.21",
+    "notes": "🔊 게임 곳곳에 아기자기한 효과음이 생겼어요 — 심기·수확·잡초·구매·강화·도감·채팅 알림까지! 설정에서 끄고 켤 수 있어요. 💬 채팅을 연달아 보내도 씹히지 않고 순서대로 전송되고, 채팅창은 마우스가 살짝 벗어나도 바로 닫히지 않아요. ⚡ 서리 중 상대 커서가 훨씬 부드럽게 움직이고, 접속이 끊긴 친구가 온라인처럼 보이던 문제도 고쳤어요.",
+    "pub_date": "2026-07-20T02:07:29.850Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkk3OVZBZWJPMVBQb2FsbFBkZlROUTZxMmVyTWZlRHpRL0xsV1kzbEJWQjVWTm1QRGhUNW1pUDl4RXdjak1mM0ttVU9uMk9rb2R2WGJkZHgzUGtnK0F3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzOTg5MDUxCWZpbGU6c3VocmVlXzAuMy4yMF94NjRfZW4tVVMubXNpCmZUdTFBZjNlZFM3cXpUVGhlMEJSOXBldHFteVVaeTQ2Vk4zempHQWhqb0JYUG9GeXVHekY1bnhadi9PdlFrd1FKZ0ZrMWF4M3BuUUVwSHdoMVhGakJnPT0K",
-            "url": "https://github.com/banatic/suhree/releases/download/v0.3.20/suhree_0.3.20_x64_en-US.msi"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkl4L0NYRWZZRHlHaHkwb2tSQ3lsT00yWEJlOUQ2SnRnczFERTNGcUVIb0dyblA5Nmh0S0c0UytQbXU2QzZFU25iZXBLcWdocWhlK3g4S0Q5azVNb2dJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0NTEzMzc5CWZpbGU6c3VocmVlXzAuMy4yMV94NjRfZW4tVVMubXNpCmwxcjR4VEg1NDdTbjF2U1d5Z29jWnkySlJENk5VTWR1c3M1dkpXU2lDb3VnZXljQlpoNXRQN1p2TkFlMEFheW9oaXZDNEY3Yll6QWErVWJUZDRKM0R3PT0K",
+            "url": "https://github.com/banatic/suhree/releases/download/v0.3.21/suhree_0.3.21_x64_en-US.msi"
         }
     }
 }
