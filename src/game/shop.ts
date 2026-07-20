@@ -4,6 +4,7 @@ import { r, paths } from "../firebase/db";
 import { store, toast, markPanelsDirty } from "../state";
 import { trySpend } from "./economy";
 import { levelCost, plotCost } from "./levels";
+import { playBuy, playUpgrade } from "../sfx";
 
 export async function buyPlotExpansion(uid: string): Promise<boolean> {
   const u = store.user;
@@ -20,6 +21,7 @@ export async function buyPlotExpansion(uid: string): Promise<boolean> {
   await update(r(paths.user(uid)), { plotSize: u.plotSize + 1 });
   u.plotSize += 1;
   toast("밭을 넓혔어요");
+  playUpgrade();
   markPanelsDirty();
   return true;
 }
@@ -38,6 +40,7 @@ export async function buyLevel(uid: string, kind: "scarecrow" | "scythe"): Promi
   if (kind === "scarecrow") u.scarecrowLv += 1;
   else u.scytheLv += 1;
   toast(kind === "scarecrow" ? "허수아비 강화!" : "낫 강화!");
+  playUpgrade();
   markPanelsDirty();
   return true;
 }
@@ -64,6 +67,7 @@ export async function buyCosmetic(
   await update(r(paths.user(uid)), { [`cosmetics/${id}`]: true });
   await equipCosmetic(uid, type, id);
   toast("구매 완료!");
+  playBuy();
   return true;
 }
 

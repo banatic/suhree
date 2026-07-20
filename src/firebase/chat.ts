@@ -7,8 +7,44 @@ import { store, type ChatMessage } from "../state";
 import { BALANCE } from "../config/balance";
 import { showChatPopup } from "../render/chatPopup";
 
-let lastSendAt = 0;
 let primed = false; // the first snapshot is backlog, not "new" — don't pop for it
+
+/** Outgoing queue so a burst of sends lands seamlessly, spaced `cooldownMs` apart, instead of
+ *  rejecting anything typed too soon after the last send. */
+const MAX_QUEUE = 20;
+const MAX_RETRIES = 3;
+type QueuedMsg = { text: string; img?: string; retries: number };
+const sendQueue: QueuedMsg[] = [];
+let draining = false;
+let lastSendAt = 0;
+
+function scheduleDrain(): void {
+  if (draining) return;
+  draining = true;
+  void drainQueue();
+}
+
+async function drainQueue(): Promise<void> {
+  while (sendQueue.length) {
+    const wait = BALANCE.chat.cooldownMs - (Date.now() - lastSendAt);
+    if (wait > 0) await new Promise((res) => setTimeout(res, wait));
+    const next = sendQueue[0];
+    lastSendAt = Date.now();
+    const nick = (store.user?.nickname || "농부").slice(0, 16);
+    try {
+      const msg: Record<string, unknown> = { uid: store.uid, nick, text: next.text, at: serverTimestamp() };
+      if (next.img) msg.img = next.img;
+      await set(push(r(paths.chat())), msg);
+      sendQueue.shift();
+    } catch {
+      // Transient write error — retry a few times, spaced by the same cooldown, then give up on
+      // this one line so a single stuck message can't stall everything behind it forever.
+      next.retries++;
+      if (next.retries >= MAX_RETRIES) sendQueue.shift();
+    }
+  }
+  draining = false;
+}
 
 /** Mirror the most-recent slice of the room into the store; flag unread when the panel is closed. */
 export function subscribeChat(): void {
@@ -54,22 +90,15 @@ export async function announceToChat(text: string): Promise<void> {
   }
 }
 
-/** Send one line to the room, optionally with a pasted image (inline JPEG data URL). Returns false
- *  on empty (no text AND no image) / too-soon (local anti-spam). */
+/** Queue one line for the room, optionally with a pasted image (inline JPEG data URL). Sends
+ *  immediately if the local anti-spam cooldown has elapsed, otherwise queues it to go out
+ *  automatically — spaced `cooldownMs` apart — so a fast burst of messages all land in order
+ *  instead of being dropped. Returns false only when there's nothing to send or the queue is full. */
 export async function sendChat(text: string, img?: string): Promise<boolean> {
   const t = (text || "").trim().slice(0, BALANCE.chat.maxLen);
   if (!t && !img) return false;
-  const now = Date.now();
-  if (now - lastSendAt < BALANCE.chat.cooldownMs) return false;
-  lastSendAt = now;
-
-  const nick = (store.user?.nickname || "농부").slice(0, 16);
-  try {
-    const msg: Record<string, unknown> = { uid: store.uid, nick, text: t, at: serverTimestamp() };
-    if (img) msg.img = img;
-    await set(push(r(paths.chat())), msg);
-    return true;
-  } catch {
-    return false;
-  }
+  if (sendQueue.length >= MAX_QUEUE) return false;
+  sendQueue.push({ text: t, img, retries: 0 });
+  scheduleDrain();
+  return true;
 }

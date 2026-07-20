@@ -15,6 +15,58 @@ let lastSend = 0;
 let cursorSub: Unsubscribe | null = null; // raider-side: the defender's shared ownerCursor
 let rawOwner: { x: number; y: number } | null = null; // raider-side: latest owner cursor position
 
+// ── Dead-reckoning between 10Hz network samples ─────────────────────────────────────────────
+// Paint runs at 60fps during a raid, but each ghost's position only updates over the network at
+// cursorHz. A plain lerp-toward-last-sample converges almost fully within ~2 paint frames' worth
+// of `a`, then holds still until the next sample lands — a visible "dart then freeze" stutter.
+// Tracking each ghost's velocity between samples and extrapolating forward fills that gap with
+// continuous motion instead.
+interface VelTrack {
+  sampleX: number;
+  sampleY: number;
+  sampleAt: number;
+  vx: number;
+  vy: number;
+}
+const velTracks = new Map<string, VelTrack>();
+
+function clamp01(v: number): number {
+  return v < 0 ? 0 : v > 1 ? 1 : v;
+}
+
+/** Smooth `raw` (latest network sample) toward `cur` (last painted position), extrapolating the
+ *  ghost's last known velocity across the gap between samples. `key` identifies the ghost (owner,
+ *  or a raider/co-raider uid) so multiple ghosts can be tracked independently. */
+function trackAndSmooth(
+  key: string,
+  raw: { x: number; y: number } | undefined,
+  cur: { x: number; y: number } | undefined,
+  a: number,
+  now: number,
+): { x: number; y: number } | undefined {
+  if (!raw) {
+    velTracks.delete(key);
+    return cur;
+  }
+  let t = velTracks.get(key);
+  if (!t) {
+    t = { sampleX: raw.x, sampleY: raw.y, sampleAt: now, vx: 0, vy: 0 };
+    velTracks.set(key, t);
+  } else if (t.sampleX !== raw.x || t.sampleY !== raw.y) {
+    // A fresh sample landed — derive velocity from the gap since the previous one.
+    const dt = Math.max(now - t.sampleAt, 1);
+    t.vx = (raw.x - t.sampleX) / dt;
+    t.vy = (raw.y - t.sampleY) / dt;
+    t.sampleX = raw.x;
+    t.sampleY = raw.y;
+    t.sampleAt = now;
+  }
+  const elapsed = Math.min(now - t.sampleAt, BALANCE.raidGame.cursorExtrapolationMs);
+  const target = { x: clamp01(raw.x + t.vx * elapsed), y: clamp01(raw.y + t.vy * elapsed) };
+  const base = cur || target;
+  return { x: base.x + (target.x - base.x) * a, y: base.y + (target.y - base.y) * a };
+}
+
 /** Raider: watch the defender's shared (owner's) cursor so it can be dodged. */
 export function startRaiderCursorSub(targetUid: string): void {
   stopCursorSub();
@@ -30,6 +82,7 @@ export function stopCursorSub(): void {
     cursorSub = null;
   }
   rawOwner = null;
+  velTracks.delete("owner");
 }
 
 /** Called every frame from the game loop. */
@@ -47,30 +100,21 @@ export function tickCursorStream(): void {
 
   const a = BALANCE.raidGame.cursorSmoothing;
   if (role === "raiding") {
-    // Smooth the single owner ghost toward its raw target.
-    if (rawOwner) {
-      const cur = store.raid.ownerCursor || rawOwner;
-      store.raid.ownerCursor = { x: cur.x + (rawOwner.x - cur.x) * a, y: cur.y + (rawOwner.y - cur.y) * a };
-    }
-    // Smooth every fellow-thief ghost toward its raw (network) position.
+    // Smooth the single owner ghost toward its dead-reckoned target.
+    store.raid.ownerCursor = trackAndSmooth("owner", rawOwner ?? undefined, store.raid.ownerCursor, a, now);
+    // Smooth every fellow-thief ghost toward its dead-reckoned (network) position.
     const co = store.raid.coRaiders;
     if (co) {
-      for (const rv of Object.values(co)) {
-        const raw = rv.rawCursor;
-        if (!raw) continue;
-        const cur = rv.cursor || raw;
-        rv.cursor = { x: cur.x + (raw.x - cur.x) * a, y: cur.y + (raw.y - cur.y) * a };
+      for (const [uid, rv] of Object.entries(co)) {
+        rv.cursor = trackAndSmooth(uid, rv.rawCursor, rv.cursor, a, now);
       }
     }
   } else {
-    // Defending: smooth every intruder ghost toward its raw (network) position.
+    // Defending: smooth every intruder ghost toward its dead-reckoned (network) position.
     const raiders = store.raid.raiders;
     if (raiders) {
-      for (const rv of Object.values(raiders)) {
-        const raw = rv.rawCursor;
-        if (!raw) continue;
-        const cur = rv.cursor || raw;
-        rv.cursor = { x: cur.x + (raw.x - cur.x) * a, y: cur.y + (raw.y - cur.y) * a };
+      for (const [uid, rv] of Object.entries(raiders)) {
+        rv.cursor = trackAndSmooth(uid, rv.rawCursor, rv.cursor, a, now);
       }
     }
   }

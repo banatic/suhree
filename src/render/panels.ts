@@ -7,6 +7,7 @@ import {
   bandDock,
   coins,
   setChatNotify,
+  setSoundEnabled,
   type PanelKind,
   type FriendData,
   type ChatMessage,
@@ -34,6 +35,7 @@ import { dismissChatPopup } from "./chatPopup";
 import { APP_VERSION } from "../version";
 import { CHANGELOG } from "../changelog";
 import { checkForUpdates } from "../update";
+import { playClick } from "../sfx";
 import { sellValue, priceFactor, topCropTier } from "../game/market";
 import {
   isDiscovered,
@@ -58,8 +60,11 @@ let lastChatSig = "";
 // strip. Kept module-level so it survives the 0.5s in-place refresh and a full panel rebuild.
 let chatPendingImg: string | null = null;
 let chatAttachEl: HTMLDivElement | null = null;
-// Chat auto-dismiss: once the mouse has entered the open chat panel, leaving it closes the panel.
+// Chat auto-dismiss: once the mouse has entered the open chat panel, leaving it closes the panel —
+// but only after a short grace period, so grazing the edge or briefly overshooting doesn't kill it.
 let chatHoverArmed = false;
+let chatLeaveTimer = 0;
+const CHAT_LEAVE_GRACE_MS = 900;
 // Which folded 서리 groups the user has expanded (keyed by the run's first message id).
 const expandedRaidGroups = new Set<string>();
 
@@ -72,9 +77,14 @@ function ensurePanel(): HTMLDivElement {
     // Chat panel auto-closes once the mouse enters it and then leaves (only the chat kind).
     panelEl.addEventListener("mouseenter", () => {
       if (store.ui.panel === "chat") chatHoverArmed = true;
+      window.clearTimeout(chatLeaveTimer); // came back in time — cancel the pending close
     });
     panelEl.addEventListener("mouseleave", () => {
-      if (store.ui.panel === "chat" && chatHoverArmed) togglePanel("chat");
+      if (store.ui.panel !== "chat" || !chatHoverArmed) return;
+      window.clearTimeout(chatLeaveTimer);
+      chatLeaveTimer = window.setTimeout(() => {
+        if (store.ui.panel === "chat") togglePanel("chat");
+      }, CHAT_LEAVE_GRACE_MS);
     });
     // Esc closes the open panel (the only reliable "dismiss" gesture — clicks outside the band pass
     // straight through the click-through overlay to the desktop, so they never reach the app).
@@ -122,6 +132,7 @@ export function togglePanel(kind: PanelKind): void {
     lastChatSig = ""; // force the message list to (re)render on open
     dismissChatPopup(); // user is now reading — no need for the corner popup
     chatHoverArmed = false; // re-arm only after the mouse enters the panel
+    window.clearTimeout(chatLeaveTimer); // a stale leave-timer must not close the fresh panel
   }
   if (store.ui.panel === "ranking") void refreshRankingCoins();
   if (store.ui.panel === "stats") {
@@ -147,7 +158,8 @@ function row(...kids: (Node | string)[]): HTMLElement {
 }
 
 function btn(label: string, onclick: () => void, cls = "btn"): HTMLElement {
-  return el("button", { class: cls, onclick }, label);
+  // One shared tick for every panel button — individual actions layer their own sound on top.
+  return el("button", { class: cls, onclick: () => { playClick(); onclick(); } }, label);
 }
 
 // ── Cosmetic helpers (decor / theme / title sections + farm preview thumbnails) ──────
@@ -566,7 +578,7 @@ function chatPanel(): HTMLElement {
     input.focus();
     const ok = await sendChat(text, img ?? undefined);
     if (!ok) {
-      // Send failed (cooldown / network) — restore the draft AND the staged image so the user
+      // Queue full (rapid-fire spam) — restore the draft AND the staged image so the user
       // doesn't lose what they had (unless they've already started something new meanwhile).
       if (!input.value && !chatPendingImg) {
         chatDraft = text;
@@ -574,7 +586,7 @@ function chatPanel(): HTMLElement {
         chatPendingImg = img;
         renderChatAttach();
       }
-      toast("잠시 후 다시 보내주세요");
+      toast("메시지가 너무 많아요, 잠시 후 다시 보내주세요");
     }
   };
   input.addEventListener("keydown", (e: KeyboardEvent) => {
@@ -1288,6 +1300,24 @@ function settingsPanel(): HTMLElement {
               alert(err.message || "닉네임 변경에 실패했습니다.");
             });
         }),
+      ),
+    ),
+  );
+
+  // Master sound toggle (persisted). Same switch markup as the chat-notify toggle.
+  const sndCb = el("input", { type: "checkbox" }) as HTMLInputElement;
+  sndCb.checked = store.soundEnabled;
+  sndCb.addEventListener("change", () => {
+    setSoundEnabled(sndCb.checked);
+    if (sndCb.checked) playClick(); // instant audible confirmation that sound is back on
+    renderPanels();
+  });
+  wrap.append(
+    el("div", { class: "card" },
+      el("div", { class: "card-title" }, "사운드"),
+      row(
+        el("span", { class: "grow" }, store.soundEnabled ? "🔊 효과음" : "🔇 효과음"),
+        el("label", { class: "switch" }, sndCb, el("span", { class: "track" }), el("span", { class: "knob" })),
       ),
     ),
   );

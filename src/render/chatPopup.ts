@@ -6,6 +6,7 @@
 import { store, bandHeightCss, bandDock } from "../state";
 import { togglePanel, getPanelRect } from "./panels";
 import { publishHitRegions } from "./strip";
+import { playChatPop } from "../sfx";
 
 interface Pending {
   nick: string;
@@ -74,6 +75,7 @@ function showNext(): void {
     return;
   }
   showing = true;
+  playChatPop();
   const el = ensureEl();
 
   const head = document.createElement("div");

@@ -2,6 +2,7 @@ import { get, ref, update } from "firebase/database";
 import { db } from "../firebase/app";
 import { r, paths } from "../firebase/db";
 import { toast, markPanelsDirty } from "../state";
+import { playFriend } from "../sfx";
 
 export async function addFriendByCode(uid: string, codeRaw: string): Promise<boolean> {
   const code = (codeRaw || "").trim().toUpperCase();
@@ -35,6 +36,7 @@ export async function addFriendByCode(uid: string, codeRaw: string): Promise<boo
     return false;
   }
   toast("서로 친구가 되었어요!");
+  playFriend();
   markPanelsDirty();
   return true;
 }

@@ -28,6 +28,7 @@ import { togglePanel, getPanelRect, getLightboxRect } from "./panels";
 import { getChatPopupRect } from "./chatPopup";
 import { getLootNoteRect } from "./lootNote";
 import { updateHitRegions, onStripHover, type NormRect } from "../platform/tauri";
+import { playClick, playWeedTick, playWeedClear } from "../sfx";
 
 interface Rect {
   x: number;
@@ -1293,6 +1294,7 @@ function onClick(e: MouseEvent): void {
 }
 
 function handleButton(id: string): void {
+  playClick();
   // The 씨앗 chip opens the shop's seed list (pick directly) instead of cycling one-by-one through
   // all tiers — the chip's colour dot still shows which seed is currently selected.
   if (id === "seed") {
@@ -1315,9 +1317,11 @@ async function handleSlotClick(L: BandLayout, s: Slot): Promise<void> {
       delete weedPullClicks[key];
       await removeWeed(s.i);
       addEffect("poof", s.cx, L.soilY);
+      playWeedClear();
       toast("잡초를 뽑았어요! 🌿");
     } else {
       weedPullClicks[key] = n;
+      playWeedTick();
       toast(`잡초 뽑는 중… ${need - n}번 더!`);
     }
     return;

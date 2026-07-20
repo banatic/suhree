@@ -74,6 +74,12 @@ export const BALANCE = {
   raidGame: {
     cursorHz: 10, // snappier exchange than the 5 Hz idle ghost (both sides publish during a raid)
     cursorSmoothing: 0.45, // lerp applied to the received ghost (higher = snappier, less laggy)
+    // A pure lerp-toward-last-sample converges to the 10Hz sample almost fully within ~130ms, then
+    // sits still until the next one arrives — a "dart then freeze" stutter at high paint fps. Instead
+    // we dead-reckon: extrapolate the ghost forward from its last known velocity between samples, so
+    // motion stays continuous at 60fps paint even though the network only updates 10x/sec. Capped so
+    // a stalled/dropped connection doesn't fling the ghost off into open space.
+    cursorExtrapolationMs: 150,
     timeoutSeconds: 30, // hard cap: the lock can't hang. On timeout the raider auto-flees.
     // Clicks the RAIDER must land on one ripe crop to steal it. More defence → tougher crops;
     // more attack → easier. clicks = clamp(round(base + kDef·ln(1+scarecrowLv) − kAtk·ln(1+scytheLv)), min, max)

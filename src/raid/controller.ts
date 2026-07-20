@@ -100,7 +100,10 @@ export async function startRaid(targetUid: string, targetNick: string): Promise<
     | { lastSeen?: number; connections?: Record<string, unknown> }
     | null;
   const fresh = !!presence && serverNow() - (presence.lastSeen ?? 0) < BALANCE.presence.onlineThresholdMs;
-  const socketAlive = !!presence?.connections && Object.keys(presence.connections).length > 0;
+  const now = serverNow();
+  const socketAlive = Object.values(presence?.connections ?? {}).some(
+    (v) => typeof v === "number" && now - v < BALANCE.presence.onlineThresholdMs,
+  );
   if (!fresh && !socketAlive) {
     toast("오프라인 친구는 털 수 없어요");
     return;

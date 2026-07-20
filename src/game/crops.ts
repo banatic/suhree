@@ -6,6 +6,7 @@ import { addCoins, trySpend } from "./economy";
 import { sellValue } from "./market";
 import { recordDex } from "./dex";
 import { cropUnlocked, cropLockReason } from "./unlocks";
+import { playPlant, playHarvest } from "../sfx";
 
 export type Stage = "empty" | "seed" | "sprout" | "growing" | "ripe";
 
@@ -74,6 +75,7 @@ export async function plant(uid: string, slot: number, tier: number): Promise<bo
   await set(r(paths.crop(uid, slot)), { tier, plantedAt: serverTimestamp() });
   store.crops[String(slot)] = { tier, plantedAt: Date.now() }; // optimistic; listener corrects
   toast(`${t.label} 씨앗을 심었어요`);
+  playPlant();
   return true;
 }
 
@@ -89,5 +91,6 @@ export async function harvest(uid: string, slot: number): Promise<number> {
   await addCoins(uid, value); // direct harvest = 100% of today's sell price
   void recordDex(uid, c.tier, "harvest");
   toast(`+${value} 코인`);
+  playHarvest();
   return value;
 }

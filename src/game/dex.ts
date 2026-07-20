@@ -9,6 +9,7 @@ import { store, toast, markPanelsDirty } from "../state";
 import { BALANCE } from "../config/balance";
 import { addCoins } from "./economy";
 import { tierOf } from "./crops";
+import { playDexNew, playFanfare } from "../sfx";
 
 type DexEntry = { h?: number; s?: Record<string, number> };
 
@@ -84,7 +85,10 @@ export async function recordDex(
   } catch {
     return; // ignore transient write errors — the crop value was already credited
   }
-  if (wasNew) toast(`📖 도감에 새 작물 발견: ${tierOf(tier)?.label ?? "작물"}!`);
+  if (wasNew) {
+    toast(`📖 도감에 새 작물 발견: ${tierOf(tier)?.label ?? "작물"}!`);
+    playDexNew();
+  }
 }
 
 /** Pay the completion bonus once, guarded by an atomic flip of dexClaimed false→true. */
@@ -115,5 +119,6 @@ export async function claimDexReward(uid: string): Promise<void> {
   store.user.dexClaimed = true;
   await addCoins(uid, BALANCE.dex.completionReward).catch(() => {});
   toast(`🏆 도감 완성! +${BALANCE.dex.completionReward} 코인`);
+  playFanfare();
   markPanelsDirty();
 }

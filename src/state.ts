@@ -5,6 +5,7 @@ import type { StripGeometry } from "./platform/tauri";
 import { BALANCE } from "./config/balance";
 
 const CHAT_NOTIFY_KEY = "suhree_chat_notify";
+const SOUND_KEY = "suhree_sound";
 
 export interface CropData {
   tier: number;
@@ -154,6 +155,7 @@ export interface Store {
   chat: ChatMessage[];
   chatUnread: boolean;
   chatNotify: boolean; // show the corner popup for new chat messages
+  soundEnabled: boolean; // master switch for every procedural sound effect (sfx.ts)
   raidlog: RaidLogEntry[]; // server-wide 서리 feed (newest last)
   geometry: StripGeometry | null;
   hiddenFullscreen: boolean;
@@ -174,6 +176,7 @@ export const store: Store = {
   chat: [],
   chatUnread: false,
   chatNotify: localStorage.getItem(CHAT_NOTIFY_KEY) !== "0", // default on; "0" means muted
+  soundEnabled: localStorage.getItem(SOUND_KEY) !== "0", // default on; "0" means muted
   raidlog: [],
   geometry: null,
   hiddenFullscreen: false,
@@ -218,6 +221,12 @@ export function coins(): number {
 export function setChatNotify(on: boolean): void {
   store.chatNotify = on;
   localStorage.setItem(CHAT_NOTIFY_KEY, on ? "1" : "0");
+}
+
+/** Master mute for all sound effects, persisting the choice across restarts. */
+export function setSoundEnabled(on: boolean): void {
+  store.soundEnabled = on;
+  localStorage.setItem(SOUND_KEY, on ? "1" : "0");
 }
 
 export function bandHeightCss(): number {
