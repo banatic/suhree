@@ -1,11 +1,11 @@
 {
-    "version": "0.3.21",
-    "notes": "🔊 게임 곳곳에 아기자기한 효과음이 생겼어요 — 심기·수확·잡초·구매·강화·도감·채팅 알림까지! 설정에서 끄고 켤 수 있어요. 💬 채팅을 연달아 보내도 씹히지 않고 순서대로 전송되고, 채팅창은 마우스가 살짝 벗어나도 바로 닫히지 않아요. ⚡ 서리 중 상대 커서가 훨씬 부드럽게 움직이고, 접속이 끊긴 친구가 온라인처럼 보이던 문제도 고쳤어요.",
-    "pub_date": "2026-07-20T02:07:29.850Z",
+    "version": "0.4.0",
+    "notes": "🧭 3D 여행 모드가 생겼어요! 메뉴의 '여행' 버튼을 누르면 별개의 창으로 동물의 숲풍 3D 마을이 열려요. 🚶 같은 맵에서 접속한 친구들과 실시간으로 만나 WASD로 걷고 Shift로 달리고 1~8 키로 감정표현 8종을 나눠요. 💬 여행 속 채팅은 마을 채팅과 이어져 있고, 보낸 말이 캐릭터 머리 위 말풍선으로 떠요. 🦝 소년·소녀부터 마을 주민까지 캐릭터 189종 중 골라 여행하세요.",
+    "pub_date": "2026-08-05T03:20:22.579Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkl4L0NYRWZZRHlHaHkwb2tSQ3lsT00yWEJlOUQ2SnRnczFERTNGcUVIb0dyblA5Nmh0S0c0UytQbXU2QzZFU25iZXBLcWdocWhlK3g4S0Q5azVNb2dJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0NTEzMzc5CWZpbGU6c3VocmVlXzAuMy4yMV94NjRfZW4tVVMubXNpCmwxcjR4VEg1NDdTbjF2U1d5Z29jWnkySlJENk5VTWR1c3M1dkpXU2lDb3VnZXljQlpoNXRQN1p2TkFlMEFheW9oaXZDNEY3Yll6QWErVWJUZDRKM0R3PT0K",
-            "url": "https://github.com/banatic/suhree/releases/download/v0.3.21/suhree_0.3.21_x64_en-US.msi"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMk9lYkNwbGltOWpYTHo5Z08rQ21hYkhHa3FXaEwxQTZ3blJRdVhSNDMrRHJybERGOWNlSVFaYTUrU21LS3p5S1hiTnUxTUZ3SFFwY1dHOXY5Smo5ZlFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1OTAwMjI0CWZpbGU6c3VocmVlXzAuNC4wX3g2NF9lbi1VUy5tc2kKYzRqVVBMS2tiWTRGV05LeitwRkF2b3RHRTdLeU8wa3h4aXA2SzhBM2dkVDdQUHMwOFJ4Qi94bngyRExTZjFtL2p0RkkyVDEzbzVIRXl5blhTWXZGREE9PQo=",
+            "url": "https://github.com/banatic/suhree/releases/download/v0.4.0/suhree_0.4.0_x64_en-US.msi"
         }
     }
 }
