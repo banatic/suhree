@@ -56,6 +56,27 @@ pub fn set_preferred_monitor(app: AppHandle, state: State<AppState>, monitor: St
     window::recompute_and_apply(&app);
 }
 
+/// Open (or focus) the 3D travel window — a normal decorated window, separate from the strip.
+#[tauri::command]
+pub fn open_travel(app: AppHandle) {
+    if let Some(w) = app.get_webview_window("travel") {
+        let _ = w.show();
+        let _ = w.set_focus();
+        return;
+    }
+    let _ = tauri::WebviewWindowBuilder::new(
+        &app,
+        "travel",
+        tauri::WebviewUrl::App("travel.html".into()),
+    )
+    .title("suhree — 3D 여행")
+    .inner_size(1180.0, 760.0)
+    .min_inner_size(720.0, 480.0)
+    .resizable(true)
+    .focused(true)
+    .build();
+}
+
 /// Cursor normalised into the crop-band rect (0..1, clamped). Used by the owner to stream
 /// their cursor while their own plot is being raided. Returns None if geometry isn't ready.
 #[tauri::command]

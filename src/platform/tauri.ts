@@ -82,6 +82,19 @@ export async function setPreferredMonitor(monitor: "primary" | "cursor"): Promis
   }
 }
 
+/** Open (or focus) the 3D travel window. In a plain browser dev tab, opens travel.html directly. */
+export async function openTravelWindow(): Promise<void> {
+  if (!isTauri()) {
+    window.open("./travel.html", "suhree_travel", "width=1180,height=760");
+    return;
+  }
+  try {
+    await invoke("open_travel");
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Owner's cursor normalised to the crop band (0..1), or null. Used during a raid only. */
 export async function getCursorInBand(): Promise<[number, number] | null> {
   if (!isTauri()) return null;

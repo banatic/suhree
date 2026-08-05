@@ -150,6 +150,23 @@
       }
     },
 
+    "travel": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "$uid === auth.uid",
+        "n": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16" },
+        "ch": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 500" },
+        "x": { ".validate": "newData.isNumber() && newData.val() >= -50 && newData.val() <= 300" },
+        "s": { ".validate": "newData.isNumber() && newData.val() >= -50 && newData.val() <= 300" },
+        "yaw": { ".validate": "newData.isNumber() && newData.val() >= -10 && newData.val() <= 10" },
+        "c": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 2" },
+        "e": { ".validate": "newData.isNumber() && newData.val() >= -1 && newData.val() <= 7" },
+        "es": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "at": { ".validate": "newData.isNumber()" },
+        "$other": { ".validate": false }
+      }
+    },
+
     "raidlog": {
       ".read": "auth != null",
       "$id": {

@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 // Single source of truth for the version: package.json (kept in lockstep with tauri.conf.json /
 // Cargo.toml by scripts/release_method.py). Injected as __APP_VERSION__ so the webview can show it.
@@ -22,5 +23,12 @@ export default defineConfig({
     target: "esnext",
     minify: false,
     sourcemap: true,
+    rollupOptions: {
+      // 멀티페이지: 스트립 본체 + 3D 여행 창
+      input: {
+        main: fileURLToPath(new URL("./index.html", import.meta.url)),
+        travel: fileURLToPath(new URL("./travel.html", import.meta.url)),
+      },
+    },
   },
 });

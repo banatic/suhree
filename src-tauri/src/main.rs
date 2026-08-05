@@ -36,6 +36,7 @@ fn main() {
             commands::is_fullscreen_active,
             commands::set_preferred_monitor,
             commands::get_cursor_in_band,
+            commands::open_travel,
         ])
         .setup(|app| {
             let handle = app.handle().clone();

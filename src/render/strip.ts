@@ -27,7 +27,7 @@ import { plantWeed, removeWeed } from "../game/weeds";
 import { togglePanel, getPanelRect, getLightboxRect } from "./panels";
 import { getChatPopupRect } from "./chatPopup";
 import { getLootNoteRect } from "./lootNote";
-import { updateHitRegions, onStripHover, type NormRect } from "../platform/tauri";
+import { updateHitRegions, onStripHover, openTravelWindow, type NormRect } from "../platform/tauri";
 import { playClick, playWeedTick, playWeedClear } from "../sfx";
 
 interface Rect {
@@ -136,6 +136,7 @@ const HUD_LABELS: { id: string; label: string }[] = [
   { id: "cosmetics", label: "꾸미기" },
   { id: "dex", label: "도감" },
   { id: "raidlog", label: "서리기록" },
+  { id: "travel", label: "🧭여행" },
   { id: "stats", label: "통계" },
   { id: "spy", label: "🔮점지" },
   { id: "settings", label: "설정" },
@@ -1299,6 +1300,11 @@ function handleButton(id: string): void {
   // all tiers — the chip's colour dot still shows which seed is currently selected.
   if (id === "seed") {
     togglePanel("shop");
+    return;
+  }
+  // 여행 chip: 패널이 아니라 별도의 3D 여행 창을 연다.
+  if (id === "travel") {
+    void openTravelWindow();
     return;
   }
   togglePanel(id as PanelKind);
