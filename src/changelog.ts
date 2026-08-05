@@ -9,6 +9,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.4.1",
+    date: "2026-08-05",
+    items: [
+      "🛠️ '여행' 버튼을 눌러도 창이 얼어붙고 앱이 멈추던 문제를 고쳤어요 — 이제 바로 열려요!",
+      "💬 여행에서 내가 보낸 채팅이 두 번 보이던 문제를 고쳤어요.",
+      "◀ 여행 창의 사이드바(캐릭터 선택)를 '메뉴' 버튼으로 접었다 펼 수 있어요 — 넓은 화면으로 여행하세요.",
+    ],
+  },
+  {
     version: "0.4.0",
     date: "2026-08-05",
     items: [

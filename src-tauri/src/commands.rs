@@ -57,8 +57,11 @@ pub fn set_preferred_monitor(app: AppHandle, state: State<AppState>, monitor: St
 }
 
 /// Open (or focus) the 3D travel window — a normal decorated window, separate from the strip.
+/// MUST be async: on Windows, building a webview window inside a synchronous command runs on
+/// the main thread and deadlocks the whole app (frozen window, no input) — async commands run
+/// off the main thread, which is the documented fix.
 #[tauri::command]
-pub fn open_travel(app: AppHandle) {
+pub async fn open_travel(app: AppHandle) {
     if let Some(w) = app.get_webview_window("travel") {
         let _ = w.show();
         let _ = w.set_focus();

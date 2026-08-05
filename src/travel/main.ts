@@ -24,6 +24,7 @@ import { startNet, stopNet, tickNet, announceEmote, sendTravelChat, type TravelC
 
 const CHAR_KEY = "suhree_travel_char";
 const NICK_KEY = "suhree_nick";
+const SB_KEY = "suhree_travel_sb"; // "0" = 사이드바 접힘
 
 const $ = (id: string): HTMLElement => document.getElementById(id)!;
 
@@ -172,6 +173,16 @@ async function boot(): Promise<void> {
       my.char = i;
       localStorage.setItem(CHAR_KEY, String(i));
     });
+
+    /* 사이드바 접기/펴기 (상태 유지) */
+    const sbtoggle = $("sbtoggle");
+    const applySb = (open: boolean): void => {
+      document.body.classList.toggle("nosb", !open);
+      sbtoggle.textContent = open ? "◀ 메뉴" : "▶ 메뉴";
+      localStorage.setItem(SB_KEY, open ? "1" : "0");
+    };
+    applySb(localStorage.getItem(SB_KEY) !== "0");
+    sbtoggle.onclick = () => applySb(document.body.classList.contains("nosb"));
 
     /* 감정표현 버튼 */
     const emo = $("emo");

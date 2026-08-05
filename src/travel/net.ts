@@ -41,7 +41,9 @@ export interface TravelChatMsg {
 let onChatCb: ((m: TravelChatMsg) => void) | null = null;
 let onRosterCb: (() => void) | null = null;
 let chatPrimed = false;
-let chatNewest = 0;
+// 이미 표시한 메시지 id. serverTimestamp 메시지는 로컬 추정 → 서버 확정으로 at 이 바뀌며
+// onValue 가 두 번 오므로, 시각이 아니라 push id 로 중복을 걸러야 한다.
+const chatSeen = new Set<string>();
 
 export function startNet(
   uid: string,
@@ -99,21 +101,29 @@ export function startNet(
   /* 마을 채팅 구독 — 말풍선 + 로그 */
   chatSub = onValue(query(r(paths.chat()), limitToLast(30)), (snap) => {
     const v = (snap.val() as Record<string, any>) || {};
-    const msgs = Object.values(v)
-      .map((m: any) => ({ uid: m.uid, nick: m.nick, text: m.text || "", at: m.at || 0 }) as TravelChatMsg)
+    const msgs = Object.entries(v)
+      .map(([id, m]: [string, any]) => ({ id, uid: m.uid, nick: m.nick, text: m.text || "", at: m.at || 0 }))
       .filter((m) => m.text)
       .sort((a, b) => a.at - b.at);
     if (!chatPrimed) {
       // 첫 스냅샷은 과거 로그 — 말풍선 없이 로그에만 채운다
       chatPrimed = true;
-      chatNewest = msgs.length ? msgs[msgs.length - 1].at : 0;
+      for (const m of msgs) chatSeen.add(m.id);
       for (const m of msgs.slice(-8)) onChatCb?.({ ...m, at: 0 }); // at=0 → 로그 전용 표시
       return;
     }
     for (const m of msgs) {
-      if (m.at > chatNewest) onChatCb?.(m);
+      if (chatSeen.has(m.id)) continue;
+      chatSeen.add(m.id);
+      onChatCb?.(m);
     }
-    if (msgs.length) chatNewest = Math.max(chatNewest, msgs[msgs.length - 1].at);
+    if (chatSeen.size > 500) {
+      // limitToLast(30) 밖으로 밀려난 옛 id 정리 (메모리만의 문제라 대충 앞에서부터)
+      for (const id of chatSeen) {
+        chatSeen.delete(id);
+        if (chatSeen.size <= 250) break;
+      }
+    }
   });
 }
 

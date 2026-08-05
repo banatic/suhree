@@ -112,10 +112,29 @@
       #help b {
         color: var(--fg);
       }
+      body.nosb aside {
+        display: none;
+      }
       main {
         flex: 1;
         position: relative;
         min-width: 0;
+      }
+      #sbtoggle {
+        position: absolute;
+        left: 12px;
+        top: 10px;
+        z-index: 5;
+        background: rgba(28, 31, 38, 0.9);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        color: var(--fg);
+        font: inherit;
+        padding: 3px 10px;
+        cursor: pointer;
+      }
+      #sbtoggle:hover {
+        background: #252a34;
       }
       canvas {
         display: block;
@@ -264,6 +283,7 @@
     </aside>
     <main>
       <canvas id="cv"></canvas>
+      <button id="sbtoggle" title="사이드바 접기/펴기">◀ 메뉴</button>
       <div id="tags"></div>
       <div id="emo"></div>
       <div id="chatlog"></div>
