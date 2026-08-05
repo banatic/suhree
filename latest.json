@@ -1,11 +1,11 @@
 {
-    "version": "0.4.0",
-    "notes": "🧭 3D 여행 모드가 생겼어요! 메뉴의 '여행' 버튼을 누르면 별개의 창으로 동물의 숲풍 3D 마을이 열려요. 🚶 같은 맵에서 접속한 친구들과 실시간으로 만나 WASD로 걷고 Shift로 달리고 1~8 키로 감정표현 8종을 나눠요. 💬 여행 속 채팅은 마을 채팅과 이어져 있고, 보낸 말이 캐릭터 머리 위 말풍선으로 떠요. 🦝 소년·소녀부터 마을 주민까지 캐릭터 189종 중 골라 여행하세요.",
-    "pub_date": "2026-08-05T03:20:22.579Z",
+    "version": "0.4.1",
+    "notes": "🛠️ '여행' 버튼을 눌러도 창이 얼어붙고 앱이 멈추던 문제를 고쳤어요 — 이제 바로 열려요! 💬 여행에서 내가 보낸 채팅이 두 번 보이던 문제도 고쳤어요. ◀ 여행 창의 사이드바를 '메뉴' 버튼으로 접었다 펼 수 있어요.",
+    "pub_date": "2026-08-05T04:02:04.052Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMk9lYkNwbGltOWpYTHo5Z08rQ21hYkhHa3FXaEwxQTZ3blJRdVhSNDMrRHJybERGOWNlSVFaYTUrU21LS3p5S1hiTnUxTUZ3SFFwY1dHOXY5Smo5ZlFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1OTAwMjI0CWZpbGU6c3VocmVlXzAuNC4wX3g2NF9lbi1VUy5tc2kKYzRqVVBMS2tiWTRGV05LeitwRkF2b3RHRTdLeU8wa3h4aXA2SzhBM2dkVDdQUHMwOFJ4Qi94bngyRExTZjFtL2p0RkkyVDEzbzVIRXl5blhTWXZGREE9PQo=",
-            "url": "https://github.com/banatic/suhree/releases/download/v0.4.0/suhree_0.4.0_x64_en-US.msi"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMk1KL3RJRkJPd3pKZGk1ckZ3Y3V0emZQVmdvbzN4Z2NrYjBZdHZITUJIREU3U1VrQThjNzc3UFJGZnExNlJZNysrTkVjZGo5RFR1U2djU2REWktFMkFVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1OTAyNjQ4CWZpbGU6c3VocmVlXzAuNC4xX3g2NF9lbi1VUy5tc2kKUXpMTzA1d3IxaCtRcGQxNE4xUmpsamRwTjRKUUtXMGR1RlIvMTJ2SUEzaG9iWEFzU2FXUHZWYm9nWnkrcVBLVDJzN0I4SjJyajB2aTBSUnZoa0xzQUE9PQo=",
+            "url": "https://github.com/banatic/suhree/releases/download/v0.4.1/suhree_0.4.1_x64_en-US.msi"
         }
     }
 }
