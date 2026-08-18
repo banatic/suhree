@@ -9,7 +9,7 @@
         ".write": "$uid === auth.uid",
         "nickname": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16 && (newData.val() !== '정충봉' || $uid === 'U4XnjRKBRdUb2qC6qmyszyDSVY12')" },
         "friendCode": { ".validate": "newData.isString() && newData.val().length <= 16" },
-        "coins": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000" },
+        "coins": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000000000" },
         "scarecrowLv": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000" },
         "scytheLv": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000" },
         "plotSize": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 200" },

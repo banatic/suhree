@@ -6,6 +6,7 @@ import { BALANCE } from "./config/balance";
 
 const CHAT_NOTIFY_KEY = "suhree_chat_notify";
 const SOUND_KEY = "suhree_sound";
+const SEED_TIER_KEY = "suhree_seed_tier";
 
 export interface CropData {
   tier: number;
@@ -180,7 +181,7 @@ export const store: Store = {
   raidlog: [],
   geometry: null,
   hiddenFullscreen: false,
-  selectedSeedTier: 0,
+  selectedSeedTier: parseInt(localStorage.getItem(SEED_TIER_KEY) || "0", 10) || 0,
   raid: { role: "none" },
   ui: { panel: "none", toast: null, toastUntil: 0 },
   now: Date.now(),
@@ -217,6 +218,30 @@ export function coins(): number {
   return store.user?.coins ?? 0;
 }
 
+// 만/억/조 단위로 묶어 표시 — 억 단위를 넘어가면 자릿수만으론 한눈에 안 읽혀서(10자리+) 상위
+// 두 단위(예: "12억 3456만")만 보여주고 그 아래 자리는 버린다. 랭킹/HUD/서리 로그 등 코인이
+// 찍히는 모든 자리에서 공통으로 쓴다.
+const MONEY_UNITS: [number, string][] = [
+  [1_000_000_000_000, "조"],
+  [100_000_000, "억"],
+  [10_000, "만"],
+];
+export function formatCoins(n: number): string {
+  const v = Math.floor(n);
+  if (v < 10_000) return String(v);
+  let rem = v;
+  const parts: string[] = [];
+  for (const [size, label] of MONEY_UNITS) {
+    const q = Math.floor(rem / size);
+    if (q > 0) {
+      parts.push(`${q}${label}`);
+      rem %= size;
+    }
+  }
+  if (parts.length < 2 && rem > 0) parts.push(String(rem));
+  return parts.join(" ");
+}
+
 /** Toggle the new-message corner popup, persisting the choice across restarts. */
 export function setChatNotify(on: boolean): void {
   store.chatNotify = on;
@@ -227,6 +252,12 @@ export function setChatNotify(on: boolean): void {
 export function setSoundEnabled(on: boolean): void {
   store.soundEnabled = on;
   localStorage.setItem(SOUND_KEY, on ? "1" : "0");
+}
+
+/** Remember the last-picked seed tier so the shop (and HUD chip) reopen with it selected. */
+export function setSelectedSeedTier(tier: number): void {
+  store.selectedSeedTier = tier;
+  localStorage.setItem(SEED_TIER_KEY, String(tier));
 }
 
 export function bandHeightCss(): number {

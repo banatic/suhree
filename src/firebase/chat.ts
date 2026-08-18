@@ -9,6 +9,31 @@ import { showChatPopup } from "../render/chatPopup";
 
 let primed = false; // the first snapshot is backlog, not "new" — don't pop for it
 
+// 서리 announcements are auto-posted to this same room, so a busy server buries real chat under raid
+// spam. Detect them heuristically (their fixed emoji-led format) so every surface reading this room
+// (village chat panel, travel window) can treat them consistently.
+const RAID_PREFIXES = ["🌾", "🚨", "⏱️", "🌿"];
+export function isRaidMsg(text: string): boolean {
+  return RAID_PREFIXES.some((p) => text.startsWith(p)) && text.includes("님 밭");
+}
+
+/** Parse + order-sort a raw `chat` RTDB snapshot. The one normalization path for every reader
+ *  (village chat panel, travel window) so they can never drift on field mapping again. */
+export function parseChatSnapshot(v: Record<string, any> | null | undefined): ChatMessage[] {
+  return Object.entries(v || {})
+    .map(([id, m]: [string, any]) => ({ id, uid: m.uid, nick: m.nick, text: m.text || "", at: m.at || 0, img: m.img }) as ChatMessage)
+    .sort((a, b) => a.at - b.at);
+}
+
+// Fired every time subscribeChat() lands a fresh snapshot — straight off the websocket callback, so
+// (unlike a setInterval-driven UI refresh) it isn't subject to Chromium's background-tab timer
+// throttling (see firebase/presence.ts). Panels register here to repaint the instant new chat data
+// arrives even while their window is unfocused.
+const chatListeners = new Set<() => void>();
+export function onChatChanged(fn: () => void): void {
+  chatListeners.add(fn);
+}
+
 /** Outgoing queue so a burst of sends lands seamlessly, spaced `cooldownMs` apart, instead of
  *  rejecting anything typed too soon after the last send. */
 const MAX_QUEUE = 20;
@@ -50,10 +75,7 @@ async function drainQueue(): Promise<void> {
 export function subscribeChat(): void {
   const q = query(r(paths.chat()), limitToLast(BALANCE.chat.keep));
   onValue(q, (snap) => {
-    const v = (snap.val() as Record<string, any>) || {};
-    const next: ChatMessage[] = Object.entries(v)
-      .map(([id, m]) => ({ id, uid: m.uid, nick: m.nick, text: m.text, at: m.at, img: m.img }) as ChatMessage)
-      .sort((a, b) => a.at - b.at);
+    const next = parseChatSnapshot(snap.val());
 
     const prevNewest = store.chat.length ? store.chat[store.chat.length - 1].at : 0;
     const newest = next.length ? next[next.length - 1].at : 0;
@@ -71,9 +93,10 @@ export function subscribeChat(): void {
     }
     primed = true;
 
-    // No markPanelsDirty: the unread dot is canvas-drawn every frame, and an open chat panel is
-    // refreshed in place by the 0.5s ticker — a full rebuild here would clobber the input.
+    // No markPanelsDirty: the unread dot is canvas-drawn every frame, and an open chat panel repaints
+    // itself in place via onChatChanged (below) — a full rebuild here would clobber the input.
     store.chat = next;
+    for (const fn of chatListeners) fn();
   });
 }
 

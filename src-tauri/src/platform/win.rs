@@ -17,8 +17,9 @@ use windows_sys::Win32::UI::Shell::{
     SHAppBarMessage, SHQueryUserNotificationState, APPBARDATA, QUNS_BUSY,
     QUNS_PRESENTATION_MODE, QUNS_RUNNING_D3D_FULL_SCREEN,
 };
+use windows_sys::Win32::System::Threading::GetCurrentProcessId;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    GetClassNameW, GetCursorPos, GetForegroundWindow, GetWindowRect,
+    GetClassNameW, GetCursorPos, GetForegroundWindow, GetWindowRect, GetWindowThreadProcessId,
 };
 
 /// `ABM_GETTASKBARPOS` — defined locally to avoid depending on its export location.
@@ -126,6 +127,16 @@ pub fn fullscreen_app_present() -> bool {
         // (2) Foreground window rect vs its monitor rect.
         let hwnd = GetForegroundWindow();
         if hwnd.is_null() {
+            return false;
+        }
+
+        // Never treat our OWN windows as "a fullscreen app to hide the strip for" — since the 3D
+        // 여행 window is a normal maximisable window, maximising it (or just sizing it to the
+        // monitor) used to make this watchdog mistake it for a game and hide the strip, stalling
+        // presence/friend/crop subscriptions until the user un-maximised it.
+        let mut owner_pid: u32 = 0;
+        GetWindowThreadProcessId(hwnd, &mut owner_pid);
+        if owner_pid == GetCurrentProcessId() {
             return false;
         }
 

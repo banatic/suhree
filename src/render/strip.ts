@@ -1,4 +1,4 @@
-import { store, toast, currentToast, bandHeightCss, bandDock, coins, type PanelKind } from "../state";
+import { store, toast, currentToast, bandHeightCss, bandDock, coins, formatCoins, type PanelKind } from "../state";
 import { BALANCE } from "../config/balance";
 import { stageOf, tierOf, plant, harvest, msToRipe, type Stage } from "../game/crops";
 import {
@@ -249,7 +249,7 @@ function hudLayout(L: BandLayout): { coin: Rect; buttons: Btn[]; barYOpen: numbe
   const chipH = HUD_H - 8;
   const chipY = barYOpen + (HUD_H - chipH) / 2;
   const gap = 6;
-  const coinW = 28 + String(coins()).length * 9;
+  const coinW = 28 + formatCoins(coins()).length * 9;
   const parts = visibleHudLabels().map((b) => {
     const label = hudLabelFor(b);
     return { ...b, label, w: chipW(label, b.id === "seed" ? 12 : 0) };
@@ -647,7 +647,7 @@ function drawHUD(c: CanvasRenderingContext2D, L: BandLayout): void {
   c.font = `bold 14px ${FONT}`;
   c.textBaseline = "middle";
   c.textAlign = "left";
-  c.fillText(String(coins()), hud.coin.x + 22, coinY + hud.coin.h / 2 + 1);
+  c.fillText(formatCoins(coins()), hud.coin.x + 22, coinY + hud.coin.h / 2 + 1);
 
   // labeled chips, staggered left→right
   for (let i = 0; i < hud.buttons.length; i++) {

@@ -445,7 +445,7 @@ export const BALANCE = {
 
   economy: {
     startingCoins: 50,
-    maxCoins: 1_000_000_000, // mirrors the security rule bound
+    maxCoins: 1_000_000_000_000_000, // 1000조 — mirrors the security rule bound; still exact under 2^53
   },
 
   market: {

@@ -100,13 +100,23 @@ function onChat(m: TravelChatMsg): void {
   const log = $("chatlog");
   const row = document.createElement("div");
   row.className = "chat-row";
-  row.innerHTML = `<b>${esc(m.nick)}</b> ${esc(m.text)}`;
+  const nick = document.createElement("b");
+  nick.textContent = m.nick;
+  row.appendChild(nick);
+  if (m.img) {
+    const img = document.createElement("img");
+    img.className = "chat-thumb";
+    img.src = m.img;
+    row.appendChild(img);
+  }
+  if (m.text) row.appendChild(document.createTextNode(" " + m.text));
   log.appendChild(row);
   while (log.children.length > 40) log.removeChild(log.firstChild!);
   log.scrollTop = log.scrollHeight;
   // at=0 은 입장 전 백로그 — 말풍선은 실시간 메시지만
   if (m.at > 0 && (entities.has(m.uid) || m.uid === me?.uid)) {
-    bubbles.set(m.uid, { text: m.text.slice(0, 60), until: Date.now() + 5000 });
+    const bubbleText = m.text ? m.text.slice(0, 60) : m.img ? "📷 사진" : "";
+    if (bubbleText) bubbles.set(m.uid, { text: bubbleText, until: Date.now() + 5000 });
   }
 }
 

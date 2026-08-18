@@ -6,8 +6,10 @@ import {
   bandHeightCss,
   bandDock,
   coins,
+  formatCoins,
   setChatNotify,
   setSoundEnabled,
+  setSelectedSeedTier,
   type PanelKind,
   type FriendData,
   type ChatMessage,
@@ -27,7 +29,7 @@ import { levelCost, plotCost, cropClicksToSteal, evictHitsNeeded } from "../game
 import { addFriendByCode } from "../friends/add";
 import { setNickname } from "../firebase/auth";
 import { startRaid } from "../raid/controller";
-import { sendChat } from "../firebase/chat";
+import { sendChat, isRaidMsg, onChatChanged } from "../firebase/chat";
 import { compressPastedImage } from "./imageCompress";
 import { setPreferredMonitor, hideStrip, isTauri } from "../platform/tauri";
 import { publishHitRegions } from "./strip";
@@ -67,6 +69,12 @@ let chatLeaveTimer = 0;
 const CHAT_LEAVE_GRACE_MS = 900;
 // Which folded 서리 groups the user has expanded (keyed by the run's first message id).
 const expandedRaidGroups = new Set<string>();
+
+// Repaint the open chat panel the instant a fresh snapshot lands, instead of waiting on the 0.5s
+// ticker below — that ticker is a plain setInterval, which Chromium throttles to ~once/min once this
+// window loses focus (e.g. while the 3D travel window is active), so without this the panel could sit
+// stale for up to a minute after a message the travel window already shows live.
+onChatChanged(() => refreshChat());
 
 function ensurePanel(): HTMLDivElement {
   if (!panelEl) {
@@ -347,7 +355,7 @@ function shopPanel(): HTMLElement {
     const tile = el("div", {
       class: `seed-tile${selected ? " sel" : ""}${t.special ? " special" : ""}`,
       onclick: () => {
-        store.selectedSeedTier = t.id;
+        setSelectedSeedTier(t.id);
         toast(`씨앗 선택: ${t.label}`);
         renderPanels();
       },
@@ -672,13 +680,8 @@ function fmtChatTime(at: number): string {
 }
 
 // 서리 announcements are auto-posted to the same room, so a busy server buries real chat under raid
-// spam. Detect them heuristically (their fixed emoji-led format) and fold consecutive ones — the
+// spam. isRaidMsg (firebase/chat.ts) detects them heuristically; here we fold consecutive ones — the
 // raids sandwiched between two human messages — into one collapsible summary row.
-const RAID_PREFIXES = ["🌾", "🚨", "⏱️", "🌿"];
-function isRaidMsg(text: string): boolean {
-  return RAID_PREFIXES.some((p) => text.startsWith(p)) && text.includes("님 밭");
-}
-
 function appendChatMsg(m: ChatMessage): void {
   if (!chatListEl) return;
   const mine = m.uid === store.uid;
@@ -830,7 +833,7 @@ function rankingPanel(): HTMLElement {
         { class: `rank-row${e.me ? " rank-me" : ""}` },
         el("span", { class: "rank-num" }, medals[i] || `${i + 1}`),
         nickWithTitle(e.nick + (e.me ? " (나)" : ""), e.titleId),
-        el("span", { class: "rank-coin" }, `${e.coins}💰`),
+        el("span", { class: "rank-coin" }, `${formatCoins(e.coins)}💰`),
       ),
     );
   });
@@ -986,7 +989,7 @@ function raidlogPanel(): HTMLElement {
           "div",
           { class: cls },
           grow,
-          el("span", { class: "raidlog-coin" }, `+${e.coins}💰`),
+          el("span", { class: "raidlog-coin" }, `+${formatCoins(e.coins)}💰`),
           el("span", { class: "chat-time" }, fmtChatTime(e.at)),
         ),
       );
@@ -1053,7 +1056,7 @@ function statLine(label: string, b: StatBucket, dir: "out" | "in"): HTMLElement 
   return row(
     el("span", { class: "stat-dir", style: `color:${color};font-weight:bold` }, label),
     el("span", { class: "grow small muted" }, `${b.raids}회 · 작물 ${b.crops}개`),
-    el("span", { class: "small", style: `color:${color};font-weight:bold` }, `${sign}${b.coins}💰`),
+    el("span", { class: "small", style: `color:${color};font-weight:bold` }, `${sign}${formatCoins(b.coins)}💰`),
   );
 }
 
@@ -1348,7 +1351,7 @@ function settingsPanel(): HTMLElement {
       el("div", { class: "card-title" }, "내 정보"),
       el("div", {}, `닉네임: ${store.user?.nickname ?? ""}`),
       el("div", {}, `친구코드: ${store.user?.friendCode ?? ""}`),
-      el("div", { class: "muted small" }, `코인: ${coins()}`),
+      el("div", { class: "muted small" }, `코인: ${formatCoins(coins())}`),
     ),
   );
 

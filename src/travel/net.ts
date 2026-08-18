@@ -16,6 +16,8 @@ import {
   type Unsubscribe,
 } from "firebase/database";
 import { r, paths } from "../firebase/db";
+import { isRaidMsg, parseChatSnapshot } from "../firebase/chat";
+import { BALANCE } from "../config/balance";
 import { entities, me, createEnt, removeEnt, applyNetSample, startEmote, type Ent } from "./engine";
 
 const SEND_MS = 125; // 8Hz — 습격 커서(10Hz)보다 살짝 낮게 (Spark 쓰기 예산)
@@ -35,6 +37,7 @@ export interface TravelChatMsg {
   uid: string;
   nick: string;
   text: string;
+  img?: string;
   at: number;
 }
 
@@ -98,13 +101,10 @@ export function startNet(
     onRosterCb?.();
   });
 
-  /* 마을 채팅 구독 — 말풍선 + 로그 */
-  chatSub = onValue(query(r(paths.chat()), limitToLast(30)), (snap) => {
-    const v = (snap.val() as Record<string, any>) || {};
-    const msgs = Object.entries(v)
-      .map(([id, m]: [string, any]) => ({ id, uid: m.uid, nick: m.nick, text: m.text || "", at: m.at || 0 }))
-      .filter((m) => m.text)
-      .sort((a, b) => a.at - b.at);
+  /* 마을 채팅 구독 — 말풍선 + 로그. parseChatSnapshot(본체 chat.ts 공용)로 파싱해야 두 창의
+   * 채팅 내용(이미지·필드 매핑)이 어긋나지 않는다. keep 크기도 본체와 동일하게 맞춘다. */
+  chatSub = onValue(query(r(paths.chat()), limitToLast(BALANCE.chat.keep)), (snap) => {
+    const msgs = parseChatSnapshot(snap.val()).filter((m) => (m.text || m.img) && !isRaidMsg(m.text));
     if (!chatPrimed) {
       // 첫 스냅샷은 과거 로그 — 말풍선 없이 로그에만 채운다
       chatPrimed = true;
@@ -118,7 +118,7 @@ export function startNet(
       onChatCb?.(m);
     }
     if (chatSeen.size > 500) {
-      // limitToLast(30) 밖으로 밀려난 옛 id 정리 (메모리만의 문제라 대충 앞에서부터)
+      // limitToLast(BALANCE.chat.keep) 밖으로 밀려난 옛 id 정리 (메모리만의 문제라 대충 앞에서부터)
       for (const id of chatSeen) {
         chatSeen.delete(id);
         if (chatSeen.size <= 250) break;
