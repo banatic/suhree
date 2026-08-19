@@ -74,7 +74,14 @@ const expandedRaidGroups = new Set<string>();
 // ticker below — that ticker is a plain setInterval, which Chromium throttles to ~once/min once this
 // window loses focus (e.g. while the 3D travel window is active), so without this the panel could sit
 // stale for up to a minute after a message the travel window already shows live.
-onChatChanged(() => refreshChat());
+//
+// Deferred via queueMicrotask: panels.ts <-> firebase/chat.ts (via render/chatPopup.ts) form a module
+// cycle, so depending on which side the bundler reaches first, calling onChatChanged() synchronously
+// at module-eval time can run BEFORE chat.ts has finished initializing its own `chatListeners` set —
+// a real crash seen as "ReferenceError: Cannot access 'chatListeners' before initialization", which
+// aborts this whole module's evaluation (blank/frozen strip). Deferring to a microtask runs this after
+// the entire synchronous import graph has finished evaluating, so the ordering can't matter anymore.
+queueMicrotask(() => onChatChanged(() => refreshChat()));
 
 function ensurePanel(): HTMLDivElement {
   if (!panelEl) {

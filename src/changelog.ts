@@ -9,6 +9,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.4.3",
+    date: "2026-08-19",
+    items: [
+      "🚨 0.4.2에서 실행은 되지만 스트립(밭)이 아예 안 뜨던 치명적 버그를 긴급 수정했어요 — 죄송합니다!",
+    ],
+  },
+  {
     version: "0.4.2",
     date: "2026-08-19",
     items: [
