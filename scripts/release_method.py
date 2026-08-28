@@ -417,9 +417,8 @@ if __name__ == "__main__":
     CONFIG = ReleaseConfig(
         version="patch",
         notes=(
-            "👋 친구가 게임에 접속하면 채팅창에 알려줘요.
-"
-            "🌱 씨앗을 심을 때 빠르게 여러 번 클릭하면 코인이 중복으로 빠져나가던 문제를 고쳌어요."
+            "👋 친구가 게임에 접속하면 채팅창에 알려줘요.\n"
+            "🌱 씨앗을 심을 때 빠르게 여러 번 클릭하면 코인이 중복으로 빠져나가던 문제를 고쳤어요."
         ),
         pub_date=None,  # None이면 현재 UTC 시간 사용
         skip_build=False,
