@@ -9,6 +9,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.4.4",
+    date: "2026-08-28",
+    items: [
+      "👋 친구가 게임에 접속하면 채팅창에 알려줘요 — 누가 놓어왔는지 바로 보여요.",
+      "🌱 씨앗을 심을 때 빠르게 여러 번 클릭하면 코인이 중복으로 빠져나가던 문제를 고쳌어요.",
+    ],
+  },
+  {
     version: "0.4.3",
     date: "2026-08-19",
     items: [

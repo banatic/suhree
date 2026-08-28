@@ -523,6 +523,19 @@ body {
   white-space: nowrap;
 }
 
+/* 접속 알림 — a friend (or I) arrived. A quiet centred system row, deliberately lighter than a
+   chat bubble so a burst of arrivals never drowns out real conversation. */
+.chat-join {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 11px;
+  color: #6b5838;
+  opacity: 0.9;
+  padding: 1px 0;
+}
+
 /* Folded 서리 announcements (collapsed run between real chat lines). */
 .chat-raid-fold {
   font-size: 12px;

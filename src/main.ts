@@ -5,7 +5,7 @@ import { setupPresence } from "./firebase/presence";
 import { initServerTime } from "./firebase/time";
 import { subscribeSelf } from "./game/sync";
 import { subscribeFriends } from "./friends/list";
-import { subscribeChat } from "./firebase/chat";
+import { subscribeChat, announceJoin } from "./firebase/chat";
 import { subscribeRaidLog } from "./firebase/raidlog";
 import { startDefenseWatch } from "./raid/controller";
 import { startLoop } from "./game/loop";
@@ -83,6 +83,8 @@ async function boot(): Promise<void> {
     store.ready = true;
     markPanelsDirty();
     toast(`${user.nickname}님 환영해요! 친구코드 ${user.friendCode}`, 5000);
+    // Tell the village I'm here, so friends see it in their chat (self-throttled; see announceJoin).
+    void announceJoin();
   } catch (e) {
     console.error("boot failed", e);
     store.ready = true; // still show the band so the user sees something

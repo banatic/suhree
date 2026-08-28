@@ -56,6 +56,11 @@ export function ripeValue(tier: number): number {
 
 // ── Actions ──────────────────────────────────────────────────────────────────
 
+// Slots with a plant/harvest write in flight. Both actions await a coin transaction and a DB
+// write before `store.crops` reflects the result, so without this a rapid double-click on the
+// same slot passes the "empty slot" check twice and pays for the seed twice.
+const busySlots = new Set<number>();
+
 export async function plant(uid: string, slot: number, tier: number): Promise<boolean> {
   const t = tierOf(tier);
   if (!t) return false;
@@ -67,16 +72,28 @@ export async function plant(uid: string, slot: number, tier: number): Promise<bo
     toast("이미 작물이 있어요");
     return false;
   }
-  if (!(await trySpend(uid, t.price))) {
-    toast("코인이 부족해요");
-    return false;
+  if (busySlots.has(slot)) return false; // extra click while this slot is still being written
+  busySlots.add(slot);
+  try {
+    if (!(await trySpend(uid, t.price))) {
+      toast("코인이 부족해요");
+      return false;
+    }
+    try {
+      // serverTimestamp keeps stage agreement across players (raider reads plantedAt).
+      await set(r(paths.crop(uid, slot)), { tier, plantedAt: serverTimestamp() });
+    } catch {
+      await addCoins(uid, t.price); // write failed → nothing was planted, give the seed cost back
+      toast("씨앗을 심지 못했어요");
+      return false;
+    }
+    store.crops[String(slot)] = { tier, plantedAt: Date.now() }; // optimistic; listener corrects
+    toast(`${t.label} 씨앗을 심었어요`);
+    playPlant();
+    return true;
+  } finally {
+    busySlots.delete(slot);
   }
-  // serverTimestamp keeps stage agreement across players (raider reads plantedAt).
-  await set(r(paths.crop(uid, slot)), { tier, plantedAt: serverTimestamp() });
-  store.crops[String(slot)] = { tier, plantedAt: Date.now() }; // optimistic; listener corrects
-  toast(`${t.label} 씨앗을 심었어요`);
-  playPlant();
-  return true;
 }
 
 export async function harvest(uid: string, slot: number): Promise<number> {
@@ -84,11 +101,19 @@ export async function harvest(uid: string, slot: number): Promise<number> {
   const c = store.crops[key];
   if (!c) return 0;
   if (stageOf(c.plantedAt, c.tier, Date.now()) !== "ripe") return 0;
+  if (busySlots.has(slot)) return 0;
   const value = sellValue(c.tier); // base × today's market factor
   // Remove locally FIRST so a rapid double-click can't harvest (and credit) the same crop twice.
   delete store.crops[key];
-  await remove(r(paths.crop(uid, slot)));
-  await addCoins(uid, value); // direct harvest = 100% of today's sell price
+  // Hold the slot until the write lands, so the clicks that follow a harvest can't start a plant
+  // against a slot the server still thinks is occupied.
+  busySlots.add(slot);
+  try {
+    await remove(r(paths.crop(uid, slot)));
+    await addCoins(uid, value); // direct harvest = 100% of today's sell price
+  } finally {
+    busySlots.delete(slot);
+  }
   void recordDex(uid, c.tier, "harvest");
   toast(`+${value} 코인`);
   playHarvest();

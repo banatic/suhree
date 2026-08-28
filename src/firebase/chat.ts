@@ -17,6 +17,27 @@ export function isRaidMsg(text: string): boolean {
   return RAID_PREFIXES.some((p) => text.startsWith(p)) && text.includes("님 밭");
 }
 
+// 접속 알림. A player announces their OWN arrival once per launch (announceJoin below) instead of
+// every reader deriving it from presence — one writer means one line, and readers can't disagree when
+// the online threshold flaps. Encoded as a sentinel TEXT (not a new field): the chat security rule
+// has `"$other": { ".validate": false }`, so any extra field would need a rules deploy to even write.
+export const JOIN_TEXT = "👋 접속했어요";
+export function isJoinMsg(text: string): boolean {
+  return text === JOIN_TEXT;
+}
+
+/** The room is global, so a join line is only shown when I actually know the person — a friend, or
+ *  me. Otherwise every stranger's launch would spam the village chat. */
+export function joinIsRelevant(uid: string): boolean {
+  return uid === store.uid || store.friends.some((f) => f.uid === uid);
+}
+
+/** Join lines from strangers exist in the room but are invisible here — no render, no popup, no
+ *  unread dot. One predicate so all three stay in agreement. */
+export function isHiddenChatMsg(m: ChatMessage): boolean {
+  return isJoinMsg(m.text) && !joinIsRelevant(m.uid);
+}
+
 /** Parse + order-sort a raw `chat` RTDB snapshot. The one normalization path for every reader
  *  (village chat panel, travel window) so they can never drift on field mapping again. */
 export function parseChatSnapshot(v: Record<string, any> | null | undefined): ChatMessage[] {
@@ -79,13 +100,15 @@ export function subscribeChat(): void {
 
     const prevNewest = store.chat.length ? store.chat[store.chat.length - 1].at : 0;
     const newest = next.length ? next[next.length - 1].at : 0;
-    const grew = newest > prevNewest && next.some((m) => m.uid !== store.uid);
+    const grew = newest > prevNewest && next.some((m) => m.uid !== store.uid && !isHiddenChatMsg(m));
     if (grew && store.ui.panel !== "chat") store.chatUnread = true;
 
     // Pop a KakaoTalk-style toast for each freshly-arrived message from someone else (skip the
     // first snapshot = backlog, and the last few only so a reconnect burst can't spam the corner).
     if (primed) {
-      const incoming = next.filter((m) => m.at > prevNewest && m.uid !== store.uid).slice(-3);
+      const incoming = next
+        .filter((m) => m.at > prevNewest && m.uid !== store.uid && !isHiddenChatMsg(m))
+        .slice(-3);
       for (const m of incoming) {
         const preview = m.img ? (m.text ? "📷 " + m.text : "📷 사진") : m.text;
         showChatPopup(m.nick || "농부", preview);
@@ -111,6 +134,23 @@ export async function announceToChat(text: string): Promise<void> {
   } catch {
     /* ignore transient write errors — the raid loot is already settled */
   }
+}
+
+// Last launch that announced itself, so a relaunch inside `joinQuietMs` stays quiet. Persisted:
+// the whole point is to survive the process restart that an app relaunch (or auto-update) is.
+const JOIN_AT_KEY = "suhree_join_announced_at";
+let joinAnnounced = false; // once per process, so a websocket reconnect can't re-fire it
+
+/** Post my own "접속했어요" line to the room — at most once per launch, and not at all if this
+ *  client already announced within `joinQuietMs`. Fire-and-forget; failure is silent (the notice is
+ *  a nicety, and the next launch will announce anyway). */
+export async function announceJoin(): Promise<void> {
+  if (joinAnnounced) return;
+  joinAnnounced = true;
+  const prev = Number(localStorage.getItem(JOIN_AT_KEY) || 0);
+  if (Number.isFinite(prev) && Date.now() - prev < BALANCE.chat.joinQuietMs) return;
+  localStorage.setItem(JOIN_AT_KEY, String(Date.now()));
+  await announceToChat(JOIN_TEXT);
 }
 
 /** Queue one line for the room, optionally with a pasted image (inline JPEG data URL). Sends

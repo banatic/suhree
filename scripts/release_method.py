@@ -417,7 +417,9 @@ if __name__ == "__main__":
     CONFIG = ReleaseConfig(
         version="patch",
         notes=(
-            "🚨 0.4.2에서 실행은 되지만 스트립(밭)이 아예 안 뜨던 치명적 버그를 긴급 수정했어요 — 죄송합니다!"
+            "👋 친구가 게임에 접속하면 채팅창에 알려줘요.
+"
+            "🌱 씨앗을 심을 때 빠르게 여러 번 클릭하면 코인이 중복으로 빠져나가던 문제를 고쳌어요."
         ),
         pub_date=None,  # None이면 현재 UTC 시간 사용
         skip_build=False,

@@ -103,6 +103,10 @@ export const BALANCE = {
     keep: 60, // limitToLast on the reader
     maxLen: 200, // per-message character cap (mirrors the security rule)
     cooldownMs: 800, // local anti-spam between sends
+    // 접속 알림: the client posts one "들어왔어요" line per launch so friends see it in chat.
+    // A relaunch inside this window stays silent — restarting the app (or an auto-update) must not
+    // spam the room, and within `presence.onlineThresholdMs` friends never even saw you leave.
+    joinQuietMs: 30 * 60 * 1000,
   },
 
   raidLog: {

@@ -16,7 +16,7 @@ import {
   type Unsubscribe,
 } from "firebase/database";
 import { r, paths } from "../firebase/db";
-import { isRaidMsg, parseChatSnapshot } from "../firebase/chat";
+import { isRaidMsg, isJoinMsg, parseChatSnapshot } from "../firebase/chat";
 import { BALANCE } from "../config/balance";
 import { entities, me, createEnt, removeEnt, applyNetSample, startEmote, type Ent } from "./engine";
 
@@ -104,7 +104,10 @@ export function startNet(
   /* 마을 채팅 구독 — 말풍선 + 로그. parseChatSnapshot(본체 chat.ts 공용)로 파싱해야 두 창의
    * 채팅 내용(이미지·필드 매핑)이 어긋나지 않는다. keep 크기도 본체와 동일하게 맞춘다. */
   chatSub = onValue(query(r(paths.chat()), limitToLast(BALANCE.chat.keep)), (snap) => {
-    const msgs = parseChatSnapshot(snap.val()).filter((m) => (m.text || m.img) && !isRaidMsg(m.text));
+    /* 서리 공지와 접속 알림은 말풍선으로 띄울 말이 아니다 — 둘 다 거른다. */
+    const msgs = parseChatSnapshot(snap.val()).filter(
+      (m) => (m.text || m.img) && !isRaidMsg(m.text) && !isJoinMsg(m.text),
+    );
     if (!chatPrimed) {
       // 첫 스냅샷은 과거 로그 — 말풍선 없이 로그에만 채운다
       chatPrimed = true;

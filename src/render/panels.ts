@@ -29,7 +29,7 @@ import { levelCost, plotCost, cropClicksToSteal, evictHitsNeeded } from "../game
 import { addFriendByCode } from "../friends/add";
 import { setNickname } from "../firebase/auth";
 import { startRaid } from "../raid/controller";
-import { sendChat, isRaidMsg, onChatChanged } from "../firebase/chat";
+import { sendChat, isRaidMsg, isJoinMsg, isHiddenChatMsg, onChatChanged } from "../firebase/chat";
 import { compressPastedImage } from "./imageCompress";
 import { setPreferredMonitor, hideStrip, isTauri } from "../platform/tauri";
 import { publishHitRegions } from "./strip";
@@ -735,6 +735,21 @@ export function getLightboxRect(): DOMRect | null {
   return null;
 }
 
+// 접속 알림 — a slim system row, not a chat bubble: it has no author speaking, and styling it like
+// one would make the room look busier than it is.
+function appendJoinMsg(m: ChatMessage): void {
+  if (!chatListEl) return;
+  const who = m.uid === store.uid ? "내가" : `${m.nick || "농부"}님이`;
+  chatListEl.append(
+    el(
+      "div",
+      { class: "chat-join" },
+      document.createTextNode(`👋 ${who} 접속했어요`),
+      el("span", { class: "chat-time" }, fmtChatTime(m.at)),
+    ),
+  );
+}
+
 function appendRaidGroup(run: ChatMessage[]): void {
   if (!chatListEl) return;
   const key = run[0].id;
@@ -772,13 +787,18 @@ function renderChatList(): void {
   if (!chatListEl) return;
   const atBottom = chatListEl.scrollHeight - chatListEl.scrollTop - chatListEl.clientHeight < 24;
   chatListEl.replaceChildren();
-  const msgs = store.chat;
+  // Drop strangers' 접속 알림 up front, so the "no messages yet" placeholder still shows when the
+  // room holds nothing but them.
+  const msgs = store.chat.filter((m) => !isHiddenChatMsg(m));
   if (msgs.length === 0) {
     chatListEl.append(el("div", { class: "muted" }, "아직 메시지가 없어요. 먼저 인사해 보세요!"));
   } else {
     let i = 0;
     while (i < msgs.length) {
-      if (isRaidMsg(msgs[i].text)) {
+      if (isJoinMsg(msgs[i].text)) {
+        appendJoinMsg(msgs[i]);
+        i++;
+      } else if (isRaidMsg(msgs[i].text)) {
         let j = i + 1;
         while (j < msgs.length && isRaidMsg(msgs[j].text)) j++;
         appendRaidGroup(msgs.slice(i, j));
