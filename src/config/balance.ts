@@ -117,6 +117,16 @@ export const BALANCE = {
     // so no lock and no victim is waiting on the drawing.
     grid: 64,
     maxLen: 1400,
+    // 공용 낙서장 — one shared wall for the whole server, reached from the chest in the raid view.
+    // Wider lattice than the card, so it needs two chars per coordinate (4 per point) and a
+    // correspondingly larger per-entry cap. Readers only pull the newest `keep` scribbles, and only
+    // while the board is open — it is NOT a live subscription like chat.
+    board: {
+      w: 256,
+      h: 160,
+      maxLen: 1600, // ≈400 points per scribble (mirrors the security rule)
+      keep: 60,
+    },
   },
 
   raidLog: {

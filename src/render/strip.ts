@@ -28,6 +28,7 @@ import { togglePanel, getPanelRect, getLightboxRect } from "./panels";
 import { getChatPopupRect } from "./chatPopup";
 import { getDoodleComposerRect } from "./doodleComposer";
 import { showDoodleCard, hideDoodleCard } from "./doodleCard";
+import { getBoardRect, toggleBoard, closeBoard, isBoardOpen } from "./doodleBoard";
 import { updateHitRegions, onStripHover, openTravelWindow, type NormRect } from "../platform/tauri";
 import { playClick, playWeedTick, playWeedClear } from "../sfx";
 
@@ -277,6 +278,9 @@ export function renderStrip(): void {
   // frame can never miss the trail reset / hit-region republish that a raid start/stop needs.
   if (store.raid.role !== lastRaidRole) {
     lastRaidRole = store.raid.role;
+    // The 낙서장 is reached from the raid view's chest, so it goes away with the raid — otherwise it
+    // would linger with no chest to close it back onto, and overlap the card composer that follows.
+    if (store.raid.role !== "raiding" && isBoardOpen()) closeBoard();
     ghostTrail.reset(); // the ghost we're trailing just changed (or vanished)
     raiderTrails.clear(); // drop any per-intruder trails from a previous defence
     grazeAt.clear();
@@ -319,6 +323,7 @@ export function renderStrip(): void {
   clearCanvas(c, L); // wipe the whole overlay — the strip draws outside the band too (see clearCanvas)
   if (store.hiddenFullscreen || !store.ready) {
     hideDoodleCard(); // a DOM card would otherwise outlive the canvas it belongs to
+    if (isBoardOpen()) closeBoard(); // ditto: a fullscreen app is up, nothing of ours should show
     return; // cleared above; nothing to draw yet
   }
 
@@ -865,6 +870,7 @@ function drawRaidingView(c: CanvasRenderingContext2D, L: BandLayout): void {
 
   drawRaiderHP(c, L);
   drawRaidProgress(c, L, "#e8b94a");
+  drawBoardChest(c, L);
   drawActionButton(c, actionButtonRect(L, "left"), "도망치기", "#caa86a", "#2e2117");
 }
 
@@ -1238,6 +1244,11 @@ function onClick(e: MouseEvent): void {
   if (isCollapsed()) return; // collapsed: only the tab is interactive; everything else fell through
 
   if (store.raid.role === "raiding") {
+    if (inRect(x, y, boardChestRect(L))) {
+      playClick();
+      toggleBoard();
+      return;
+    }
     if (inRect(x, y, actionButtonRect(L, "left"))) {
       void cancelRaid();
       return;
@@ -1438,6 +1449,55 @@ function cropHitRect(L: BandLayout, s: Slot, sp: Sprite): Rect | null {
   return { x: x0, y: top, w: x1 - x0, h: Math.abs(yB - yA) + padY * 2 };
 }
 
+/** The 낙서장 chest, parked at the band's right edge during a raid. Sits between the HP bar (top
+ *  right) and the timer bar (bottom), which is the only free real estate on a 48px band. */
+function boardChestRect(L: BandLayout): Rect {
+  const w = 26;
+  const h = 18;
+  return { x: L.W - w - 10, y: L.bandY + L.bandH - h - 9, w, h };
+}
+
+/** A little treasure chest — click it for the shared 낙서장. Breathes so it reads as interactive
+ *  even on a plot that has been picked clean (which is exactly when there's nothing else to do). */
+function drawBoardChest(c: CanvasRenderingContext2D, L: BandLayout): void {
+  const r = boardChestRect(L);
+  const pulse = 0.72 + 0.28 * Math.sin(store.now / 420);
+  c.save();
+  // caption to the left, so the chest itself stays a clean silhouette at this size
+  c.globalAlpha = 0.85 * pulse;
+  c.fillStyle = "#ffe9a8";
+  c.font = `bold 9px ${FONT}`;
+  c.textAlign = "right";
+  c.textBaseline = "middle";
+  c.fillText("낙서장", r.x - 4, r.y + r.h / 2);
+  c.textAlign = "left";
+
+  c.globalAlpha = 1;
+  const lidH = Math.round(r.h * 0.38);
+  c.fillStyle = "#8a5a2b";
+  roundRect(c, r.x, r.y, r.w, r.h, 3);
+  c.fill();
+  c.fillStyle = "#a9713a";
+  roundRect(c, r.x, r.y, r.w, lidH + 2, 3);
+  c.fill();
+  c.strokeStyle = "rgba(40,24,10,0.75)";
+  c.lineWidth = 1.5;
+  roundRect(c, r.x, r.y, r.w, r.h, 3);
+  c.stroke();
+  // band + clasp
+  c.fillStyle = "#e8c079";
+  c.fillRect(r.x + r.w / 2 - 2.5, r.y, 5, r.h);
+  c.fillStyle = "#5b3a18";
+  c.fillRect(r.x + r.w / 2 - 1.5, r.y + lidH - 1, 3, 4);
+  // a soft glow so the eye finds it
+  c.globalAlpha = 0.45 * pulse;
+  c.strokeStyle = "#ffe9a8";
+  c.lineWidth = 2;
+  roundRect(c, r.x - 2, r.y - 2, r.w + 4, r.h + 4, 5);
+  c.stroke();
+  c.restore();
+}
+
 /** A snug box around a weed (owner clicks it to pull), sized to the drawn stalks. */
 function weedHitRect(L: BandLayout, s: Slot): Rect {
   const sc = L.scale;
@@ -1537,6 +1597,9 @@ export function publishHitRegions(): void {
 
   const dc = getDoodleComposerRect();
   if (dc) push(dc.left, dc.top, dc.width, dc.height);
+
+  const bd = getBoardRect();
+  if (bd) push(bd.left, bd.top, bd.width, bd.height);
 
   const lb = getLightboxRect();
   if (lb) push(lb.left, lb.top, lb.width, lb.height);

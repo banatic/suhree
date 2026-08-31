@@ -9,6 +9,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.4.7",
+    date: "2026-08-31",
+    items: [
+      "🧰 서리하러 들어가면 오른쪽에 상자가 생겼어요 — 누르면 모두가 함께 쓰는 공용 낙서장이 열려요.",
+      "🖍️ 낙서장은 큼직해서 여러 명이 같이 그릴 수 있고, 사람마다 색이 달라요. 내가 남긴 건 언제든 지울 수 있어요.",
+      "🥱 털 게 없는 빈 밭에 들어가도 이제 할 게 있어요!",
+    ],
+  },
+  {
     version: "0.4.6",
     date: "2026-08-31",
     items: [

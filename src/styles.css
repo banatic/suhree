@@ -750,6 +750,81 @@ body {
   background: #ddd4c2;
 }
 
+/* ── 공용 낙서장 (opened from the raid view's chest) ───────── */
+
+#doodle-board {
+  position: fixed;
+  z-index: 41;
+  display: none;
+  padding: 10px 12px 12px;
+  background: linear-gradient(var(--parch), var(--parch2));
+  border: 3px solid var(--wood);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+}
+
+#doodle-board .db-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-weight: bold;
+  color: var(--wood);
+  margin-bottom: 2px;
+}
+
+#doodle-board .db-close {
+  background: #cfc6b4;
+  color: #6a6048;
+}
+#doodle-board .db-close:hover {
+  background: #ddd4c2;
+}
+
+#doodle-board .db-meta {
+  font-size: 12px;
+  color: #6b5838;
+  margin-bottom: 6px;
+}
+#doodle-board .db-meta.full {
+  color: #b5651d;
+  font-weight: bold;
+}
+
+/* The wall itself. crosshair + touch-action:none so a drag draws instead of selecting or scrolling
+   whatever sits under the overlay. */
+#doodle-board .db-pad {
+  display: block;
+  background: #fffdf6;
+  border: 2px solid var(--wood);
+  border-radius: 8px;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+#doodle-board .db-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* Destructive, and it hits the server rather than the local sketch — pushed away from the
+   undo/clear pair so it can't be fat-fingered. */
+#doodle-board .db-erase {
+  margin-left: auto;
+  background: #d9b3a6;
+  color: #6a3a2a;
+}
+#doodle-board .db-erase:hover {
+  background: #e6c4b8;
+}
+#doodle-board .db-erase:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* ── 낙서 카드 (hovering a weed someone left) ─────────────── */
 
 /* Pure decoration floating over the click-through area — pointer-events:none is load-bearing, not
