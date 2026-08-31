@@ -1,11 +1,11 @@
 {
-    "version": "0.4.5",
-    "notes": "🎨 서리하고 나면 마우스로 그림을 그려 남길 수 있어요 — 심고 간 잡초에 낙서 카드가 붙어요.\n👀 밭에 생긴 잡초에 마우스를 올리면 누가 뭘 그리고 갔는지 보여요.\n🗑️ 쪽지함은 낙서 카드로 대체됐어요. 사두신 쪽지 스킨은 낙서 카드 스킨으로 그대로 쓸 수 있어요.",
-    "pub_date": "2026-08-31T02:48:30.617Z",
+    "version": "0.4.6",
+    "notes": "⏳ 낙서를 그리다 시간이 다 돼서 창이 닫히던 문제를 고쳤어요 — 이제 시간제한 없이 그리세요.\n⚡ 서리 쿨다운도 그림을 다 그릴 때까지 기다리지 않고 바로 시작돼요.",
+    "pub_date": "2026-08-31T04:13:42.594Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkxMSHJBWmZOaVJUaHRmays1cEM4K25iUy9hN2FKdlJRcTJaZGgrU2RKck5pNjNKekRROHBGeVUxb1QrbmxEMHBlbFhsb29Oc3lCc3RFRnlXRS9tY2dJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4MTQ0ODEwCWZpbGU6c3VocmVlXzAuNC41X3g2NF9lbi1VUy5tc2kKcy9uQW9vRGZ3N1V6eVlNSTBHS2lFdW5IWTNEOHpLOHNlTjEvR3dkZXIvMUVMVWgwVEFPMGZaT1NSQlVYbVBBbjFJT2JNN1RWTExFdmlVMVRxbzlCQlE9PQo=",
-            "url": "https://github.com/banatic/suhree/releases/download/v0.4.5/suhree_0.4.5_x64_en-US.msi"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMk5CL3FLdXNzU1FjNnBqMGdSTW9vay85NDNGSzFtZjl2SlJFaE1ZWHQ5ZDFWVWFyWG52ajdOLzhKZFRpVncwd2xYeDFrRGl4Ty9jNEx2Z3Buenk4dHdVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4MTQ5ODA1CWZpbGU6c3VocmVlXzAuNC42X3g2NF9lbi1VUy5tc2kKeVZYYmEvZEpWdFBKU0hscEttTXZwMy9EWXJCUHE5cHJCVGtEQllSZUNGQ21randiTHhtZkM5MXBXc0p4Tk0yK2NVZUNSaWRiTzJHNWpOL0JQNVdHQVE9PQo=",
+            "url": "https://github.com/banatic/suhree/releases/download/v0.4.6/suhree_0.4.6_x64_en-US.msi"
         }
     }
 }
