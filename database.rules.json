@@ -126,15 +126,17 @@
     },
 
     "board": {
-      ".read": "auth != null",
-      "$scribbleId": {
-        ".write": "auth != null && ((!data.exists() && newData.child('uid').val() === auth.uid) || (!newData.exists() && data.child('uid').val() === auth.uid))",
-        ".validate": "newData.hasChild('art')",
-        "uid": { ".validate": "newData.isString() && newData.val() === auth.uid" },
-        "nick": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16" },
-        "art": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 1600" },
-        "at": { ".validate": "newData.isNumber()" },
-        "$other": { ".validate": false }
+      "$ownerUid": {
+        ".read": "auth != null",
+        "$scribbleId": {
+          ".write": "auth != null && ((!data.exists() && newData.child('uid').val() === auth.uid) || (!newData.exists() && (data.child('uid').val() === auth.uid || auth.uid === $ownerUid)))",
+          ".validate": "newData.hasChild('art')",
+          "uid": { ".validate": "newData.isString() && newData.val() === auth.uid" },
+          "nick": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16" },
+          "art": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 1600" },
+          "at": { ".validate": "newData.isNumber()" },
+          "$other": { ".validate": false }
+        }
       }
     },
 

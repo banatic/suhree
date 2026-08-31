@@ -117,10 +117,11 @@ export const BALANCE = {
     // so no lock and no victim is waiting on the drawing.
     grid: 64,
     maxLen: 1400,
-    // 공용 낙서장 — one shared wall for the whole server, reached from the chest in the raid view.
+    // 낙서장 — every farm has one. The chest in the raid view opens the VICTIM's board (raiding is
+    // how you leave someone a drawing); the HUD chip opens your own to read what visitors left.
     // Wider lattice than the card, so it needs two chars per coordinate (4 per point) and a
-    // correspondingly larger per-entry cap. Readers only pull the newest `keep` scribbles, and only
-    // while the board is open — it is NOT a live subscription like chat.
+    // correspondingly larger per-entry cap. Readers only pull the newest `keep` scribbles per
+    // board, and only while it is open — it is NOT a live subscription like chat.
     board: {
       w: 256,
       h: 160,

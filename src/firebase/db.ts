@@ -30,9 +30,9 @@ export const paths = {
     `raids/${targetUid}/raiders/${raiderUid}/evictHits`,
   cooldown: (targetUid: string, raiderUid: string) => `cooldowns/${targetUid}/${raiderUid}`,
   chat: () => `chat`,
-  // 공용 낙서장 — one shared wall, same append-only shape as chat.
-  board: () => `board`,
-  boardEntry: (id: string) => `board/${id}`,
+  // 낙서장 — every farm has one. Raiders scribble on the victim's; the owner reads their own.
+  board: (ownerUid: string) => `board/${ownerUid}`,
+  boardEntry: (ownerUid: string, id: string) => `board/${ownerUid}/${id}`,
   // 3D 여행 모드 — 접속 중인 플레이어의 실시간 상태 (위치/클립/감정표현)
   travel: () => `travel`,
   travelPlayer: (uid: string) => `travel/${uid}`,

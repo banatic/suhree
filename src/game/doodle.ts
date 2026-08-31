@@ -29,7 +29,7 @@ export interface Lattice {
 /** The weed card: square, one char per coordinate. */
 export const CARD: Lattice = { w: 64, h: 64, wide: false };
 
-/** The shared 낙서장: wide, two chars per coordinate. */
+/** A farm's 낙서장: wide, two chars per coordinate. */
 export const BOARD: Lattice = { w: BALANCE.doodle.board.w, h: BALANCE.doodle.board.h, wide: true };
 
 /** One pen-down..pen-up run, in lattice coordinates. A 1-point stroke is a dot. */

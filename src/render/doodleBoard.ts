@@ -1,7 +1,7 @@
-// 공용 낙서장 — the big shared wall, opened by clicking the chest in the raid view. Everyone draws
-// on the same surface; each scribble is stored on its own so several people can add to the wall at
-// once without overwriting each other, and every author gets a stable ink colour so the wall reads
-// as many hands rather than one.
+// 낙서장 — every farm's own wall. The chest in the raid view opens the VICTIM's board, so a raid is
+// how you leave someone a drawing; the HUD chip opens your own, to see what visitors left you. Each
+// scribble is stored on its own so several raiders can add to the same wall at once without
+// overwriting each other, and every author gets a stable ink colour so a wall reads as many hands.
 //
 // A standalone DOM overlay rather than a PanelKind: panels are rebuilt wholesale on markPanelsDirty
 // (which fires constantly during a raid), and a rebuild would wipe strokes mid-drawing.
@@ -18,7 +18,7 @@ import {
   inkColor,
   type Stroke,
 } from "../game/doodle";
-import { subscribeBoard, postToBoard, eraseMyBoardEntries, type BoardEntry } from "../firebase/board";
+import { subscribeBoard, postToBoard, eraseFromBoard, type BoardEntry } from "../firebase/board";
 import { publishHitRegions } from "./strip";
 import { playClick } from "../sfx";
 
@@ -28,11 +28,17 @@ let entries: BoardEntry[] = [];
 let mine: Stroke[] = [];
 let repaint: (() => void) | null = null;
 let refreshMeta: (() => void) | null = null;
+let owner = ""; // whose wall is on screen
 
 const PEN_W = 2;
 
 export function isBoardOpen(): boolean {
   return !!el && el.style.display !== "none";
+}
+
+/** The uid whose wall is open, or "" when none is. */
+export function openBoardOwner(): string {
+  return isBoardOpen() ? owner : "";
 }
 
 /** Bounding rect (CSS px) while open, or null. Consumed by strip.publishHitRegions. */
@@ -47,6 +53,7 @@ export function closeBoard(): void {
   }
   entries = [];
   mine = [];
+  owner = "";
   repaint = null;
   refreshMeta = null;
   if (el) {
@@ -56,21 +63,25 @@ export function closeBoard(): void {
   publishHitRegions();
 }
 
-export function toggleBoard(): void {
-  if (isBoardOpen()) closeBoard();
-  else openBoard();
+/** Open `ownerUid`'s wall, or close it if that same wall is already the one on screen. */
+export function toggleBoard(ownerUid: string, ownerNick: string): void {
+  if (openBoardOwner() === ownerUid) closeBoard();
+  else openBoard(ownerUid, ownerNick);
 }
 
-export function openBoard(): void {
-  if (isBoardOpen()) return;
+export function openBoard(ownerUid: string, ownerNick: string): void {
+  if (!ownerUid) return;
+  if (isBoardOpen()) closeBoard(); // switching walls — never blend two farms' scribbles
   if (!el) {
     el = document.createElement("div");
     el.id = "doodle-board";
     document.getElementById("app")!.appendChild(el);
   }
   const box = el;
+  owner = ownerUid;
   mine = [];
   entries = [];
+  const isMine = ownerUid === store.uid;
 
   // Sized to the lattice's aspect so nothing is stretched, and clamped to the window on small screens.
   const cssW = Math.min(BOARD.w * 2, window.innerWidth - 40);
@@ -79,7 +90,7 @@ export function openBoard(): void {
   const head = document.createElement("div");
   head.className = "db-head";
   const title = document.createElement("span");
-  title.textContent = "🧰 공용 낙서장";
+  title.textContent = isMine ? "🧰 내 낙서장" : `🧰 ${ownerNick || "농부"}님의 낙서장`;
   const close = document.createElement("button");
   close.className = "btn small db-close";
   close.textContent = "닫기";
@@ -117,9 +128,12 @@ export function openBoard(): void {
     const authors = new Set(entries.map((e) => e.uid));
     const used = encodedLength(mine, BOARD);
     const room = used >= BALANCE.doodle.board.maxLen - pointCost(BOARD);
+    const filled = room ? " · 내 낙서가 가득 찼어요" : "";
     meta.textContent = entries.length
-      ? `${authors.size}명이 ${entries.length}개를 남겼어요` + (room ? " · 내 낙서가 가득 찼어요" : "")
-      : "아직 아무도 안 그렸어요. 첫 낙서를 남겨보세요!";
+      ? `${authors.size}명이 ${entries.length}개를 남겼어요` + filled
+      : isMine
+        ? "아직 아무도 안 남겼어요. 서리하러 온 손님이 그려줄 거예요!"
+        : "아직 비어 있어요. 첫 낙서를 남겨보세요!";
     meta.classList.toggle("full", room);
   };
 
@@ -186,14 +200,16 @@ export function openBoard(): void {
     refreshMeta?.();
   });
 
-  const eraseMine = document.createElement("button");
-  eraseMine.className = "btn small db-erase";
-  eraseMine.textContent = "내 낙서 지우기";
-  eraseMine.addEventListener("click", () => {
-    eraseMine.disabled = true;
-    void eraseMyBoardEntries().then((n) => {
-      eraseMine.disabled = false;
-      toast(n ? `내 낙서 ${n}개를 지웠어요` : "지울 내 낙서가 없어요");
+  // On my own wall this wipes everything (a board strangers can draw on needs an owner who can
+  // clear it); on someone else's the rule only lets me take back what I drew.
+  const erase = document.createElement("button");
+  erase.className = "btn small db-erase";
+  erase.textContent = isMine ? "낙서장 비우기" : "내 낙서 지우기";
+  erase.addEventListener("click", () => {
+    erase.disabled = true;
+    void eraseFromBoard(ownerUid).then((n) => {
+      erase.disabled = false;
+      toast(n ? `낙서 ${n}개를 지웠어요` : "지울 낙서가 없어요");
     });
   });
 
@@ -207,7 +223,7 @@ export function openBoard(): void {
       return;
     }
     post.disabled = true;
-    void postToBoard(art).then((ok) => {
+    void postToBoard(ownerUid, art).then((ok) => {
       post.disabled = false;
       if (!ok) {
         toast("낙서를 남기지 못했어요");
@@ -223,7 +239,7 @@ export function openBoard(): void {
 
   const tools = document.createElement("div");
   tools.className = "db-tools";
-  tools.append(undo, clear, eraseMine, post);
+  tools.append(undo, clear, erase, post);
 
   box.replaceChildren(head, meta, cv, tools);
   box.style.display = "block";
@@ -242,7 +258,7 @@ export function openBoard(): void {
   refreshMeta();
   publishHitRegions();
 
-  unsub = subscribeBoard((list) => {
+  unsub = subscribeBoard(ownerUid, (list) => {
     entries = list;
     repaint?.();
     refreshMeta?.();

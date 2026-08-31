@@ -134,6 +134,7 @@ const HUD_LABELS: { id: string; label: string }[] = [
   { id: "friends", label: "친구" },
   { id: "chat", label: "채팅" },
   { id: "ranking", label: "랭킹" },
+  { id: "board", label: "낙서장" },
   { id: "cosmetics", label: "꾸미기" },
   { id: "dex", label: "도감" },
   { id: "raidlog", label: "서리기록" },
@@ -278,9 +279,10 @@ export function renderStrip(): void {
   // frame can never miss the trail reset / hit-region republish that a raid start/stop needs.
   if (store.raid.role !== lastRaidRole) {
     lastRaidRole = store.raid.role;
-    // The 낙서장 is reached from the raid view's chest, so it goes away with the raid — otherwise it
-    // would linger with no chest to close it back onto, and overlap the card composer that follows.
-    if (store.raid.role !== "raiding" && isBoardOpen()) closeBoard();
+    // A board belongs to one farm, so a role change always drops it: entering a raid must not leave
+    // my own wall on screen, and leaving one must not strand the victim's (with no chest left to
+    // close it, overlapping the card composer that follows).
+    if (isBoardOpen()) closeBoard();
     ghostTrail.reset(); // the ghost we're trailing just changed (or vanished)
     raiderTrails.clear(); // drop any per-intruder trails from a previous defence
     grazeAt.clear();
@@ -1246,7 +1248,8 @@ function onClick(e: MouseEvent): void {
   if (store.raid.role === "raiding") {
     if (inRect(x, y, boardChestRect(L))) {
       playClick();
-      toggleBoard();
+      // The victim's wall, not a shared one — raiding someone is how you leave them a drawing.
+      if (store.raid.targetUid) toggleBoard(store.raid.targetUid, store.raid.targetNick || "농부");
       return;
     }
     if (inRect(x, y, actionButtonRect(L, "left"))) {
@@ -1324,6 +1327,11 @@ function handleButton(id: string): void {
   // all tiers — the chip's colour dot still shows which seed is currently selected.
   if (id === "seed") {
     togglePanel("shop");
+    return;
+  }
+  // 낙서장 chip: 패널이 아니라 전용 오버레이(그리기 표면이라 패널 리빌드에 살아남아야 한다).
+  if (id === "board") {
+    toggleBoard(store.uid, store.user?.nickname || "나");
     return;
   }
   // 여행 chip: 패널이 아니라 별도의 3D 여행 창을 연다.

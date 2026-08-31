@@ -750,7 +750,7 @@ body {
   background: #ddd4c2;
 }
 
-/* ── 공용 낙서장 (opened from the raid view's chest) ───────── */
+/* ── 낙서장: a farm's wall (raid chest / HUD chip) ────────── */
 
 #doodle-board {
   position: fixed;
