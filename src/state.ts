@@ -18,6 +18,10 @@ export interface WeedData {
   at: number;
   nick?: string; // planter's nickname at plant time — shown as a tag above the weed ("다녀감" 도장)
   skin?: string; // planter's equipped 잡초 스킨 id (falls back to the default weed art if absent)
+  // 낙서 카드: the drawing the raider left, encoded by game/doodle.ts. Stamped onto every weed they
+  // planted here once the raid ends — hover the weed to see it. Absent = they skipped drawing.
+  art?: string;
+  cardSkin?: string; // planter's equipped card skin id — the card's "paper" (defaults to skin_plain)
 }
 
 export interface FriendData {
@@ -69,14 +73,6 @@ export interface UserRecord {
   // Crop 도감: per-tier { h: harvested count, s: { victimUid: stolen count } }.
   dex?: Record<string, { h?: number; s?: Record<string, number> }>;
   dexClaimed?: boolean; // completion bonus already paid out
-}
-
-export interface LeftMessage {
-  id: string;
-  from: string;
-  text: string;
-  at: number;
-  skin?: string;
 }
 
 export type RaidRole = "none" | "raiding" | "defending";
@@ -137,7 +133,6 @@ export type PanelKind =
   | "friends"
   | "chat"
   | "ranking"
-  | "messages"
   | "cosmetics"
   | "dex"
   | "raidlog"
@@ -152,7 +147,6 @@ export interface Store {
   crops: Record<string, CropData>;
   weeds: Record<string, WeedData>; // weeds raiders planted in MY plot (slot → weed)
   friends: FriendData[];
-  messages: LeftMessage[];
   chat: ChatMessage[];
   chatUnread: boolean;
   chatNotify: boolean; // show the corner popup for new chat messages
@@ -173,7 +167,6 @@ export const store: Store = {
   crops: {},
   weeds: {},
   friends: [],
-  messages: [],
   chat: [],
   chatUnread: false,
   chatNotify: localStorage.getItem(CHAT_NOTIFY_KEY) !== "0", // default on; "0" means muted

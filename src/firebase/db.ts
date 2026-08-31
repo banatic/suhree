@@ -29,7 +29,6 @@ export const paths = {
   raidRaiderEvictHits: (targetUid: string, raiderUid: string) =>
     `raids/${targetUid}/raiders/${raiderUid}/evictHits`,
   cooldown: (targetUid: string, raiderUid: string) => `cooldowns/${targetUid}/${raiderUid}`,
-  messages: (uid: string) => `messages/${uid}`,
   chat: () => `chat`,
   // 3D 여행 모드 — 접속 중인 플레이어의 실시간 상태 (위치/클립/감정표현)
   travel: () => `travel`,

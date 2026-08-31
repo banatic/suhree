@@ -26,7 +26,8 @@ import { cancelRaid, registerStealClick, registerEvictClick, registerEvictGraze 
 import { plantWeed, removeWeed } from "../game/weeds";
 import { togglePanel, getPanelRect, getLightboxRect } from "./panels";
 import { getChatPopupRect } from "./chatPopup";
-import { getLootNoteRect } from "./lootNote";
+import { getDoodleComposerRect } from "./doodleComposer";
+import { showDoodleCard, hideDoodleCard } from "./doodleCard";
 import { updateHitRegions, onStripHover, openTravelWindow, type NormRect } from "../platform/tauri";
 import { playClick, playWeedTick, playWeedClear } from "../sfx";
 
@@ -132,7 +133,6 @@ const HUD_LABELS: { id: string; label: string }[] = [
   { id: "friends", label: "친구" },
   { id: "chat", label: "채팅" },
   { id: "ranking", label: "랭킹" },
-  { id: "messages", label: "쪽지" },
   { id: "cosmetics", label: "꾸미기" },
   { id: "dex", label: "도감" },
   { id: "raidlog", label: "서리기록" },
@@ -317,12 +317,16 @@ export function renderStrip(): void {
 
   // ── Paint ─────────────────────────────────────────────────────────────────────
   clearCanvas(c, L); // wipe the whole overlay — the strip draws outside the band too (see clearCanvas)
-  if (store.hiddenFullscreen || !store.ready) return; // cleared above; nothing to draw yet
+  if (store.hiddenFullscreen || !store.ready) {
+    hideDoodleCard(); // a DOM card would otherwise outlive the canvas it belongs to
+    return; // cleared above; nothing to draw yet
+  }
 
   // Collapsed: the farm is tucked away and everything but the little brown tab passes clicks
   // through. Draw only the tab (click it to bring the farm back) and keep the HUD idle.
   if (isCollapsed()) {
     hudT = 0;
+    hideDoodleCard();
     drawCollapseTab(c, L);
     drawToast(c, L);
     maybeRepublishHitRegions(L);
@@ -337,6 +341,8 @@ export function renderStrip(): void {
   const k = 1 - Math.pow(1 - BALANCE.strip.hoverEase, dt / 16.67);
   hudT += (target - hudT) * k;
   if (hudT < 0.001) hudT = 0;
+
+  updateDoodleHover(L);
 
   if (store.raid.role === "raiding") drawRaidingView(c, L);
   else if (store.raid.role === "defending") drawDefendingView(c, L);
@@ -426,7 +432,7 @@ function contentSig(): string {
     const cr = s.crops[key];
     sig += "|" + key + cr.tier + stageOf(cr.plantedAt, cr.tier, s.now)[0];
   }
-  for (const key in s.weeds) sig += "|w" + key + (s.weeds[key].skin ?? "");
+  for (const key in s.weeds) sig += "|w" + key + (s.weeds[key].skin ?? "") + (s.weeds[key].art ? "*" : "");
   return sig;
 }
 
@@ -439,7 +445,7 @@ function drawFarmView(c: CanvasRenderingContext2D, L: BandLayout): void {
     if (store.weeds[key]) {
       drawShadow(c, s.cx, L.soilY, L.slotW);
       drawWeed(c, L, s, store.weeds[key].skin);
-      drawWeedTag(c, L, s, store.weeds[key].nick);
+      drawWeedTag(c, L, s, store.weeds[key].nick, !!store.weeds[key].art);
       const pulled = weedPullClicks[key] ?? 0;
       if (pulled > 0) drawStealPips(c, L, s, pulled, BALANCE.weed.removeClicks);
       continue;
@@ -589,10 +595,18 @@ function drawWeedTargetHint(c: CanvasRenderingContext2D, L: BandLayout, s: Slot)
   c.restore();
 }
 
-/** Small "○○ 다녀감" nickname stamp above a planted weed — marks who griefed this slot. */
-function drawWeedTag(c: CanvasRenderingContext2D, L: BandLayout, s: Slot, nick?: string): void {
+/** Small "○○ 다녀감" nickname stamp above a planted weed — marks who griefed this slot. A ✎
+ *  suffix means this weed carries a 낙서 카드; without it nobody would know to hover. */
+function drawWeedTag(
+  c: CanvasRenderingContext2D,
+  L: BandLayout,
+  s: Slot,
+  nick?: string,
+  hasArt = false,
+): void {
   if (!nick) return;
-  const text = nick.length > 8 ? nick.slice(0, 8) + "…" : nick;
+  const name = nick.length > 8 ? nick.slice(0, 8) + "…" : nick;
+  const text = hasArt ? name + " ✎" : name;
   c.save();
   c.font = `bold 9px ${FONT}`;
   const w = c.measureText(text).width + 8;
@@ -679,8 +693,7 @@ function drawHUD(c: CanvasRenderingContext2D, L: BandLayout): void {
     c.textAlign = "center";
     c.textBaseline = "middle";
     c.fillText(b.label, textX, r.y + r.h / 2 + 1);
-    const badge =
-      (b.id === "messages" && store.messages.length > 0) || (b.id === "chat" && store.chatUnread);
+    const badge = b.id === "chat" && store.chatUnread;
     if (badge) {
       c.fillStyle = "#e2573c";
       c.beginPath();
@@ -905,7 +918,7 @@ function drawDefendingView(c: CanvasRenderingContext2D, L: BandLayout): void {
     if (store.weeds[key]) {
       drawShadow(c, s.cx, L.soilY, L.slotW);
       drawWeed(c, L, s, store.weeds[key].skin);
-      drawWeedTag(c, L, s, store.weeds[key].nick);
+      drawWeedTag(c, L, s, store.weeds[key].nick, !!store.weeds[key].art);
       continue;
     }
     const crop = store.crops[key];
@@ -1434,6 +1447,26 @@ function weedHitRect(L: BandLayout, s: Slot): Rect {
   return { x: s.cx - w / 2, y: top, w, h };
 }
 
+// Hovering a weed floats the raider's 낙서 카드 off the band. It reuses the weed's CLICK box on
+// purpose — you see the card for exactly the weed you would pull. Skipped while raiding: that view
+// paints someone else's field, and store.weeds is always my own plot.
+function updateDoodleHover(L: BandLayout): void {
+  if (store.raid.role === "raiding" || !lastPointer) {
+    hideDoodleCard();
+    return;
+  }
+  for (const s of L.slots) {
+    const key = String(s.i);
+    const weed = store.weeds[key];
+    if (!weed || !weed.art) continue;
+    if (inRect(lastPointer.x, lastPointer.y, weedHitRect(L, s))) {
+      showDoodleCard(key, weed, s.cx);
+      return;
+    }
+  }
+  hideDoodleCard();
+}
+
 /** The sprite a slot is currently drawing (null when empty), for the tight hit box. */
 function slotSprite(s: Slot): Sprite | null {
   const crop = store.crops[String(s.i)];
@@ -1502,8 +1535,8 @@ export function publishHitRegions(): void {
   const cp = getChatPopupRect();
   if (cp) push(cp.left, cp.top, cp.width, cp.height);
 
-  const ln = getLootNoteRect();
-  if (ln) push(ln.left, ln.top, ln.width, ln.height);
+  const dc = getDoodleComposerRect();
+  if (dc) push(dc.left, dc.top, dc.width, dc.height);
 
   const lb = getLightboxRect();
   if (lb) push(lb.left, lb.top, lb.width, lb.height);

@@ -8,11 +8,9 @@
 import {
   get,
   set,
-  push,
   onValue,
   onDisconnect,
   runTransaction,
-  serverTimestamp,
   type Unsubscribe,
   type OnDisconnect,
 } from "firebase/database";
@@ -29,7 +27,8 @@ import { joinRaid, leaveRaid } from "./lock";
 import { getCooldownRemaining, setCooldown, markFriendCooldown } from "./cooldown";
 import { startRaiderCursorSub, stopCursorSub } from "./cursorStream";
 import { playAlarm, playSteal, playWin } from "./alarm";
-import { promptLootNote } from "../render/lootNote";
+import { promptDoodle } from "../render/doodleComposer";
+import { myWeedSlots, clearMyWeedSlots, attachDoodleToMyWeeds } from "../game/weeds";
 import { logRaid } from "../firebase/raidlog";
 import { recordRaidStat } from "../game/stats";
 import { announceToChat } from "../firebase/chat";
@@ -51,18 +50,6 @@ let raidDisconnect: OnDisconnect | null = null; // drops my slot if my socket di
 const alarmedUids = new Set<string>(); // raiders we've already sounded the alarm for
 const fetchingRaiders = new Set<string>(); // raiders whose user data we're fetching (avoid double-fetch)
 const fetchingCoRaiders = new Set<string>(); // fellow thieves (raiding side) we're fetching user data for
-
-const MESSAGES = [
-  "잘 먹고 갑니다 😋",
-  "여기 작물 맛있네요!",
-  "다음에 또 올게요~",
-  "문단속 잘 하세요!",
-  "배가 고파서 그만…",
-  "서리의 추억 ✿",
-];
-function pickMessage(): string {
-  return MESSAGES[Math.floor(Math.random() * MESSAGES.length)];
-}
 
 /** One-line 서리 result for the village chat — brags on a haul, owns up on a bust. */
 function raidChatLine(
@@ -312,20 +299,6 @@ export async function cancelRaid(): Promise<void> {
   await finishThiefRaid("fled");
 }
 
-async function leaveLootMessage(targetUid: string, text: string): Promise<void> {
-  try {
-    const msgRef = push(r(paths.messages(targetUid)));
-    await set(msgRef, {
-      from: store.uid,
-      text: text.slice(0, BALANCE.raid.messageMaxLen),
-      at: serverTimestamp(),
-      skin: store.user?.equippedMsgSkin || "skin_plain",
-    });
-  } catch {
-    /* ignore */
-  }
-}
-
 async function finishThiefRaid(reason: "fled" | "evicted" | "timeout" | "cleared"): Promise<void> {
   const raid = store.raid;
   if (raid.role !== "raiding" || raid.resolved) return;
@@ -355,18 +328,24 @@ async function finishThiefRaid(reason: "fled" | "evicted" | "timeout" | "cleared
   // Mirror EVERY raid — success or failure — into the village chat so the whole server sees it.
   void announceToChat(raidChatLine(targetNick, reason, looted, raid.stolenCount ?? 0));
 
-  // Stole at least one crop → let the raider hand-write a parting note. The DB rule requires the
-  // raid lock to still be held to write into the victim's messages, so we keep the lock until the
-  // composer resolves, then write the note (if any) and finalize. Empty/skip leaves no note.
-  if (looted > 0) {
-    promptLootNote(targetNick, looted, pickMessage(), (text) => {
+  // Left a weed behind → let the raider draw a 낙서 카드, which gets stamped onto every weed they
+  // planted here (the victim sees it by hovering the weed). Gated on weeds, not loot: the weed IS
+  // the delivery mechanism, so with none planted there is nowhere for a card to live.
+  //
+  // The plot write rule only lets a raider through while they hold the raid lock, so the lock stays
+  // held until the composer resolves — same deal the old 쪽지 composer had, and why the composer's
+  // auto-timeout sits well under lockStaleMs.
+  const weedSlots = myWeedSlots(targetUid);
+  if (weedSlots.length > 0) {
+    promptDoodle(targetNick, weedSlots.length, (art) => {
       void (async () => {
-        const t = (text ?? "").trim();
-        if (t) await leaveLootMessage(targetUid, t);
+        if (art) await attachDoodleToMyWeeds(targetUid, art);
+        clearMyWeedSlots();
         await finalizeThiefRaid(targetUid, cooldownMs);
       })();
     });
   } else {
+    clearMyWeedSlots();
     await finalizeThiefRaid(targetUid, cooldownMs);
   }
 }

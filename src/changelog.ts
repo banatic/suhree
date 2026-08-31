@@ -9,6 +9,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.4.5",
+    date: "2026-08-28",
+    items: [
+      "🎨 서리하고 나면 마우스로 그림을 그려 남길 수 있어요 — 심고 간 잡초에 낙서 카드가 붙어요.",
+      "👀 밭에 생긴 잡초에 마우스를 올리면 누가 뭘 그리고 갔는지 보여요. (카드가 붙은 잡초는 이름표에 ✎ 표시!)",
+      "🗑️ 쪽지함은 낙서 카드로 대체됐어요. 사두신 쪽지 스킨은 낙서 카드 스킨으로 그대로 쓸 수 있어요.",
+    ],
+  },
+  {
     version: "0.4.4",
     date: "2026-08-28",
     items: [

@@ -1,4 +1,4 @@
-import { remove, get } from "firebase/database";
+import { get } from "firebase/database";
 import {
   store,
   toast,
@@ -1202,26 +1202,6 @@ function statsPanel(): HTMLElement {
   return wrap;
 }
 
-function messagesPanel(): HTMLElement {
-  const wrap = el("div", { class: "panel-body" });
-  if (store.messages.length === 0) {
-    wrap.append(el("div", { class: "muted" }, "도둑이 남긴 쪽지가 없어요. (평화롭네요!)"));
-  } else {
-    wrap.append(btn("모두 지우기", () => void remove(r(paths.messages(store.uid))), "btn small"));
-    for (const m of store.messages) {
-      wrap.append(
-        el(
-          "div",
-          { class: `card msg ${m.skin || "skin_plain"}` },
-          el("div", { class: "msg-text" }, `“${m.text}”`),
-          el("div", { class: "muted small" }, new Date(m.at).toLocaleString()),
-        ),
-      );
-    }
-  }
-  return wrap;
-}
-
 function cosmeticsPanel(): HTMLElement {
   const uid = store.uid;
   const u = store.user;
@@ -1254,7 +1234,9 @@ function cosmeticsPanel(): HTMLElement {
   wrap.append(
     cosmeticSection(uid, "title", "칭호 (채팅·랭킹 표시)", BALANCE.cosmetics.titles, u?.equippedTitle || "title_none"),
   );
-  wrap.append(cosmeticSection(uid, "msgSkin", "쪽지 스킨 (서리 시)", BALANCE.cosmetics.msgSkin, u?.equippedMsgSkin));
+  wrap.append(
+    cosmeticSection(uid, "msgSkin", "낙서 카드 스킨 (서리 시)", BALANCE.cosmetics.msgSkin, u?.equippedMsgSkin),
+  );
 
   // Raid cursor (shape + trail). Animated preview of the equipped one, then the catalog.
   const curPrev = el("canvas", { class: "farm-preview" }) as HTMLCanvasElement;
@@ -1501,7 +1483,6 @@ const TITLES: Record<PanelKind, string> = {
   friends: "친구",
   chat: "마을 채팅",
   ranking: "골드 랭킹",
-  messages: "쪽지함",
   cosmetics: "꾸미기",
   dex: "도감",
   raidlog: "서리 기록",
@@ -1533,9 +1514,6 @@ export function renderPanels(): void {
       break;
     case "ranking":
       body = rankingPanel();
-      break;
-    case "messages":
-      body = messagesPanel();
       break;
     case "cosmetics":
       body = cosmeticsPanel();

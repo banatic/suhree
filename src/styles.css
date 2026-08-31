@@ -678,14 +678,15 @@ body {
   word-break: break-word;
 }
 
-/* ── Loot note composer (after a successful raid) ─────────── */
+/* ── 낙서 카드 composer (after a raid that planted weeds) ─── */
 
-#loot-note {
+#doodle-composer {
   position: fixed;
   z-index: 40;
-  width: min(340px, calc(100vw - 20px));
+  width: min(220px, calc(100vw - 20px));
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 7px;
   padding: 12px;
   background: linear-gradient(var(--parch), var(--parch2));
@@ -695,40 +696,108 @@ body {
   pointer-events: auto;
 }
 
-#loot-note .ln-head {
+#doodle-composer .dc-head {
+  align-self: flex-start;
   font-weight: bold;
   color: var(--wood);
 }
 
-#loot-note .ln-sub {
+#doodle-composer .dc-sub {
+  align-self: flex-start;
   font-size: 12px;
+  line-height: 1.35;
   color: #6b5838;
 }
 
-#loot-note .ln-input {
-  width: 100%;
-  resize: none;
-  padding: 7px 9px;
-  border: 2px solid var(--wood);
-  border-radius: 6px;
+/* The drawing surface. crosshair + touch-action:none so a drag draws instead of selecting text or
+   scrolling whatever sits under the overlay. */
+#doodle-composer .dc-pad {
   background: #fff;
-  font: inherit;
-  font-size: 13px;
+  border: 2px solid var(--wood);
+  border-radius: 8px;
+  cursor: crosshair;
+  touch-action: none;
 }
 
-#loot-note .ln-actions {
+#doodle-composer .dc-full {
+  align-self: flex-start;
+  font-size: 11px;
+  font-weight: bold;
+  color: #b5651d;
+}
+
+#doodle-composer .dc-tools,
+#doodle-composer .dc-actions {
   display: flex;
-  justify-content: flex-end;
   gap: 8px;
+  width: 100%;
 }
 
-#loot-note .ln-skip {
+#doodle-composer .dc-tools {
+  justify-content: center;
+}
+
+#doodle-composer .dc-actions {
+  justify-content: flex-end;
+}
+
+#doodle-composer .dc-skip {
   background: #cfc6b4;
   color: #6a6048;
 }
 
-#loot-note .ln-skip:hover {
+#doodle-composer .dc-skip:hover {
   background: #ddd4c2;
+}
+
+/* ── 낙서 카드 (hovering a weed someone left) ─────────────── */
+
+/* Pure decoration floating over the click-through area — pointer-events:none is load-bearing, not
+   cosmetic: the card sits right above the weed, and catching the pointer would break the click that
+   pulls it (and make the card flicker as hover bounced between the two). */
+#doodle-card {
+  position: fixed;
+  z-index: 39;
+  display: none;
+  padding: 8px 8px 5px;
+  background: #fffdf6;
+  border: 3px solid var(--wood);
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+#doodle-card .dcard-art {
+  display: block;
+  border-radius: 4px;
+}
+
+#doodle-card .dcard-who {
+  margin-top: 4px;
+  font-size: 10px;
+  text-align: center;
+  color: #6b5838;
+}
+
+/* Card skins — the old 쪽지 스킨 purchases, repurposed as the card's paper. */
+#doodle-card[data-skin="skin_crow"] {
+  border-color: #2b2b2b;
+}
+#doodle-card[data-skin="skin_heart"] {
+  border-color: #e0408a;
+}
+#doodle-card[data-skin="skin_skull"] {
+  border-color: #555;
+  background: #f1efec;
+}
+#doodle-card[data-skin="skin_bear"] {
+  border-color: #a87d5d;
+  border-radius: 16px;
+}
+#doodle-card[data-skin="skin_ribbon"] {
+  border-color: #ffb6c1;
+  border-style: dashed;
+  background: #fff7f9;
 }
 
 /* ── Ranking ───────────────────────────────────────────── */
@@ -823,26 +892,3 @@ body {
   color: #5b4a32;
 }
 
-.msg .msg-text {
-  font-size: 13px;
-}
-.msg.skin_crow {
-  border-color: #2b2b2b;
-}
-.msg.skin_heart {
-  border-color: #e0408a;
-}
-.msg.skin_skull {
-  border-color: #555;
-  background: rgba(0, 0, 0, 0.06);
-}
-.msg.skin_bear {
-  border-color: #a87d5d;
-  background: rgba(168, 125, 93, 0.08);
-  border-radius: 12px;
-}
-.msg.skin_ribbon {
-  border-color: #ffb6c1;
-  border-style: dashed;
-  background: rgba(255, 182, 193, 0.08);
-}

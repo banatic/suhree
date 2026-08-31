@@ -64,7 +64,6 @@ export const BALANCE = {
     lockStaleMs: 130 * 1000, // a lock older than this is treated as abandoned (maxSeconds + grace)
     stealFraction: 0.5, // thief takes this share of a ripe crop's value
     evaporateFraction: 0.5, // the rest evaporates (lost to everyone)
-    messageMaxLen: 120,
   },
 
   // ── Active raid: a real-time cat-and-mouse in the strip near the taskbar ──────────
@@ -107,6 +106,18 @@ export const BALANCE = {
     // A relaunch inside this window stays silent — restarting the app (or an auto-update) must not
     // spam the room, and within `presence.onlineThresholdMs` friends never even saw you leave.
     joinQuietMs: 30 * 60 * 1000,
+  },
+
+  doodle: {
+    // 낙서 카드 — drawn by a raider at the end of a raid, attached to every weed they planted.
+    // Strokes are quantised to a grid × grid lattice and encoded two base64url chars per point
+    // (game/doodle.ts), so the art rides inside the weed record instead of the plot node carrying
+    // an image blob. 64 keeps one char per coordinate; maxLen mirrors the security rule.
+    grid: 64,
+    maxLen: 1400,
+    // An abandoned composer auto-skips. Must stay well under raid.lockStaleMs (130s): the raid lock
+    // is held open while the card is being drawn, because the weed write needs it.
+    composeMs: 45000,
   },
 
   raidLog: {
@@ -403,8 +414,11 @@ export const BALANCE = {
       { id: "title_bandit", label: "밤손님", price: 0, rarity: "영웅", req: "scytheMaster" },
       { id: "title_guardian", label: "철벽 수문장", price: 0, rarity: "영웅", req: "scarecrowMaster" },
     ],
+    // 낙서 카드 스킨: the "paper" your 낙서 is drawn on. Rides on the weed you planted (cardSkin) and
+    // frames the card the victim sees when they hover it. Named msgSkin for the 쪽지 it replaced —
+    // the field is kept so existing purchases carry over untouched.
     msgSkin: [
-      { id: "skin_plain", label: "쪽지", price: 0 },
+      { id: "skin_plain", label: "기본 카드", price: 0 },
       { id: "skin_crow", label: "까마귀 깃털", price: 80 },
       { id: "skin_heart", label: "하트 도장", price: 120 },
       { id: "skin_bear", label: "곰돌이 젤리", price: 120 },

@@ -78,6 +78,8 @@
             "at": { ".validate": "newData.isNumber()" },
             "nick": { ".validate": "newData.isString() && newData.val().length <= 16" },
             "skin": { ".validate": "newData.isString() && newData.val().length <= 32" },
+            "art": { ".validate": "newData.isString() && newData.val().length <= 1400" },
+            "cardSkin": { ".validate": "newData.isString() && newData.val().length <= 24" },
             "$other": { ".validate": false }
           }
         }
@@ -118,20 +120,6 @@
           ".read": "auth != null",
           ".write": "$raiderUid === auth.uid || auth.uid === $targetUid",
           ".validate": "newData.isNumber() && newData.val() <= now"
-        }
-      }
-    },
-
-    "messages": {
-      "$uid": {
-        ".read": "$uid === auth.uid",
-        ".write": "$uid === auth.uid || root.child('raids').child($uid).child('raiders').child(auth.uid).exists()",
-        "$msgId": {
-          "from": { ".validate": "newData.isString()" },
-          "text": { ".validate": "newData.isString() && newData.val().length <= 120" },
-          "at": { ".validate": "newData.isNumber()" },
-          "skin": { ".validate": "newData.isString() && newData.val().length <= 24" },
-          "$other": { ".validate": false }
         }
       }
     },
