@@ -332,21 +332,21 @@ async function finishThiefRaid(reason: "fled" | "evicted" | "timeout" | "cleared
   // planted here (the victim sees it by hovering the weed). Gated on weeds, not loot: the weed IS
   // the delivery mechanism, so with none planted there is nowhere for a card to live.
   //
-  // The plot write rule only lets a raider through while they hold the raid lock, so the lock stays
-  // held until the composer resolves — same deal the old 쪽지 composer had, and why the composer's
-  // auto-timeout sits well under lockStaleMs.
+  // The raid is finalized FIRST, before the composer opens. Drawing takes as long as it takes, and
+  // the lock can't be held for it: an open lock keeps the victim pinned in the defence view and
+  // goes stale after lockStaleMs anyway. A dedicated weed rule lets the planter amend their own
+  // weed without the lock (see database.rules.json), so the card can land whenever it's finished.
   const weedSlots = myWeedSlots(targetUid);
+  await finalizeThiefRaid(targetUid, cooldownMs);
   if (weedSlots.length > 0) {
     promptDoodle(targetNick, weedSlots.length, (art) => {
       void (async () => {
-        if (art) await attachDoodleToMyWeeds(targetUid, art);
+        if (art) await attachDoodleToMyWeeds(targetUid, art, weedSlots);
         clearMyWeedSlots();
-        await finalizeThiefRaid(targetUid, cooldownMs);
       })();
     });
   } else {
     clearMyWeedSlots();
-    await finalizeThiefRaid(targetUid, cooldownMs);
   }
 }
 

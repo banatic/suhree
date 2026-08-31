@@ -113,11 +113,10 @@ export const BALANCE = {
     // Strokes are quantised to a grid × grid lattice and encoded two base64url chars per point
     // (game/doodle.ts), so the art rides inside the weed record instead of the plot node carrying
     // an image blob. 64 keeps one char per coordinate; maxLen mirrors the security rule.
+    // There is deliberately no compose time limit: the raid is finalized before the composer opens,
+    // so no lock and no victim is waiting on the drawing.
     grid: 64,
     maxLen: 1400,
-    // An abandoned composer auto-skips. Must stay well under raid.lockStaleMs (130s): the raid lock
-    // is held open while the card is being drawn, because the weed write needs it.
-    composeMs: 45000,
   },
 
   raidLog: {

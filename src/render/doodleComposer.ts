@@ -11,7 +11,6 @@ import { publishHitRegions } from "./strip";
 
 let el: HTMLDivElement | null = null;
 let resolveCb: ((art: string | null) => void) | null = null;
-let autoTimer = 0;
 
 const PAD_CSS = 168; // drawing surface, CSS px (square)
 const INK = "#3a2a17";
@@ -203,16 +202,12 @@ export function promptDoodle(
   box.replaceChildren(head, sub, cv, full, tools, actions);
   box.style.display = "block";
   publishHitRegions();
-
-  window.clearTimeout(autoTimer);
-  autoTimer = window.setTimeout(() => finish(encodeDoodle(strokes) || null), BALANCE.doodle.composeMs);
 }
 
-// Unlike the old text composer (which auto-SKIPPED, so it could never send a suggestion the raider
-// hadn't confirmed), a timeout here sends whatever was actually drawn — every stroke is deliberate,
-// so losing it to the clock would be the surprising outcome.
+// No timer closes this. The raid is already finalized when the composer opens (cooldown set, lock
+// released, victim out of the defence view), so nothing is waiting on the drawing — take all day.
+// It closes only when the raider presses 남기기 or 건너뛰기.
 function finish(art: string | null): void {
-  window.clearTimeout(autoTimer);
   const cb = resolveCb;
   resolveCb = null;
   if (el) {

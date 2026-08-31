@@ -9,6 +9,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.4.6",
+    date: "2026-08-31",
+    items: [
+      "⏳ 낙서를 그리다 시간이 다 돼서 창이 닫히던 문제를 고쳤어요 — 이제 시간제한 없이 천천히 그리세요.",
+      "⚡ 서리 쿨다운도 그림을 다 그릴 때까지 기다리지 않고 바로 시작돼요. (털린 쪽도 방어 화면에 붙잡혀 있지 않아요.)",
+    ],
+  },
+  {
     version: "0.4.5",
     date: "2026-08-28",
     items: [

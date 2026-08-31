@@ -43,10 +43,17 @@ export async function plantWeed(victimUid: string, slot: number): Promise<boolea
   }
 }
 
-/** Stamp the 낙서 onto every weed I planted in this raid. MUST run while the raid lock is still held —
- *  the plot write rule only lets a raider through while they hold it (see database.rules.json). */
-export async function attachDoodleToMyWeeds(victimUid: string, art: string): Promise<void> {
-  const slots = myWeedSlots(victimUid);
+/** Stamp the 낙서 onto the weeds I planted. Runs AFTER the raid is finalized — the composer has no
+ *  time limit, so the raid lock is long gone by now; the weed-slot rule lets a planter amend their
+ *  own weed without it (see database.rules.json).
+ *
+ *  `slots` is passed in rather than read back from module state: the raider is free once the raid
+ *  ends, so they can start another raid while still drawing, and that would reset the tracker. */
+export async function attachDoodleToMyWeeds(
+  victimUid: string,
+  art: string,
+  slots: number[],
+): Promise<void> {
   if (!slots.length || !art || art.length > BALANCE.doodle.maxLen) return;
   const cardSkin = store.user?.equippedMsgSkin || "skin_plain";
   await Promise.all(

@@ -74,6 +74,7 @@
         },
         "weeds": {
           "$slot": {
+            ".write": "auth != null && data.child('by').val() === auth.uid && newData.child('by').val() === auth.uid",
             "by": { ".validate": "newData.isString()" },
             "at": { ".validate": "newData.isNumber()" },
             "nick": { ".validate": "newData.isString() && newData.val().length <= 16" },
