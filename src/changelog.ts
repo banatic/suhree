@@ -9,6 +9,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.4.9",
+    date: "2026-09-02",
+    items: [
+      "🧰 서리 중 낙서장 상자가 잘 안 눌리던 문제를 고쳤어요 — 상자를 키우고, '낙서장' 글씨와 오른쪽 끝까지 어디를 눌러도 열려요.",
+      "🖼️ 낙서장이 화면 위로 잘려 나가 제목줄과 '닫기' 버튼이 안 보이던 문제를 고쳤어요. 이제 창 높이에 맞춰 딱 들어와요.",
+    ],
+  },
+  {
     version: "0.4.8",
     date: "2026-08-31",
     items: [

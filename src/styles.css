@@ -782,8 +782,12 @@ body {
   background: #ddd4c2;
 }
 
+/* Two lines' worth of room, always. The caption changes as scribbles arrive, and a line-count
+   change would otherwise resize the whole board after it had already been fitted to the window. */
 #doodle-board .db-meta {
   font-size: 12px;
+  line-height: 1.35;
+  min-height: 33px;
   color: #6b5838;
   margin-bottom: 6px;
 }

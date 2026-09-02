@@ -83,9 +83,10 @@ export function openBoard(ownerUid: string, ownerNick: string): void {
   entries = [];
   const isMine = ownerUid === store.uid;
 
-  // Sized to the lattice's aspect so nothing is stretched, and clamped to the window on small screens.
-  const cssW = Math.min(BOARD.w * 2, window.innerWidth - 40);
-  const cssH = Math.round((cssW * BOARD.h) / BOARD.w);
+  // Provisional size; the real one is computed from the measured chrome once the box is in the DOM
+  // (see fitToWindow below). Sized to the lattice's aspect so nothing is ever stretched.
+  let cssW = Math.min(BOARD.w * 2, window.innerWidth - 40);
+  let cssH = Math.round((cssW * BOARD.h) / BOARD.w);
 
   const head = document.createElement("div");
   head.className = "db-head";
@@ -103,15 +104,22 @@ export function openBoard(ownerUid: string, ownerNick: string): void {
   const meta = document.createElement("div");
   meta.className = "db-meta";
 
-  const dpr = window.devicePixelRatio || 1;
   const cv = document.createElement("canvas");
   cv.className = "db-pad";
-  cv.width = Math.round(cssW * dpr);
-  cv.height = Math.round(cssH * dpr);
-  cv.style.width = cssW + "px";
-  cv.style.height = cssH + "px";
   const c = cv.getContext("2d")!;
-  c.scale(dpr, dpr);
+
+  // Apply the current cssW/cssH to the canvas, re-establishing the devicePixelRatio transform (a
+  // width/height assignment resets the context state, so the scale has to be re-applied every time).
+  const sizePad = (): void => {
+    const dpr = window.devicePixelRatio || 1;
+    cv.width = Math.round(cssW * dpr);
+    cv.height = Math.round(cssH * dpr);
+    cv.style.width = cssW + "px";
+    cv.style.height = cssH + "px";
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.scale(dpr, dpr);
+  };
+  sizePad();
 
   const myInk = inkColor(store.uid || "me");
 
@@ -243,19 +251,39 @@ export function openBoard(ownerUid: string, ownerNick: string): void {
 
   box.replaceChildren(head, meta, cv, tools);
   box.style.display = "block";
+  refreshMeta(); // fill the caption BEFORE measuring — an empty one under-reports the chrome height
+
+  // The overlay window is only ~480 logical px tall (the band at one edge, transparent panel space
+  // for the rest), and at the lattice's natural 512×320 the board came out TALLER than the space
+  // left above the band — so it opened with its title bar and 닫기 button clipped off the top edge,
+  // and on a scaled display it could be pushed off screen almost entirely. Measure the chrome
+  // (header + meta + tools + padding) against the real window and shrink the pad to fit.
+  const GAP = 10; // clearance from the band
+  const MARGIN = 8; // breathing room at the far edge
+  const MIN_PAD = 120; // below this the wall stops being worth drawing on
+  const limit = window.innerHeight - bandHeightCss() - GAP - MARGIN;
+  // Shrink-and-remeasure rather than subtracting a measured chrome height once: narrowing the pad
+  // can rewrap the caption onto a second line, which makes the chrome TALLER than it measured. Two
+  // passes is the normal case; the loop is bounded and stops as soon as it stops shrinking.
+  for (let i = 0; i < 4 && box.offsetHeight > limit; i++) {
+    const next = Math.max(MIN_PAD, cssH - (box.offsetHeight - limit));
+    if (next === cssH) break;
+    cssH = next;
+    cssW = Math.round((cssH * BOARD.w) / BOARD.h);
+    sizePad();
+  }
 
   // Centred horizontally, resting just clear of the band on its own side.
   box.style.left = Math.max(6, Math.round((window.innerWidth - box.offsetWidth) / 2)) + "px";
   if (bandDock() === "bottom") {
-    box.style.bottom = bandHeightCss() + 10 + "px";
+    box.style.bottom = bandHeightCss() + GAP + "px";
     box.style.top = "auto";
   } else {
-    box.style.top = bandHeightCss() + 10 + "px";
+    box.style.top = bandHeightCss() + GAP + "px";
     box.style.bottom = "auto";
   }
 
   repaint();
-  refreshMeta();
   publishHitRegions();
 
   unsub = subscribeBoard(ownerUid, (list) => {

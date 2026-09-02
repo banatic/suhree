@@ -1246,7 +1246,7 @@ function onClick(e: MouseEvent): void {
   if (isCollapsed()) return; // collapsed: only the tab is interactive; everything else fell through
 
   if (store.raid.role === "raiding") {
-    if (inRect(x, y, boardChestRect(L))) {
+    if (inRect(x, y, boardChestHitRect(L))) {
       playClick();
       // The victim's wall, not a shared one — raiding someone is how you leave them a drawing.
       if (store.raid.targetUid) toggleBoard(store.raid.targetUid, store.raid.targetNick || "농부");
@@ -1460,9 +1460,30 @@ function cropHitRect(L: BandLayout, s: Slot, sp: Sprite): Rect | null {
 /** The 낙서장 chest, parked at the band's right edge during a raid. Sits between the HP bar (top
  *  right) and the timer bar (bottom), which is the only free real estate on a 48px band. */
 function boardChestRect(L: BandLayout): Rect {
-  const w = 26;
-  const h = 18;
-  return { x: L.W - w - 10, y: L.bandY + L.bandH - h - 9, w, h };
+  const w = 34;
+  const h = 24;
+  return { x: L.W - w - 8, y: L.bandY + L.bandH - h - 8, w, h };
+}
+
+/** Where the "낙서장" caption is drawn, to the left of the chest. */
+function boardChestLabelX(L: BandLayout): number {
+  return boardChestRect(L).x - 5;
+}
+
+/**
+ * The chest's CLICK box — the whole right end of the band, caption included, running to the very
+ * window edge and down to the band's bottom.
+ *
+ * The art alone is a small target pinned into the screen's corner, which is genuinely hard to aim
+ * at: a click a few px past it landed on nothing at all. Nothing else lives out here during a raid
+ * (the crops are centred, 도망치기 is far left), so the generous box costs nothing — and it makes
+ * the caption clickable, which is what people aim at anyway.
+ */
+function boardChestHitRect(L: BandLayout): Rect {
+  const r = boardChestRect(L);
+  const left = boardChestLabelX(L) - 34; // past the caption
+  const top = Math.max(L.bandY, r.y - 10);
+  return { x: left, y: top, w: L.W - left, h: L.bandY + L.bandH - top };
 }
 
 /** A little treasure chest — click it for the shared 낙서장. Breathes so it reads as interactive
@@ -1477,7 +1498,7 @@ function drawBoardChest(c: CanvasRenderingContext2D, L: BandLayout): void {
   c.font = `bold 9px ${FONT}`;
   c.textAlign = "right";
   c.textBaseline = "middle";
-  c.fillText("낙서장", r.x - 4, r.y + r.h / 2);
+  c.fillText("낙서장", boardChestLabelX(L), r.y + r.h / 2);
   c.textAlign = "left";
 
   c.globalAlpha = 1;
@@ -1548,7 +1569,14 @@ export function publishHitRegions(): void {
   const L = layout();
   const regions: NormRect[] = [];
   const push = (x: number, y: number, w: number, h: number): void => {
-    regions.push({ x: x / W, y: y / H, w: w / W, h: h / H });
+    // Clamp to the window: an overlay clipped by the window edge reports a negative origin, and a
+    // region reaching outside the window can never be pointed at anyway.
+    const x0 = Math.max(0, x);
+    const y0 = Math.max(0, y);
+    const x1 = Math.min(W, x + w);
+    const y1 = Math.min(H, y + h);
+    if (x1 <= x0 || y1 <= y0) return;
+    regions.push({ x: x0 / W, y: y0 / H, w: (x1 - x0) / W, h: (y1 - y0) / H });
   };
 
   const cropTop = L.dir < 0 ? L.soilY - L.maxCropPx : L.bandY;
@@ -1563,8 +1591,13 @@ export function publishHitRegions(): void {
     // whatever's behind it (the point of the feature). The tab is how you bring the farm back.
     push(tab.x, tab.y, tab.w, tab.h);
   } else if (store.raid.role !== "none") {
-    // full-width during a raid so the action button + every crop are always reachable
-    push(0, y0, W, h);
+    // Full-width AND the whole band during a raid, so the action button, every crop and the 낙서장
+    // chest are always reachable. The crop rows alone are not enough: with a big plot the crops
+    // render at scale 1, and the region then started BELOW the chest's top edge, leaving part of an
+    // already-small target click-through.
+    const top = Math.min(y0, L.bandY);
+    const bot = Math.max(y0 + h, L.bandY + L.bandH);
+    push(0, top, W, bot - top);
   } else if (hudEngaged(L)) {
     // engaged (HUD up): the whole plot row + HUD bar capture clicks, so you can plant on empty
     // slots, harvest, and hit menu buttons exactly as before.
