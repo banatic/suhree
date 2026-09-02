@@ -1,11 +1,11 @@
 {
-    "version": "0.4.8",
-    "notes": "🧰 밭마다 낙서장이 하나씩! 서리하러 가면 오른쪽 상자를 눌러 그 사람 낙서장에 그림을 남겨요.\n🖍️ 내 낙서장은 메뉴의 '낙서장'에서 — 다녀간 손님들이 뭘 그리고 갔는지 보세요.\n🎨 큼직해서 여러 명이 같이 그릴 수 있고, 사람마다 색이 달라요.",
-    "pub_date": "2026-08-31T04:56:10.979Z",
+    "version": "0.4.9",
+    "notes": "🧰 서리 중 낙서장 상자가 잘 안 눌리던 문제를 고쳤어요 — 상자를 키우고 클릭 범위를 넓혔어요.\n🖼️ 낙서장이 화면 위로 잘려 제목줄과 '닫기' 버튼이 안 보이던 문제를 고쳤어요.",
+    "pub_date": "2026-09-02T04:03:34.550Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkFNM1NGNXVaTVQ3a3FhWmJkWnhnUmYvZEh6RDJYcmovUVkvL1RYZHlJdGgrVEllWEVxM1gxam51RU5SMWFvbjVvSUVrUlc4VGlwSTJtMmZyYSt2RVFVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4MTUyMzI2CWZpbGU6c3VocmVlXzAuNC44X3g2NF9lbi1VUy5tc2kKK1JzUllTUkVnNnJ2alUzUUcrOGh0L3U0d05jU0ZJdUY5bUxOR2d6WnZBcy9GVGU5eGdleFlFRzRDcVdaM0MyWVBGcWdXTEZSMmU4N1BwakpYRFgvQ0E9PQo=",
-            "url": "https://github.com/banatic/suhree/releases/download/v0.4.8/suhree_0.4.8_x64_en-US.msi"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkhOL2l2VjIvL3hEaDRxQzdraGh5c3lFQklmaVNkeko1VU5FcmNLT1NpVkplRUowVXVNSFVtNHU2VGI2dnR0TlVHRGNhaTBWUU9QTWJmS0IvbmIwTWdzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4MzIxOTM3CWZpbGU6c3VocmVlXzAuNC45X3g2NF9lbi1VUy5tc2kKMjZnZ0ZBbmpEalBrd0RTcTdFUms5U2w3TW4yR0UzSWlhdTR3UXBDTE9JeURGZ0lwNzRGS1piM011QjQrWHlPQ1Zvd1NnYjdLUGVuSFZWR093MDZCQ1E9PQo=",
+            "url": "https://github.com/banatic/suhree/releases/download/v0.4.9/suhree_0.4.9_x64_en-US.msi"
         }
     }
 }
