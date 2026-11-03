@@ -1,11 +1,11 @@
 {
-    "version": "0.4.9",
-    "notes": "🧰 서리 중 낙서장 상자가 잘 안 눌리던 문제를 고쳤어요 — 상자를 키우고 클릭 범위를 넓혔어요.\n🖼️ 낙서장이 화면 위로 잘려 제목줄과 '닫기' 버튼이 안 보이던 문제를 고쳤어요.",
-    "pub_date": "2026-09-02T04:03:34.550Z",
+    "version": "0.5.0",
+    "notes": "🌾 메뉴를 씨앗·친구·마을·더보기 4개로 정리했어요 — 원하는 걸 바로 찾을 수 있어요.\n🎨 색과 글꼴, 테두리를 정돈해서 작물과 중요한 정보가 더 잘 보여요.\n🌱 씨앗 고르기와 강화 상점을 분리했어요 — 고르는 중에 코인이 빠지지 않아요.\n👋 친구가 지금 서리 가능한지 글자로 알려줘요 (오프라인·대기 2:18처럼).\n⌨️ 키보드만으로도 메뉴 이동과 씨앗 선택을 할 수 있어요.\n🧳 3D 여행 모드는 이번 버전에서 제거했어요.",
+    "pub_date": "2026-11-03T00:14:11.144Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkhOL2l2VjIvL3hEaDRxQzdraGh5c3lFQklmaVNkeko1VU5FcmNLT1NpVkplRUowVXVNSFVtNHU2VGI2dnR0TlVHRGNhaTBWUU9QTWJmS0IvbmIwTWdzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4MzIxOTM3CWZpbGU6c3VocmVlXzAuNC45X3g2NF9lbi1VUy5tc2kKMjZnZ0ZBbmpEalBrd0RTcTdFUms5U2w3TW4yR0UzSWlhdTR3UXBDTE9JeURGZ0lwNzRGS1piM011QjQrWHlPQ1Zvd1NnYjdLUGVuSFZWR093MDZCQ1E9PQo=",
-            "url": "https://github.com/banatic/suhree/releases/download/v0.4.9/suhree_0.4.9_x64_en-US.msi"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkIwRks4NzZ5WE1LbUxwVWk1aVl1NmhyNmVqbThSQXZMQk83YlBtcitoajIyV3BDelRjL3JsVjRMNlBldnJBSGd5aUlrSEtJbXlkT0t6aW5xTTA4YndRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNjY1MjA0CWZpbGU6c3VocmVlXzAuNS4wX3g2NF9lbi1VUy5tc2kKdTBJN2NUSk8xVVNWMFlYbmNrV1ZDT1orRDBKdXhBZnp6YVVxZmdwTW1uYnE1cDZORVhxU1JOSjE1ZVQwSTNRRkFqcXlwME40NXJtdUlpL05TUitsRFE9PQo=",
+            "url": "https://github.com/banatic/suhree/releases/download/v0.5.0/suhree_0.5.0_x64_en-US.msi"
         }
     }
 }
