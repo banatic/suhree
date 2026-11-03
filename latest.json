@@ -1,11 +1,11 @@
 {
-    "version": "0.5.0",
-    "notes": "🌾 메뉴를 씨앗·친구·마을·더보기 4개로 정리했어요 — 원하는 걸 바로 찾을 수 있어요.\n🎨 색과 글꼴, 테두리를 정돈해서 작물과 중요한 정보가 더 잘 보여요.\n🌱 씨앗 고르기와 강화 상점을 분리했어요 — 고르는 중에 코인이 빠지지 않아요.\n👋 친구가 지금 서리 가능한지 글자로 알려줘요 (오프라인·대기 2:18처럼).\n⌨️ 키보드만으로도 메뉴 이동과 씨앗 선택을 할 수 있어요.\n🧳 3D 여행 모드는 이번 버전에서 제거했어요.",
-    "pub_date": "2026-11-03T00:14:11.144Z",
+    "version": "0.5.1",
+    "notes": "💬 채팅과 낙서장을 메뉴 맨 앞으로 꺼냈어요 — 한 번에 바로 열려요.\n📐 채팅창이 예전처럼 화면 오른쪽에 떠요.\n🧭 서리기록은 '더보기' 안으로 옮겼어요.",
+    "pub_date": "2026-11-03T01:31:34.289Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMkIwRks4NzZ5WE1LbUxwVWk1aVl1NmhyNmVqbThSQXZMQk83YlBtcitoajIyV3BDelRjL3JsVjRMNlBldnJBSGd5aUlrSEtJbXlkT0t6aW5xTTA4YndRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNjY1MjA0CWZpbGU6c3VocmVlXzAuNS4wX3g2NF9lbi1VUy5tc2kKdTBJN2NUSk8xVVNWMFlYbmNrV1ZDT1orRDBKdXhBZnp6YVVxZmdwTW1uYnE1cDZORVhxU1JOSjE1ZVQwSTNRRkFqcXlwME40NXJtdUlpL05TUitsRFE9PQo=",
-            "url": "https://github.com/banatic/suhree/releases/download/v0.5.0/suhree_0.5.0_x64_en-US.msi"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUUGZ0dUJCZmZhMlBPaDcyMVV6SW44dUFzL1hXSWpRQmJFZmlLd1hCMUhhZnZxYVNlbFE0cDYwbWw3ZU1JL09NQS9PQU5Ld1FULzBrUG91YkVSREg2d2VMemtnb1FRU1FRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNjY5NTkzCWZpbGU6c3VocmVlXzAuNS4xX3g2NF9lbi1VUy5tc2kKNm11SHA1VWdrbmZRZi8yZE9ET1RmUVcwTDJqL3NjVEpEaldtQzFFUDV6ZjUvajFpWWZvbjJuRFRCcW1WQUtMaGVxRkV3OVZFWW01MlU2czdiQlBoQkE9PQo=",
+            "url": "https://github.com/banatic/suhree/releases/download/v0.5.1/suhree_0.5.1_x64_en-US.msi"
         }
     }
 }
