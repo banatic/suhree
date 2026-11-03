@@ -10,7 +10,7 @@ let contentKey = "";
 let layoutKey = "";
 let balance: HTMLElement;
 let seedLabel: HTMLElement;
-let villageBadge: HTMLElement;
+let chatBadge: HTMLElement;
 let announcement: HTMLElement;
 const buttons = new Map<HudSection, HTMLButtonElement>();
 
@@ -62,12 +62,12 @@ export function setupHud(onNavigate: (section: HudSection) => void, onInteractio
     label.textContent = section.label;
     if (section.id === "seeds") seedLabel = label;
     button.append(symbol, label);
-    if (section.id === "village") {
-      villageBadge = document.createElement("span");
-      villageBadge.className = "hud-unread";
-      villageBadge.setAttribute("aria-label", "새 채팅");
-      villageBadge.textContent = "새 소식";
-      button.append(villageBadge);
+    if (section.id === "chat") {
+      chatBadge = document.createElement("span");
+      chatBadge.className = "hud-unread";
+      chatBadge.setAttribute("aria-label", "새 채팅");
+      chatBadge.textContent = "새 소식";
+      button.append(chatBadge);
     }
     button.addEventListener("click", () => onNavigate(section.id));
     buttons.set(section.id, button);
@@ -108,7 +108,7 @@ export function syncHud(show: boolean, dock: "top" | "bottom", bandHeight: numbe
   const seed = BALANCE.crops.tiers[store.selectedSeedTier]?.label ?? "무";
   seedLabel.textContent = `씨앗 · ${seed}`;
   buttons.get("seeds")!.title = `선택한 씨앗: ${seed}`;
-  villageBadge.hidden = !store.chatUnread;
+  chatBadge.hidden = !store.chatUnread;
   for (const [section, button] of buttons) {
     const active = panelSection(store.ui.panel) === section;
     button.setAttribute("aria-expanded", String(active));

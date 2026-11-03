@@ -130,7 +130,6 @@ export interface RaidState {
 export type PanelKind =
   | "none"
   | "seeds"
-  | "village"
   | "more"
   | "shop"
   | "friends"

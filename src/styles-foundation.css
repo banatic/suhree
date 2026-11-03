@@ -267,9 +267,9 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
 .empty-state p { margin: 7px 0 0; }
 
 @media (max-width: 480px) {
-  #farm-hud { height: 90px; display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); width: calc(100vw - 20px); gap: 2px; }
+  #farm-hud { height: 90px; display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); width: calc(100vw - 20px); gap: 2px; }
   .hud-wallet { grid-column: 1 / -1; border: 0; max-width: none; padding: 0 6px; margin: 0; height: 28px; }
-  #farm-hud button { padding: 7px 3px; font-size: 12px; gap: 3px; }
+  #farm-hud button { padding: 7px 2px; font-size: 11px; gap: 2px; }
   .hud-symbol { font-size: 16px; }
   .panel-body { padding: 14px; }
   .panel-head { padding: 14px; }

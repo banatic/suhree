@@ -1219,6 +1219,12 @@ export function setupStripInteractions(): void {
   setupHud((section) => {
     playClick();
     keyboardMenu = false;
+    // 낙서장은 패널이 아니라 자체 오버레이 — 열려 있던 패널을 닫고 토글한다.
+    if (section === "board") {
+      if (store.ui.panel !== "none") togglePanel(store.ui.panel);
+      toggleBoard(store.uid, store.user?.nickname || "나");
+      return;
+    }
     if (isBoardOpen()) closeBoard();
     togglePanel(panelSection(store.ui.panel) === section ? store.ui.panel : section);
   }, publishHitRegions);

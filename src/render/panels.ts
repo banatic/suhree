@@ -36,7 +36,7 @@ import { publishHitRegions } from "./strip";
 import { dismissChatPopup } from "./chatPopup";
 import { hudHeight, getHudRect, focusHud } from "./hud";
 import { panelSection, spyButtonVisible } from "./navigation";
-import { toggleBoard, closeBoard, isBoardOpen } from "./doodleBoard";
+import { closeBoard, isBoardOpen } from "./doodleBoard";
 import { APP_VERSION } from "../version";
 import { CHANGELOG } from "../changelog";
 import { checkForUpdates } from "../update";
@@ -182,7 +182,6 @@ export function togglePanel(kind: PanelKind): void {
 const PANEL_HINTS: Partial<Record<PanelKind, string>> = {
   seeds: "작은 씨앗 하나로 시작하는 하루",
   friends: "함께하는 농부들의 소식",
-  village: "친구들과 나누는 농장 이야기",
   more: "내 농장을 가꾸는 즐거움",
   shop: "밭을 넓히고 농기구를 강화해요",
 };
@@ -193,7 +192,7 @@ function header(title: string): HTMLElement {
   const head = el("div", { class: "panel-head" });
   if (section && section !== kind) {
     head.append(el("button", {
-      type: "button", class: "panel-back", "aria-label": section === "village" ? "마을로 돌아가기" : "더보기로 돌아가기",
+      type: "button", class: "panel-back", "aria-label": "더보기로 돌아가기",
       onclick: () => togglePanel(section),
     }, "‹"));
   }
@@ -206,29 +205,23 @@ function header(title: string): HTMLElement {
   return head;
 }
 
-function menuPanel(kind: "village" | "more"): HTMLElement {
+function menuPanel(): HTMLElement {
   const wrap = el("div", { class: "panel-body" });
-  const entries: { title: string; detail: string; target: PanelKind | "board"; symbol: string }[] = kind === "village" ? [
-    { title: "마을 채팅", detail: store.chatUnread ? "새 메시지가 도착했어요" : "모두 함께 나누는 이야기", target: "chat", symbol: "☏" },
-    { title: "낙서장", detail: "친구가 남긴 작은 그림들", target: "board", symbol: "✎" },
-    { title: "서리기록", detail: "마을에서 일어난 서리 소식", target: "raidlog", symbol: "♧" },
-  ] : [
+  const entries: { title: string; detail: string; target: PanelKind; symbol: string }[] = [
     { title: "강화 상점", detail: "밭 확장 · 허수아비 · 낫", target: "shop", symbol: "⌂" },
     { title: "꾸미기", detail: "장식 · 테마 · 칭호", target: "cosmetics", symbol: "❀" },
     { title: "도감", detail: "작물 기록과 해금 조건", target: "dex", symbol: "▤" },
     { title: "랭킹", detail: "나와 친구들의 코인 순위", target: "ranking", symbol: "♔" },
+    { title: "서리기록", detail: "마을에서 일어난 서리 소식", target: "raidlog", symbol: "♧" },
     { title: "통계", detail: "한눈에 보는 서리 기록", target: "stats", symbol: "▥" },
     { title: "설정", detail: "내 정보 · 소리 · 모니터", target: "settings", symbol: "⚙" },
   ];
-  if (kind === "more" && spyButtonVisible()) entries.push({ title: "작물 점지소", detail: "오늘의 작물 소식", target: "spy", symbol: "✧" });
+  if (spyButtonVisible()) entries.push({ title: "작물 점지소", detail: "오늘의 작물 소식", target: "spy", symbol: "✧" });
   const list = el("div", { class: "menu-grid" });
   for (const item of entries) list.append(el("button", {
     type: "button", class: "menu-tile", onclick: () => {
       playClick();
-      if (item.target === "board") {
-        togglePanel(store.ui.panel);
-        toggleBoard(store.uid, store.user?.nickname || "나");
-      } else togglePanel(item.target);
+      togglePanel(item.target);
     },
   }, el("span", { class: "menu-symbol", "aria-hidden": "true" }, item.symbol),
     el("span", { class: "grow" }, el("strong", {}, item.title), el("span", { class: "muted" }, item.detail)),
@@ -1526,7 +1519,6 @@ function dexPanel(): HTMLElement {
 const TITLES: Record<PanelKind, string> = {
   none: "",
   seeds: "오늘은 뭘 심을까요?",
-  village: "작은 마을 이야기",
   more: "농장 수첩",
   shop: "강화 상점",
   friends: "함께하는 농부들",
@@ -1571,9 +1563,8 @@ export function renderPanels(force = false): void {
     case "seeds":
       body = seedsPanel();
       break;
-    case "village":
     case "more":
-      body = menuPanel(kind);
+      body = menuPanel();
       break;
     case "shop":
       body = shopPanel();
@@ -1633,7 +1624,10 @@ function positionPanel(p: HTMLDivElement): void {
   p.style.position = "fixed";
   const width = Math.min(390, window.innerWidth - 20);
   const hud = getHudRect();
-  const right = hud ? Math.max(10, window.innerWidth - hud.right) : Math.max(10, (window.innerWidth - width) / 2);
+  // 채팅은 예전처럼 화면 오른쪽 끝에 붙인다. 나머지 패널은 자기 메뉴 버튼 쪽에 맞춘다.
+  const right = store.ui.panel === "chat"
+    ? 10
+    : hud ? Math.max(10, window.innerWidth - hud.right) : Math.max(10, (window.innerWidth - width) / 2);
   p.style.right = Math.min(right, Math.max(10, window.innerWidth - width - 10)) + "px";
   if (dock === "bottom") {
     p.style.bottom = bandH + hudHeight() + 12 + "px";
