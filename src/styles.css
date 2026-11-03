@@ -1,325 +1,4 @@
-@font-face {
-  font-family: "MulmaruMono";
-  src: url("./assets/MulmaruMono.ttf") format("truetype");
-  font-weight: 100 900;
-  font-display: swap;
-}
-
-:root {
-  --wood: #5a4326;
-  --wood-dark: #3a2a1a;
-  --parch: #f6eedd;
-  --parch2: #efe2c4;
-  --ink: #3a2a1a;
-  --gold: #c79a34;
-  --font: "MulmaruMono", ui-monospace, Menlo, Consolas, monospace;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html,
-body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  background: transparent;
-  overflow: hidden;
-  font-family: var(--font);
-  color: var(--ink);
-  -webkit-user-select: none;
-  user-select: none;
-  cursor: default;
-}
-
-#app {
-  position: fixed;
-  inset: 0;
-}
-
-#strip-canvas {
-  position: fixed;
-  inset: 0;
-}
-
-/* ── Panels ─────────────────────────────────────────────── */
-
-#panel {
-  width: min(420px, calc(100vw - 20px));
-  background: linear-gradient(var(--parch), var(--parch2));
-  border: 3px solid var(--wood);
-  border-radius: 12px;
-  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.45);
-  overflow: auto;
-  z-index: 10;
-}
-
-.panel-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  background: var(--wood);
-  color: var(--parch);
-  font-weight: bold;
-  position: sticky;
-  top: 0;
-}
-
-.panel-head .x {
-  background: transparent;
-  border: none;
-  color: var(--parch);
-  font-size: 15px;
-  cursor: pointer;
-  line-height: 1;
-}
-
-.panel-body {
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.card {
-  background: rgba(255, 255, 255, 0.42);
-  border: 2px solid rgba(90, 67, 38, 0.4);
-  border-radius: 8px;
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.card-title {
-  font-weight: bold;
-  font-size: 12px;
-  color: var(--wood);
-}
-
-.row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.grow {
-  flex: 1;
-  min-width: 0;
-}
-
-.muted {
-  color: #6b5838; /* darkened for WCAG-AA contrast on the parchment background */
-  font-size: 12px;
-}
-
-.small {
-  font-size: 11px;
-}
-
-.dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  display: inline-block;
-  flex: 0 0 auto;
-}
-
-.input {
-  flex: 1;
-  min-width: 0;
-  padding: 6px 8px;
-  border: 2px solid var(--wood);
-  border-radius: 6px;
-  background: #fff;
-  font: inherit;
-}
-
-.btn {
-  background: #d9c089;
-  border: 2px solid var(--wood);
-  border-radius: 6px;
-  padding: 5px 10px;
-  font: inherit;
-  font-weight: bold;
-  color: var(--ink);
-  cursor: pointer;
-  flex: 0 0 auto;
-}
-
-.btn:hover {
-  background: #e7d29b;
-}
-
-.btn.danger {
-  background: #e2573c;
-  color: #fff;
-  border-color: #9c2f1c;
-}
-
-.btn.off {
-  background: #cfc6b4;
-  color: #8a8270;
-  cursor: not-allowed;
-}
-
-.btn.small {
-  padding: 3px 8px;
-  font-size: 11px;
-  align-self: flex-start;
-}
-
-/* Currently-selected choice in a button group (e.g. monitor pick) — still clickable, just marked. */
-.btn.sel {
-  background: var(--wood);
-  color: var(--parch);
-  border-color: var(--wood-dark);
-}
-.btn.sel:hover {
-  background: var(--wood-dark);
-}
-
-/* ── Shop seeds: 일반 / 스페셜 tabs + pixel grid tiles ───── */
-
-.seed-tabs {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 2px;
-}
-
-.seed-tab {
-  flex: 1;
-  background: rgba(90, 67, 38, 0.08);
-  border: 2px solid transparent;
-  border-radius: 7px;
-  padding: 6px;
-  font: inherit;
-  font-weight: bold;
-  font-size: 12px;
-  color: #7a6544;
-  cursor: pointer;
-  transition: background 0.12s, color 0.12s;
-}
-
-.seed-tab:hover {
-  background: rgba(90, 67, 38, 0.16);
-}
-
-.seed-tab.active {
-  background: var(--wood);
-  color: var(--parch);
-}
-
-.seed-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 7px;
-}
-
-.seed-tile {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  background: rgba(255, 255, 255, 0.5);
-  border: 2px solid rgba(90, 67, 38, 0.22);
-  border-radius: 10px;
-  padding: 8px 6px 7px;
-  cursor: pointer;
-  transition: background 0.12s, border-color 0.12s, box-shadow 0.12s, transform 0.08s;
-}
-
-.seed-tile:hover {
-  background: rgba(255, 255, 255, 0.78);
-  transform: translateY(-1px);
-}
-
-/* Currently-selected seed — gold ring so it's obvious which one plants. */
-.seed-tile.sel {
-  border-color: var(--gold);
-  background: #f3e7c6;
-  box-shadow: inset 0 0 0 1px var(--gold), 0 3px 10px rgba(150, 110, 30, 0.25);
-}
-
-.seed-tile.special {
-  border-color: rgba(199, 154, 52, 0.5);
-  background: linear-gradient(160deg, rgba(255, 247, 214, 0.8), rgba(255, 236, 186, 0.6));
-}
-
-.seed-tile.locked {
-  opacity: 0.72;
-  cursor: default;
-}
-
-.seed-tile.locked:hover {
-  transform: none;
-}
-
-.tile-ico {
-  height: 42px;
-  display: flex;
-  align-items: flex-end;
-}
-
-.tile-icon {
-  height: 42px;
-  width: auto;
-  image-rendering: pixelated;
-  display: block;
-}
-
-.locked-ico {
-  height: 42px;
-  display: flex;
-  align-items: center;
-  font-size: 22px;
-  opacity: 0.5;
-}
-
-.tile-name {
-  font-weight: bold;
-  font-size: 12.5px;
-  color: var(--ink);
-}
-
-.tile-sell {
-  font-weight: bold;
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-}
-
-.tile-sell.up {
-  color: #327a25;
-}
-
-.tile-sell.down {
-  color: #a5381f;
-}
-
-.tile-meta {
-  font-size: 10px;
-  color: #7a6544;
-  font-variant-numeric: tabular-nums;
-}
-
-.tile-lock {
-  font-size: 10px;
-  color: #7a6544;
-  text-align: center;
-  line-height: 1.35;
-}
-
-.tile-check {
-  position: absolute;
-  top: 5px;
-  right: 6px;
-  font-size: 11px;
-  color: var(--gold);
-  font-weight: bold;
-}
+@import "./styles-foundation.css";
 
 /* ── Forced-update banner ───────────────────────────────── */
 
@@ -364,7 +43,7 @@ body {
 .switch .track {
   position: absolute;
   inset: 0;
-  background: #cfc6b4;
+  background: var(--surface-alt);
   border: 2px solid var(--wood);
   border-radius: 999px;
   transition: background 0.18s;
@@ -401,8 +80,8 @@ body {
 .farm-preview {
   display: block;
   border-radius: 6px;
-  border: 2px solid rgba(90, 67, 38, 0.5);
-  background: rgba(255, 255, 255, 0.22);
+  border: 1px solid var(--line);
+  background: var(--surface-alt);
 }
 
 .title-chip {
@@ -412,7 +91,7 @@ body {
   border-radius: 999px;
   background: var(--wood);
   color: var(--parch);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: bold;
   vertical-align: middle;
 }
@@ -429,17 +108,17 @@ body {
 }
 
 .raidlog-row.me-raider {
-  color: #3f7a30; /* I did the robbing */
+  color: var(--leaf); /* I did the robbing */
 }
 
 .raidlog-row.me-victim {
-  color: #b5402e; /* I got robbed */
+  color: var(--danger); /* I got robbed */
 }
 
 .raidlog-coin {
   flex: 0 0 auto;
   font-weight: bold;
-  color: #b5651d;
+  color: var(--gold);
   white-space: nowrap;
 }
 
@@ -449,16 +128,16 @@ body {
   margin-right: 4px;
   padding: 0 5px;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: bold;
   color: #fff;
   vertical-align: middle;
 }
 .raidlog-tag.raid {
-  background: #3f7a30;
+  background: var(--leaf);
 }
 .raidlog-tag.robbed {
-  background: #b5402e;
+  background: var(--danger);
 }
 
 /* ── Chat ──────────────────────────────────────────────── */
@@ -470,8 +149,8 @@ body {
   max-height: 260px;
   overflow: auto;
   padding: 6px;
-  background: rgba(255, 255, 255, 0.42);
-  border: 2px solid rgba(90, 67, 38, 0.4);
+  background: var(--surface-alt);
+  border: 1px solid var(--line);
   border-radius: 8px;
 }
 
@@ -482,8 +161,8 @@ body {
   flex-direction: column;
   gap: 5px;
   padding: 6px;
-  background: rgba(255, 255, 255, 0.42);
-  border: 2px solid rgba(90, 67, 38, 0.4);
+  background: var(--surface-alt);
+  border: 1px solid var(--line);
   border-radius: 8px;
 }
 
@@ -506,7 +185,7 @@ body {
 }
 
 .chat-msg.me .chat-nick {
-  color: #b5651d;
+  color: var(--gold);
 }
 
 .chat-msg .chat-text {
@@ -518,8 +197,8 @@ body {
 .chat-msg .chat-time {
   flex: 0 0 auto;
   align-self: flex-end;
-  font-size: 10px;
-  color: #736550; /* darkened from #9a8a72 (was ~3.4:1) for readability */
+  font-size: 12px;
+  color: var(--muted); /* darkened from #9a8a72 (was ~3.4:1) for readability */
   white-space: nowrap;
 }
 
@@ -531,7 +210,7 @@ body {
   align-items: baseline;
   gap: 6px;
   font-size: 11px;
-  color: #6b5838;
+  color: var(--muted);
   opacity: 0.9;
   padding: 1px 0;
 }
@@ -540,7 +219,7 @@ body {
 .chat-raid-fold {
   font-size: 12px;
   font-weight: bold;
-  color: #6b5838;
+  color: var(--muted);
   background: rgba(90, 67, 38, 0.1);
   border: 1px dashed rgba(90, 67, 38, 0.35);
   border-radius: 6px;
@@ -557,7 +236,7 @@ body {
   align-items: baseline;
   font-size: 11px;
   line-height: 1.3;
-  color: #6b5838;
+  color: var(--muted);
   padding-left: 10px;
 }
 .chat-raid-item .chat-raid-who {
@@ -577,7 +256,7 @@ body {
   max-width: 100%;
   max-height: 180px;
   border-radius: 8px;
-  border: 2px solid rgba(90, 67, 38, 0.4);
+  border: 1px solid var(--line);
   cursor: zoom-in;
   object-fit: contain;
 }
@@ -588,8 +267,8 @@ body {
   align-items: center;
   gap: 8px;
   padding: 5px 6px;
-  background: rgba(255, 255, 255, 0.42);
-  border: 2px dashed rgba(90, 67, 38, 0.4);
+  background: var(--surface-alt);
+  border: 2px dashed var(--line);
   border-radius: 8px;
 }
 .chat-attach-thumb {
@@ -598,7 +277,7 @@ body {
   height: 40px;
   object-fit: cover;
   border-radius: 6px;
-  border: 1px solid rgba(90, 67, 38, 0.4);
+  border: 1px solid var(--line);
 }
 .chat-attach .chat-attach-x {
   flex: 0 0 auto;
@@ -690,7 +369,7 @@ body {
   gap: 7px;
   padding: 12px;
   background: linear-gradient(var(--parch), var(--parch2));
-  border: 3px solid var(--wood);
+  border: 1px solid var(--line);
   border-radius: 12px;
   box-shadow: 0 8px 26px rgba(0, 0, 0, 0.45);
   pointer-events: auto;
@@ -706,7 +385,7 @@ body {
   align-self: flex-start;
   font-size: 12px;
   line-height: 1.35;
-  color: #6b5838;
+  color: var(--muted);
 }
 
 /* The drawing surface. crosshair + touch-action:none so a drag draws instead of selecting text or
@@ -723,7 +402,7 @@ body {
   align-self: flex-start;
   font-size: 11px;
   font-weight: bold;
-  color: #b5651d;
+  color: var(--gold);
 }
 
 #doodle-composer .dc-tools,
@@ -742,12 +421,12 @@ body {
 }
 
 #doodle-composer .dc-skip {
-  background: #cfc6b4;
-  color: #6a6048;
+  background: var(--surface-alt);
+  color: var(--muted);
 }
 
 #doodle-composer .dc-skip:hover {
-  background: #ddd4c2;
+  background: var(--leaf-soft);
 }
 
 /* ── 낙서장: a farm's wall (raid chest / HUD chip) ────────── */
@@ -758,7 +437,7 @@ body {
   display: none;
   padding: 10px 12px 12px;
   background: linear-gradient(var(--parch), var(--parch2));
-  border: 3px solid var(--wood);
+  border: 1px solid var(--line);
   border-radius: 12px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   pointer-events: auto;
@@ -775,11 +454,11 @@ body {
 }
 
 #doodle-board .db-close {
-  background: #cfc6b4;
-  color: #6a6048;
+  background: var(--surface-alt);
+  color: var(--muted);
 }
 #doodle-board .db-close:hover {
-  background: #ddd4c2;
+  background: var(--leaf-soft);
 }
 
 /* Two lines' worth of room, always. The caption changes as scribbles arrive, and a line-count
@@ -788,11 +467,11 @@ body {
   font-size: 12px;
   line-height: 1.35;
   min-height: 33px;
-  color: #6b5838;
+  color: var(--muted);
   margin-bottom: 6px;
 }
 #doodle-board .db-meta.full {
-  color: #b5651d;
+  color: var(--gold);
   font-weight: bold;
 }
 
@@ -840,7 +519,7 @@ body {
   display: none;
   padding: 8px 8px 5px;
   background: #fffdf6;
-  border: 3px solid var(--wood);
+  border: 1px solid var(--line);
   border-radius: 10px;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
   pointer-events: none;
@@ -853,9 +532,9 @@ body {
 
 #doodle-card .dcard-who {
   margin-top: 4px;
-  font-size: 10px;
+  font-size: 12px;
   text-align: center;
-  color: #6b5838;
+  color: #64705e;
 }
 
 /* Card skins — the old 쪽지 스킨 purchases, repurposed as the card's paper. */
@@ -904,7 +583,7 @@ body {
 .rank-coin {
   flex: 0 0 auto;
   font-weight: bold;
-  color: #b5651d;
+  color: var(--gold);
 }
 
 .card.dex-locked {
@@ -930,7 +609,7 @@ body {
   cursor: pointer;
 }
 .stat-friend:hover {
-  background: rgba(255, 255, 255, 0.5);
+  background: var(--surface-alt);
 }
 
 .stat-arrow {
@@ -968,6 +647,6 @@ body {
 .cl-items li {
   font-size: 12px;
   line-height: 1.4;
-  color: #5b4a32;
+  color: var(--muted);
 }
 

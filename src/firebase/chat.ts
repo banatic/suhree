@@ -11,7 +11,7 @@ let primed = false; // the first snapshot is backlog, not "new" — don't pop fo
 
 // 서리 announcements are auto-posted to this same room, so a busy server buries real chat under raid
 // spam. Detect them heuristically (their fixed emoji-led format) so every surface reading this room
-// (village chat panel, travel window) can treat them consistently.
+// (chat panel and notifications) can treat them consistently.
 const RAID_PREFIXES = ["🌾", "🚨", "⏱️", "🌿"];
 export function isRaidMsg(text: string): boolean {
   return RAID_PREFIXES.some((p) => text.startsWith(p)) && text.includes("님 밭");
@@ -39,7 +39,7 @@ export function isHiddenChatMsg(m: ChatMessage): boolean {
 }
 
 /** Parse + order-sort a raw `chat` RTDB snapshot. The one normalization path for every reader
- *  (village chat panel, travel window) so they can never drift on field mapping again. */
+ *  (chat panel and notifications) so they can never drift on field mapping again. */
 export function parseChatSnapshot(v: Record<string, any> | null | undefined): ChatMessage[] {
   return Object.entries(v || {})
     .map(([id, m]: [string, any]) => ({ id, uid: m.uid, nick: m.nick, text: m.text || "", at: m.at || 0, img: m.img }) as ChatMessage)

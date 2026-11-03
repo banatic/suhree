@@ -130,10 +130,7 @@ pub fn fullscreen_app_present() -> bool {
             return false;
         }
 
-        // Never treat our OWN windows as "a fullscreen app to hide the strip for" — since the 3D
-        // 여행 window is a normal maximisable window, maximising it (or just sizing it to the
-        // monitor) used to make this watchdog mistake it for a game and hide the strip, stalling
-        // presence/friend/crop subscriptions until the user un-maximised it.
+        // Our own overlay must never trigger fullscreen hiding.
         let mut owner_pid: u32 = 0;
         GetWindowThreadProcessId(hwnd, &mut owner_pid);
         if owner_pid == GetCurrentProcessId() {

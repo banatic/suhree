@@ -34,6 +34,9 @@ import { compressPastedImage } from "./imageCompress";
 import { setPreferredMonitor, hideStrip, isTauri } from "../platform/tauri";
 import { publishHitRegions } from "./strip";
 import { dismissChatPopup } from "./chatPopup";
+import { hudHeight, getHudRect, focusHud } from "./hud";
+import { panelSection, spyButtonVisible } from "./navigation";
+import { toggleBoard, closeBoard, isBoardOpen } from "./doodleBoard";
 import { APP_VERSION } from "../version";
 import { CHANGELOG } from "../changelog";
 import { checkForUpdates } from "../update";
@@ -72,8 +75,7 @@ const expandedRaidGroups = new Set<string>();
 
 // Repaint the open chat panel the instant a fresh snapshot lands, instead of waiting on the 0.5s
 // ticker below — that ticker is a plain setInterval, which Chromium throttles to ~once/min once this
-// window loses focus (e.g. while the 3D travel window is active), so without this the panel could sit
-// stale for up to a minute after a message the travel window already shows live.
+// window loses focus, so without this the panel could sit stale for up to a minute.
 //
 // Deferred via queueMicrotask: panels.ts <-> firebase/chat.ts (via render/chatPopup.ts) form a module
 // cycle, so depending on which side the bundler reaches first, calling onChatChanged() synchronously
@@ -87,6 +89,17 @@ function ensurePanel(): HTMLDivElement {
   if (!panelEl) {
     panelEl = document.createElement("div");
     panelEl.id = "panel";
+    panelEl.setAttribute("role", "region");
+    panelEl.setAttribute("aria-labelledby", "panel-title");
+    panelEl.addEventListener("focusout", () => queueMicrotask(() => {
+      if (!panelEl?.contains(document.activeElement)) markPanelsDirty();
+    }));
+    new ResizeObserver(() => {
+      if (panelEl && store.ui.panel !== "none") { positionPanel(panelEl); publishHitRegions(); }
+    }).observe(panelEl);
+    window.addEventListener("resize", () => {
+      if (panelEl && store.ui.panel !== "none") { positionPanel(panelEl); publishHitRegions(); }
+    });
     panelEl.style.display = "none";
     document.getElementById("app")!.appendChild(panelEl);
     // Chat panel auto-closes once the mouse enters it and then leaves (only the chat kind).
@@ -98,7 +111,7 @@ function ensurePanel(): HTMLDivElement {
       if (store.ui.panel !== "chat" || !chatHoverArmed) return;
       window.clearTimeout(chatLeaveTimer);
       chatLeaveTimer = window.setTimeout(() => {
-        if (store.ui.panel === "chat") togglePanel("chat");
+        if (store.ui.panel === "chat" && !panelEl?.contains(document.activeElement) && !chatDraft && !chatPendingImg) togglePanel("chat");
       }, CHAT_LEAVE_GRACE_MS);
     });
     // Esc closes the open panel (the only reliable "dismiss" gesture — clicks outside the band pass
@@ -130,7 +143,7 @@ function el(
     else if (k === "onclick") e.addEventListener("click", v);
     else if (k === "oninput") e.addEventListener("input", v);
     else if (k === "style") e.setAttribute("style", v);
-    else if (k.startsWith("data-")) e.setAttribute(k, v);
+    else if (k.startsWith("data-") || k.startsWith("aria-") || k === "role") e.setAttribute(k, v);
     else (e as any)[k] = v;
   }
   for (const ch of children) {
@@ -141,7 +154,9 @@ function el(
 }
 
 export function togglePanel(kind: PanelKind): void {
+  const previous = store.ui.panel;
   store.ui.panel = store.ui.panel === kind ? "none" : kind;
+  if (isBoardOpen()) closeBoard();
   if (store.ui.panel === "chat") {
     store.chatUnread = false;
     lastChatSig = ""; // force the message list to (re)render on open
@@ -155,17 +170,71 @@ export function togglePanel(kind: PanelKind): void {
     void refreshStats();
   }
   if (store.ui.panel === "spy") void refreshSpy();
-  renderPanels();
+  renderPanels(true);
   publishHitRegions();
+  if (store.ui.panel === "none") focusHud(panelSection(previous) ?? "seeds");
+  else if (previous !== store.ui.panel) {
+    const target = panelEl?.querySelector<HTMLElement>(".seed-tile.sel") ?? panelEl?.querySelector<HTMLElement>(".panel-body input, .panel-body button:not(:disabled)");
+    target?.focus({ preventScroll: true });
+  }
 }
 
+const PANEL_HINTS: Partial<Record<PanelKind, string>> = {
+  seeds: "작은 씨앗 하나로 시작하는 하루",
+  friends: "함께하는 농부들의 소식",
+  village: "친구들과 나누는 농장 이야기",
+  more: "내 농장을 가꾸는 즐거움",
+  shop: "밭을 넓히고 농기구를 강화해요",
+};
+
 function header(title: string): HTMLElement {
-  return el(
-    "div",
-    { class: "panel-head" },
-    el("span", {}, title),
-    el("button", { class: "x", onclick: () => togglePanel(store.ui.panel) }, "✕"),
-  );
+  const kind = store.ui.panel;
+  const section = panelSection(kind);
+  const head = el("div", { class: "panel-head" });
+  if (section && section !== kind) {
+    head.append(el("button", {
+      type: "button", class: "panel-back", "aria-label": section === "village" ? "마을로 돌아가기" : "더보기로 돌아가기",
+      onclick: () => togglePanel(section),
+    }, "‹"));
+  }
+  head.append(el("div", { class: "panel-heading grow" },
+    el("div", { class: "panel-eyebrow" }, "suhree · 내 작은 농장"),
+    el("h1", { id: "panel-title" }, title),
+    PANEL_HINTS[kind] ? el("p", { class: "muted" }, PANEL_HINTS[kind]!) : null,
+  ));
+  head.append(el("button", { type: "button", class: "x", "aria-label": "패널 닫기", onclick: () => togglePanel(store.ui.panel) }, "×"));
+  return head;
+}
+
+function menuPanel(kind: "village" | "more"): HTMLElement {
+  const wrap = el("div", { class: "panel-body" });
+  const entries: { title: string; detail: string; target: PanelKind | "board"; symbol: string }[] = kind === "village" ? [
+    { title: "마을 채팅", detail: store.chatUnread ? "새 메시지가 도착했어요" : "모두 함께 나누는 이야기", target: "chat", symbol: "☏" },
+    { title: "낙서장", detail: "친구가 남긴 작은 그림들", target: "board", symbol: "✎" },
+    { title: "서리기록", detail: "마을에서 일어난 서리 소식", target: "raidlog", symbol: "♧" },
+  ] : [
+    { title: "강화 상점", detail: "밭 확장 · 허수아비 · 낫", target: "shop", symbol: "⌂" },
+    { title: "꾸미기", detail: "장식 · 테마 · 칭호", target: "cosmetics", symbol: "❀" },
+    { title: "도감", detail: "작물 기록과 해금 조건", target: "dex", symbol: "▤" },
+    { title: "랭킹", detail: "나와 친구들의 코인 순위", target: "ranking", symbol: "♔" },
+    { title: "통계", detail: "한눈에 보는 서리 기록", target: "stats", symbol: "▥" },
+    { title: "설정", detail: "내 정보 · 소리 · 모니터", target: "settings", symbol: "⚙" },
+  ];
+  if (kind === "more" && spyButtonVisible()) entries.push({ title: "작물 점지소", detail: "오늘의 작물 소식", target: "spy", symbol: "✧" });
+  const list = el("div", { class: "menu-grid" });
+  for (const item of entries) list.append(el("button", {
+    type: "button", class: "menu-tile", onclick: () => {
+      playClick();
+      if (item.target === "board") {
+        togglePanel(store.ui.panel);
+        toggleBoard(store.uid, store.user?.nickname || "나");
+      } else togglePanel(item.target);
+    },
+  }, el("span", { class: "menu-symbol", "aria-hidden": "true" }, item.symbol),
+    el("span", { class: "grow" }, el("strong", {}, item.title), el("span", { class: "muted" }, item.detail)),
+    el("span", { class: "menu-arrow", "aria-hidden": "true" }, "›")));
+  wrap.append(list);
+  return wrap;
 }
 
 function row(...kids: (Node | string)[]): HTMLElement {
@@ -174,7 +243,7 @@ function row(...kids: (Node | string)[]): HTMLElement {
 
 function btn(label: string, onclick: () => void, cls = "btn"): HTMLElement {
   // One shared tick for every panel button — individual actions layer their own sound on top.
-  return el("button", { class: cls, onclick: () => { playClick(); onclick(); } }, label);
+  return el("button", { type: "button", class: cls, onclick: () => { playClick(); onclick(); } }, label);
 }
 
 // ── Cosmetic helpers (decor / theme / title sections + farm preview thumbnails) ──────
@@ -342,78 +411,58 @@ function coinShort(n: number): string {
   return `${man >= 100 ? Math.round(man) : Math.round(man * 10) / 10}만`;
 }
 
+function seedsPanel(): HTMLElement {
+  const wrap = el("div", { class: "panel-body seeds-body" });
+  const tabs = el("div", { class: "seed-tabs", role: "group", "aria-label": "씨앗 분류" });
+  for (const [key, label] of [["normal", "일반 씨앗"], ["special", "스페셜"]] as const) {
+    tabs.append(el("button", {
+      type: "button", class: `seed-tab${seedTab === key ? " active" : ""}`,
+      "aria-pressed": String(seedTab === key), "data-focus-key": `seed-tab-${key}`,
+      onclick: () => { seedTab = key; renderPanels(true); },
+    }, label));
+  }
+  wrap.append(tabs, el("div", { class: "market-caption muted" },
+    `오늘의 시세 · 인기작물 ${BALANCE.crops.tiers[topCropTier()]?.label ?? ""} · 자정 갱신`));
+  const grid = el("div", { class: "seed-grid" });
+  for (const t of BALANCE.crops.tiers.filter(t => !!t.special === (seedTab === "special"))) {
+    const locked = !cropUnlocked(t.id);
+    const selected = store.selectedSeedTier === t.id;
+    const short = coins() < t.price;
+    const tile = el("button", {
+      type: "button", class: `seed-tile${selected ? " sel" : ""}${t.special ? " special" : ""}${locked ? " locked" : ""}`,
+      disabled: locked, "aria-pressed": String(selected), "data-focus-key": `seed-${t.id}`,
+      "aria-label": locked ? `잠긴 씨앗, ${cropLockReason(t.id)}` : `${t.label}, 심기 ${formatCoins(t.price)} 코인, 성장 ${fmtGrowTime(cropTotalMs(t.id))}${short ? ", 보유 코인 부족" : ""}`,
+      onclick: () => { setSelectedSeedTier(t.id); playClick(); renderPanels(true); toast(`${t.label} 선택 완료 · 빈 밭을 눌러 심어요`); },
+    });
+    tile.append(el("span", { class: "tile-ico", "aria-hidden": "true" }, locked ? el("span", { class: "locked-ico" }, "✧") : makeCropIcon(t)));
+    tile.append(el("span", { class: "tile-copy" },
+      el("span", { class: "tile-name" }, locked ? "잠긴 씨앗" : t.label),
+      locked ? el("span", { class: "tile-lock" }, cropLockReason(t.id) ?? "아직 잠겨 있어요") :
+        el("span", { class: "tile-price" }, `${coinShort(t.price)} 코인`),
+      locked ? null : el("span", { class: "tile-meta" }, fmtGrowTime(cropTotalMs(t.id))),
+      !locked && short ? el("span", { class: "tile-short" }, "코인 부족") : null,
+    ));
+    if (selected) tile.append(el("span", { class: "tile-check", "aria-hidden": "true" }, "✓"));
+    grid.append(tile);
+  }
+  wrap.append(grid);
+  const selected = BALANCE.crops.tiers[store.selectedSeedTier] ?? BALANCE.crops.tiers[0];
+  const summary = el("div", { class: "seed-selection" });
+  summary.append(
+    el("div", { class: "seed-summary" },
+      el("span", {}, "심을 때 드는 비용"), el("strong", {}, `${formatCoins(selected.price)} 코인 / 칸`),
+      el("span", {}, "오늘의 수확가"), el("strong", {}, `${formatCoins(sellValue(selected.id))} 코인`)),
+    btn(`${selected.label} 선택 완료 · 밭으로`, () => togglePanel("seeds"), "btn primary seed-done"),
+    el("p", { class: "seed-help muted" }, coins() < selected.price ? "코인이 부족해요. 다 자란 작물을 먼저 수확해 보세요." : "선택은 무료예요. 빈 밭을 누르면 심어져요."),
+  );
+  wrap.append(summary);
+  return wrap;
+}
+
 function shopPanel(): HTMLElement {
   const uid = store.uid;
   const u = store.user;
   const wrap = el("div", { class: "panel-body" });
-  wrap.append(el("div", { class: "muted" }, "씨앗은 밭의 빈 칸을 눌러 심어요. 아래로 강화/확장하세요."));
-  wrap.append(
-    el(
-      "div",
-      { class: "muted small" },
-      `📈 오늘의 시세 (자정 KST 갱신) · 인기작물: ${BALANCE.crops.tiers[topCropTier()]?.label ?? ""}`,
-    ),
-  );
-
-  // seeds — pixel grid tiles, split into 일반 / ✨스페셜 tabs (no long scroll). "오늘" = today's sell price.
-  const seedTile = (t: (typeof BALANCE.crops.tiers)[number]): HTMLElement => {
-    const up = priceFactor(t.id) >= 1;
-    const selected = store.selectedSeedTier === t.id;
-    const tile = el("div", {
-      class: `seed-tile${selected ? " sel" : ""}${t.special ? " special" : ""}`,
-      onclick: () => {
-        setSelectedSeedTier(t.id);
-        toast(`씨앗 선택: ${t.label}`);
-        renderPanels();
-      },
-    });
-    tile.append(el("div", { class: "tile-ico" }, makeCropIcon(t)));
-    tile.append(el("div", { class: "tile-name" }, `${t.special ? "✨ " : ""}${t.label}`));
-    tile.append(
-      el("div", { class: `tile-sell ${up ? "up" : "down"}` }, `${coinShort(sellValue(t.id))} ${up ? "📈" : "📉"}`),
-    );
-    tile.append(el("div", { class: "tile-meta" }, `⏱ ${fmtGrowTime(cropTotalMs(t.id))} · 씨 ${coinShort(t.price)}`));
-    if (selected) tile.append(el("div", { class: "tile-check" }, "✓"));
-    return tile;
-  };
-
-  const lockedTile = (t: (typeof BALANCE.crops.tiers)[number]): HTMLElement =>
-    el(
-      "div",
-      { class: "seed-tile special locked" },
-      el("div", { class: "tile-ico locked-ico" }, "✨"),
-      el("div", { class: "tile-name" }, "???"),
-      el("div", { class: "tile-lock" }, `🔒 ${cropLockReason(t.id) ?? "잠김"}`),
-    );
-
-  const tabBtn = (label: string, key: typeof seedTab): HTMLElement =>
-    el(
-      "button",
-      {
-        class: `seed-tab${seedTab === key ? " active" : ""}`,
-        onclick: () => {
-          seedTab = key;
-          renderPanels();
-        },
-      },
-      label,
-    );
-
-  const seedCard = el("div", { class: "card" });
-  seedCard.append(el("div", { class: "seed-tabs" }, tabBtn("일반", "normal"), tabBtn("✨ 스페셜", "special")));
-
-  const grid = el("div", { class: "seed-grid" });
-  if (seedTab === "normal") {
-    for (const t of BALANCE.crops.tiers) if (!t.special) grid.append(seedTile(t));
-  } else {
-    const specials = BALANCE.crops.tiers.filter((t) => t.special);
-    const unlocked = specials.filter((t) => cropUnlocked(t.id)).length;
-    seedCard.append(el("div", { class: "muted small" }, `해금 ${unlocked} / ${specials.length} · 도감 완성부터 순서대로 열려요`));
-    for (const t of specials) grid.append(cropUnlocked(t.id) ? seedTile(t) : lockedTile(t));
-  }
-  seedCard.append(grid);
-  wrap.append(seedCard);
-
   // plot expansion
   if (u) {
     const pcost = plotCost(u.plotSize);
@@ -470,42 +519,36 @@ function shopPanel(): HTMLElement {
   return wrap;
 }
 
+let friendCodeDraft = "";
+
 function friendsPanel(): HTMLElement {
   const uid = store.uid;
   const wrap = el("div", { class: "panel-body" });
-  wrap.append(
-    el("div", { class: "muted" }, `내 친구코드: `, el("b", {}, store.user?.friendCode || "...")),
-  );
-
-  let codeVal = "";
-  const input = el("input", {
-    class: "input",
-    placeholder: "친구코드 입력 (예: ABC123)",
-    maxLength: 8,
-    oninput: (e: any) => (codeVal = e.target.value),
-  });
-  wrap.append(row(input, btn("추가", () => void addFriendByCode(uid, codeVal))));
-
-  const list = el("div", { class: "card" }, el("div", { class: "card-title" }, "친구"));
-  if (store.friends.length === 0) {
-    list.append(el("div", { class: "muted" }, "아직 친구가 없어요."));
+  const online = store.friends.filter(f => f.online).length;
+  wrap.append(el("div", { class: "friend-summary muted" }, `지금 함께하는 친구 ${online}명`));
+  const list = el("div", { class: "friend-list" });
+  if (!store.friends.length) {
+    list.append(el("div", { class: "empty-state" }, el("strong", {}, "함께할 농부를 초대해요"),
+      el("p", { class: "muted" }, "아래에서 친구코드를 입력하면 서로의 농장을 만날 수 있어요.")));
   }
-  for (const f of store.friends) {
+  const friends = [...store.friends].sort((a, b) => Number(b.online) - Number(a.online) || a.nickname.localeCompare(b.nickname, "ko"));
+  for (const f of friends) {
     const st = friendRaidState(f);
-    list.append(
-      row(
-        el("span", { class: "dot", style: `background:${f.online ? "#5fd07a" : "#777"}` }),
-        makeFarmPreview({ decor: f.equippedDecor || "decor_none", theme: f.equippedTheme || "theme_day" }, 72, 24),
-        nickWithTitle(f.nickname, f.equippedTitle),
-        el(
-          "button",
-          { class: st.cls, "data-fuid": f.uid, onclick: () => void startRaid(f.uid, f.nickname) },
-          st.label,
-        ),
-      ),
-    );
+    list.append(el("div", { class: "friend-row" },
+      makeFarmPreview({ decor: f.equippedDecor || "decor_none", theme: f.equippedTheme || "theme_day" }, 56, 30),
+      el("div", { class: "friend-copy grow" }, nickWithTitle(f.nickname, f.equippedTitle),
+        el("span", { class: "friend-status", "data-status-uid": f.uid }, f.online ? "● 온라인" : "오프라인")),
+      el("button", { type: "button", class: st.cls, disabled: !st.canRaid, "data-fuid": f.uid, onclick: () => void startRaid(f.uid, f.nickname) }, st.label)));
   }
-  wrap.append(list);
+  const input = el("input", {
+    class: "input", placeholder: "예: ABC123", maxLength: 8, value: friendCodeDraft,
+    id: "friend-code", "aria-label": "친구코드", "data-focus-key": "friend-code",
+    oninput: (e: Event) => { friendCodeDraft = (e.target as HTMLInputElement).value; },
+  });
+  wrap.append(list,
+    el("div", { class: "friend-code" }, el("span", { class: "muted" }, "내 친구코드"), el("strong", {}, store.user?.friendCode || "연결 중")),
+    el("label", { class: "field-label", htmlFor: "friend-code" }, "친구 추가"),
+    row(input, btn("추가", () => void addFriendByCode(uid, friendCodeDraft), "btn primary")));
   return wrap;
 }
 
@@ -521,15 +564,15 @@ function fmtCooldown(ms: number): string {
   return `${s}s`;
 }
 
-function friendRaidState(f: FriendData): { label: string; cls: string } {
+function friendRaidState(f: FriendData): { label: string; cls: string; canRaid: boolean } {
   const left = cooldownLeftMs(f);
   const onCooldown = left > 0;
   const canRaid = f.online && !onCooldown && store.raid.role === "none";
-  let label = "털기";
+  let label = "서리하기";
   if (!f.online) label = "오프라인";
-  else if (onCooldown) label = `쿨다운 ${fmtCooldown(left)}`;
+  else if (onCooldown) label = `대기 ${fmtCooldown(left)}`;
   else if (store.raid.role !== "none") label = "진행중";
-  return { label, cls: canRaid ? "btn danger" : "btn off" };
+  return { label, cls: canRaid ? "btn friend-action" : "btn friend-action off", canRaid };
 }
 
 /** Update only the raid buttons in place (every 0.5s) so countdowns tick and re-enable live. */
@@ -543,6 +586,7 @@ function refreshFriendCooldowns(): void {
     const st = friendRaidState(f);
     if (b.textContent !== st.label) b.textContent = st.label;
     if (b.className !== st.cls) b.className = st.cls;
+    (b as HTMLButtonElement).disabled = !st.canRaid;
   });
 }
 
@@ -553,11 +597,11 @@ function chatPanel(): HTMLElement {
   wrap.append(el("div", { class: "muted" }, "모두가 함께 쓰는 마을 채팅이에요."));
 
   // New-message popup on/off (persisted). Flipping it just re-renders the panel.
-  const cb = el("input", { type: "checkbox" }) as HTMLInputElement;
+  const cb = el("input", { type: "checkbox", "aria-label": "새 채팅 알림" }) as HTMLInputElement;
   cb.checked = store.chatNotify;
   cb.addEventListener("change", () => {
     setChatNotify(cb.checked);
-    renderPanels();
+    renderPanels(true);
   });
   wrap.append(
     row(
@@ -578,6 +622,7 @@ function chatPanel(): HTMLElement {
   const input = el("input", {
     class: "input",
     placeholder: "메시지 입력… (Ctrl+V로 이미지 붙여넣기)",
+    "aria-label": "마을 채팅 메시지",
     maxLength: BALANCE.chat.maxLen,
     value: chatDraft,
     oninput: (e: any) => (chatDraft = e.target.value),
@@ -833,7 +878,7 @@ async function refreshRankingCoins(): Promise<void> {
       }
     }),
   );
-  if (store.ui.panel === "ranking") renderPanels();
+  if (store.ui.panel === "ranking") renderPanels(true);
 }
 
 function rankingPanel(): HTMLElement {
@@ -891,7 +936,7 @@ function fmtGrowTime(ms: number): string {
 
 async function refreshSpy(): Promise<void> {
   spyLoading = true;
-  if (store.ui.panel === "spy") renderPanels();
+  if (store.ui.panel === "spy") renderPanels(true);
 
   // Everyone we know a uid + nick for, minus myself.
   const who = new Map<string, string>();
@@ -922,7 +967,7 @@ async function refreshSpy(): Promise<void> {
   rows.sort((a, b) => maxRipe(a) - maxRipe(b));
   spyData = rows;
   spyLoading = false;
-  if (store.ui.panel === "spy") renderPanels();
+  if (store.ui.panel === "spy") renderPanels(true);
 }
 
 function maxRipe(r: SpyRow): number {
@@ -1040,7 +1085,7 @@ let statsDetailUid: string | null = null; // which friend's head-to-head is open
 /** Refetch my stats + every friend's stats, then re-render the open panel. */
 async function refreshStats(): Promise<void> {
   statsLoading = true;
-  if (store.ui.panel === "stats") renderPanels();
+  if (store.ui.panel === "stats") renderPanels(true);
   const fs = [...store.friends]; // snapshot the order so results line up
   const results = await Promise.all([fetchStats(store.uid), ...fs.map((f) => fetchStats(f.uid))]);
   myStats = results[0];
@@ -1048,7 +1093,7 @@ async function refreshStats(): Promise<void> {
   fs.forEach((f, i) => map.set(f.uid, results[i + 1]));
   friendStats = map;
   statsLoading = false;
-  if (store.ui.panel === "stats") renderPanels();
+  if (store.ui.panel === "stats") renderPanels(true);
 }
 
 /** Lifetime/today aggregate bucket for a stats node (today zeros out once the KST day rolls over). */
@@ -1137,7 +1182,7 @@ function statsOverview(wrap: HTMLElement, today: string): void {
 
 function setStatsDetail(uid: string | null): void {
   statsDetailUid = uid;
-  renderPanels();
+  renderPanels(true);
 }
 
 /** Head-to-head detail card for one scope (my raids on them vs. theirs on me). */
@@ -1276,7 +1321,7 @@ function currentMonitor(): "primary" | "cursor" {
 function chooseMonitor(m: "primary" | "cursor"): void {
   localStorage.setItem(MONITOR_KEY, m);
   void setPreferredMonitor(m);
-  renderPanels();
+  renderPanels(true);
 }
 
 function settingsPanel(): HTMLElement {
@@ -1288,6 +1333,7 @@ function settingsPanel(): HTMLElement {
   const nickInput = el("input", {
     class: "input",
     placeholder: "닉네임",
+    "aria-label": "닉네임",
     maxLength: 16,
     value: nickDraft,
     oninput: (e: any) => (nickDraft = e.target.value),
@@ -1317,12 +1363,12 @@ function settingsPanel(): HTMLElement {
   );
 
   // Master sound toggle (persisted). Same switch markup as the chat-notify toggle.
-  const sndCb = el("input", { type: "checkbox" }) as HTMLInputElement;
+  const sndCb = el("input", { type: "checkbox", "aria-label": "효과음" }) as HTMLInputElement;
   sndCb.checked = store.soundEnabled;
   sndCb.addEventListener("change", () => {
     setSoundEnabled(sndCb.checked);
     if (sndCb.checked) playClick(); // instant audible confirmation that sound is back on
-    renderPanels();
+    renderPanels(true);
   });
   wrap.append(
     el("div", { class: "card" },
@@ -1479,8 +1525,11 @@ function dexPanel(): HTMLElement {
 
 const TITLES: Record<PanelKind, string> = {
   none: "",
-  shop: "상점",
-  friends: "친구",
+  seeds: "오늘은 뭘 심을까요?",
+  village: "작은 마을 이야기",
+  more: "농장 수첩",
+  shop: "강화 상점",
+  friends: "함께하는 농부들",
   chat: "마을 채팅",
   ranking: "골드 랭킹",
   cosmetics: "꾸미기",
@@ -1491,10 +1540,26 @@ const TITLES: Record<PanelKind, string> = {
   settings: "설정",
 };
 
-export function renderPanels(): void {
+let renderedKind: PanelKind = "none";
+
+export function renderPanels(force = false): void {
   const p = ensurePanel();
+  p.dataset.kind = store.ui.panel;
   previewQueue = []; // drop any thumbnails queued by a prior build; this pass re-queues its own
   const kind = store.ui.panel;
+  if (!force && kind === renderedKind && kind === "chat") {
+    refreshChat();
+    positionPanel(p);
+    return;
+  }
+  const active = document.activeElement as HTMLElement | null;
+  if (!force && kind === renderedKind && active instanceof HTMLInputElement && p.contains(active)) return;
+  const preserve = kind === renderedKind && !!active && p.contains(active);
+  const focusKey = preserve ? active!.dataset.focusKey : undefined;
+  const inputIndex = preserve && active instanceof HTMLInputElement ? [...p.querySelectorAll("input")].indexOf(active) : -1;
+  const inputState = inputIndex >= 0 ? { value: (active as HTMLInputElement).value, start: (active as HTMLInputElement).selectionStart, end: (active as HTMLInputElement).selectionEnd } : null;
+  const scroll = kind === renderedKind ? p.scrollTop : 0;
+  renderedKind = kind;
   if (kind === "none") {
     p.style.display = "none";
     p.replaceChildren();
@@ -1503,6 +1568,13 @@ export function renderPanels(): void {
   p.replaceChildren(header(TITLES[kind]));
   let body: HTMLElement;
   switch (kind) {
+    case "seeds":
+      body = seedsPanel();
+      break;
+    case "village":
+    case "more":
+      body = menuPanel(kind);
+      break;
     case "shop":
       body = shopPanel();
       break;
@@ -1537,8 +1609,21 @@ export function renderPanels(): void {
       body = el("div");
   }
   p.append(body);
-  positionPanel(p);
   p.style.display = "block";
+  positionPanel(p);
+  p.scrollTop = scroll;
+  if (focusKey) {
+    [...p.querySelectorAll<HTMLElement>("[data-focus-key]")].find(e => e.dataset.focusKey === focusKey)?.focus({ preventScroll: true });
+  }
+  if (inputState) {
+    const input = p.querySelectorAll("input")[inputIndex];
+    if (input) {
+      input.value = inputState.value;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.focus({ preventScroll: true });
+      if (inputState.start !== null && inputState.end !== null) input.setSelectionRange(inputState.start, inputState.end);
+    }
+  }
   if (previewQueue.length) setTimeout(flushPreviews, 0); // canvases need to be in the DOM to size
 }
 
@@ -1546,15 +1631,18 @@ function positionPanel(p: HTMLDivElement): void {
   const dock = bandDock();
   const bandH = bandHeightCss();
   p.style.position = "fixed";
-  p.style.right = "10px";
+  const width = Math.min(390, window.innerWidth - 20);
+  const hud = getHudRect();
+  const right = hud ? Math.max(10, window.innerWidth - hud.right) : Math.max(10, (window.innerWidth - width) / 2);
+  p.style.right = Math.min(right, Math.max(10, window.innerWidth - width - 10)) + "px";
   if (dock === "bottom") {
-    p.style.bottom = bandH + 8 + "px";
+    p.style.bottom = bandH + hudHeight() + 12 + "px";
     p.style.top = "auto";
   } else {
-    p.style.top = bandH + 8 + "px";
+    p.style.top = bandH + hudHeight() + 12 + "px";
     p.style.bottom = "auto";
   }
-  p.style.maxHeight = Math.max(120, window.innerHeight - bandH - 20) + "px";
+  p.style.maxHeight = Math.max(100, window.innerHeight - bandH - hudHeight() - 24) + "px";
 }
 
 /** Bounding rect (CSS px) of the open panel, or null. Consumed by strip.publishHitRegions. */

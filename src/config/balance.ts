@@ -32,7 +32,7 @@ export const BALANCE = {
     // Thin strip: ~2px soil + vertical crops. Must match AppState.band_height_logical in Rust.
     bandHeightLogical: 48,
     soilLogical: 3,
-    // HUD (coins + 상/친/편/꾸/설정) is hidden at rest and rolls UP on hover.
+    // HUD (coins + 씨앗/친구/마을/더보기) appears on hover or keyboard focus.
     toolbarHeightLogical: 116,
     hoverEase: 0.26, // per-frame lerp toward the hover target (frame-rate-normalised at paint time)
     // Adaptive paint rate. The band always has SOME motion (crop sway, snow, drifting decor), so we

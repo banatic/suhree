@@ -9,7 +9,7 @@ use crate::state::StripGeometry;
 use windows_sys::Win32::Foundation::RECT;
 
 /// Max overlay height @96dpi. The band sits at one end; the rest is transparent panel space.
-const WINDOW_HEIGHT_LOGICAL: i32 = 480;
+const WINDOW_HEIGHT_LOGICAL: i32 = 640;
 
 fn rect_contains(r: &RECT, x: i32, y: i32) -> bool {
     x >= r.left && x <= r.right && y >= r.top && y <= r.bottom

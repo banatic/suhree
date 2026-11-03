@@ -33,9 +33,6 @@ export const paths = {
   // 낙서장 — every farm has one. Raiders scribble on the victim's; the owner reads their own.
   board: (ownerUid: string) => `board/${ownerUid}`,
   boardEntry: (ownerUid: string, id: string) => `board/${ownerUid}/${id}`,
-  // 3D 여행 모드 — 접속 중인 플레이어의 실시간 상태 (위치/클립/감정표현)
-  travel: () => `travel`,
-  travelPlayer: (uid: string) => `travel/${uid}`,
   raidlog: () => `raidlog`,
   stats: (uid: string) => `stats/${uid}`,
 };

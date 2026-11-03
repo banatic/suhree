@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>suhree · 디자인 검토</title>
+  <style>
+    body { background: #e7ebdf !important; }
+    @media(prefers-color-scheme:dark) { body { background: #202b22 !important; } }
+    #preview-controls { position: fixed; top: 10px; left: 12px; z-index: 50; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; max-width: calc(100vw - 24px); font: 12px/1.5 system-ui; }
+    #preview-controls button { border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; color: var(--ink); background: var(--surface); }
+    #preview-note { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="preview-controls">
+    <span id="preview-note">오프라인 디자인 검토</span>
+    <button type="button" id="preview-dock">상단 도킹</button>
+    <button type="button" id="preview-balance">코인 부족</button>
+    <button type="button" id="preview-refresh">데이터 갱신</button>
+    <button type="button" id="preview-chrome">검토 도구 숨기기</button>
+  </div>
+  <script type="module">
+    import '../src/styles.css';
+    import { goOffline } from 'firebase/database';
+    import { db } from '../src/firebase/app.ts';
+    import { store, markPanelsDirty } from '../src/state.ts';
+    import { setupStripInteractions, publishHitRegions } from '../src/render/strip.ts';
+    import { togglePanel } from '../src/render/panels.ts';
+    import { startLoop } from '../src/game/loop.ts';
+
+    // Render the production components without boot(), authentication or a network connection.
+    // Database operations stay offline; this page is excluded from the production build.
+    goOffline(db);
+    store.uid = 'preview-farmer';
+    store.ready = true;
+    store.soundEnabled = false;
+    store.selectedSeedTier = 0;
+    store.user = {nickname:'초록농부',friendCode:'FARM42',coins:1280,scarecrowLv:2,scytheLv:1,plotSize:8,equippedDecor:'decor_none',equippedMsgSkin:'skin_plain'};
+    store.crops = {
+      '0':{tier:0,plantedAt:Date.now()-400000}, '1':{tier:3,plantedAt:Date.now()-400000},
+      '2':{tier:1,plantedAt:Date.now()-20000}, '3':{tier:1,plantedAt:Date.now()-400000},
+      '5':{tier:0,plantedAt:Date.now()-400000}, '6':{tier:2,plantedAt:Date.now()-25000},
+    };
+    store.friends = [
+      {uid:'friend-pea',nickname:'콩이',friendCode:'PEA123',online:true},
+      {uid:'friend-potato',nickname:'감자',friendCode:'POT123',online:false},
+      {uid:'friend-barley',nickname:'보리',friendCode:'BAR123',online:true,cooldownUntil:Date.now()+138000},
+    ];
+    store.chat = [{id:'preview-message',uid:'friend-pea',nick:'콩이',text:'무 다 자랐다! 잠깐 수확하고 올게 🌱',at:Date.now()}];
+    store.chatUnread = true;
+    setupStripInteractions();
+    startLoop();
+    togglePanel('seeds');
+    document.getElementById('preview-balance').onclick = () => {store.user.coins = store.user.coins ? 0 : 1280; markPanelsDirty();};
+    document.getElementById('preview-refresh').onclick = () => {store.user.coins += 13; markPanelsDirty();};
+    document.getElementById('preview-dock').onclick = e => {
+      const top = store.geometry?.band_dock !== 'top';
+      store.geometry = {x:0,y:0,w:innerWidth,h:innerHeight,band_x:0,band_y:top?0:innerHeight-48,band_w:innerWidth,band_h:48,scale:1,band_dock:top?'top':'bottom',edge:top?'top':'bottom',monitor_x:0,monitor_y:0,monitor_w:innerWidth,monitor_h:innerHeight};
+      e.target.textContent = top ? '하단 도킹' : '상단 도킹';
+      markPanelsDirty(); publishHitRegions();
+    };
+    document.getElementById('preview-chrome').onclick = () => {document.getElementById('preview-controls').hidden = true;};
+  </script>
+</body>
+</html>

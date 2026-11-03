@@ -1,4 +1,4 @@
-import { store, toast, currentToast, bandHeightCss, bandDock, coins, formatCoins, type PanelKind } from "../state";
+import { store, toast, currentToast, bandHeightCss, bandDock, coins, formatCoins } from "../state";
 import { BALANCE } from "../config/balance";
 import { stageOf, tierOf, plant, harvest, msToRipe, type Stage } from "../game/crops";
 import {
@@ -10,7 +10,6 @@ import {
   RIPE_RADISH,
   RIPE_WHEAT,
   RIPE_PUMPKIN,
-  COIN,
   SCARECROW,
   SPRITE_W,
   type Sprite,
@@ -29,7 +28,9 @@ import { getChatPopupRect } from "./chatPopup";
 import { getDoodleComposerRect } from "./doodleComposer";
 import { showDoodleCard, hideDoodleCard } from "./doodleCard";
 import { getBoardRect, toggleBoard, closeBoard, isBoardOpen } from "./doodleBoard";
-import { updateHitRegions, onStripHover, openTravelWindow, type NormRect } from "../platform/tauri";
+import { updateHitRegions, onStripHover, isTauri, type NormRect } from "../platform/tauri";
+import { setupHud, syncHud, getHudRect, hudHeight, hudHasFocus, hudHasPointer, clearHudPointer, focusHud } from "./hud";
+import { SPY_HIDDEN_KEY, panelSection } from "./navigation";
 import { playClick, playWeedTick, playWeedClear } from "../sfx";
 
 interface Rect {
@@ -56,11 +57,6 @@ interface BandLayout {
   slots: Slot[];
   slotSpan: { x0: number; x1: number };
 }
-interface Btn {
-  id: string;
-  label: string;
-  rect: Rect;
-}
 interface Effect {
   kind: "pop" | "coin" | "poof";
   x: number;
@@ -74,6 +70,7 @@ let ctx: CanvasRenderingContext2D | null = null;
 let lastDpr = 1;
 
 let hovered = false;
+let keyboardMenu = false;
 let hudT = 0; // 0..1 roll-up progress
 let winkStart = 0; // first-run "wink" timestamp
 let lastRaidRole = "none";
@@ -124,36 +121,9 @@ function raiderTrail(uid: string): Trail {
   return t;
 }
 
-const HUD_H = 34;
 const EVICT_GRAZE_MS = 140; // min ms between hover-graze eviction hits (defender)
 const TALLEST_ROWS = 22; // wheat
 const FONT = "'MulmaruMono', ui-monospace, monospace";
-const HUD_LABELS: { id: string; label: string }[] = [
-  { id: "seed", label: "씨앗" },
-  { id: "shop", label: "상점" },
-  { id: "friends", label: "친구" },
-  { id: "chat", label: "채팅" },
-  { id: "ranking", label: "랭킹" },
-  { id: "board", label: "낙서장" },
-  { id: "cosmetics", label: "꾸미기" },
-  { id: "dex", label: "도감" },
-  { id: "raidlog", label: "서리기록" },
-  { id: "travel", label: "🧭여행" },
-  { id: "stats", label: "통계" },
-  { id: "spy", label: "🔮점지" },
-  { id: "settings", label: "설정" },
-];
-
-// The 점지 chip is a hidden easter egg: it exists only for one nickname, and that owner can further
-// toggle it on/off with a secret key sequence (see setupStripInteractions). Default = shown.
-const SPY_HIDDEN_KEY = "suhree_spy_off";
-function spyButtonVisible(): boolean {
-  return store.user?.nickname === "정충봉" && localStorage.getItem(SPY_HIDDEN_KEY) !== "1";
-}
-function visibleHudLabels(): { id: string; label: string }[] {
-  return HUD_LABELS.filter((b) => b.id !== "spy" || spyButtonVisible());
-}
-
 // ── Canvas ─────────────────────────────────────────────────────────────────
 
 function ensureCanvas(): CanvasRenderingContext2D {
@@ -236,40 +206,6 @@ function layout(): BandLayout {
   };
 }
 
-function chipW(label: string, extra = 0): number {
-  return label.length * 14 + 18 + extra;
-}
-
-/** The 씨앗 chip shows the CURRENTLY SELECTED seed's name (e.g. "무", "별무"), not a static label. */
-function hudLabelFor(b: { id: string; label: string }): string {
-  if (b.id === "seed") return tierOf(store.selectedSeedTier)?.label ?? "씨앗";
-  return b.label;
-}
-
-function hudLayout(L: BandLayout): { coin: Rect; buttons: Btn[]; barYOpen: number; bg: Rect } {
-  const barYOpen = L.dock === "bottom" ? L.bandY - HUD_H : L.bandY + L.bandH;
-  const chipH = HUD_H - 8;
-  const chipY = barYOpen + (HUD_H - chipH) / 2;
-  const gap = 6;
-  const coinW = 28 + formatCoins(coins()).length * 9;
-  const parts = visibleHudLabels().map((b) => {
-    const label = hudLabelFor(b);
-    return { ...b, label, w: chipW(label, b.id === "seed" ? 12 : 0) };
-  });
-  const totalW = coinW + gap + parts.reduce((a, p) => a + p.w + gap, 0) - gap;
-  const startX = clamp(L.W / 2 - totalW / 2, 8, Math.max(8, L.W - totalW - 8));
-  let x = startX;
-  const coin: Rect = { x, y: chipY, w: coinW, h: chipH };
-  x += coinW + gap;
-  const buttons: Btn[] = parts.map((p) => {
-    const r: Rect = { x, y: chipY, w: p.w, h: chipH };
-    x += p.w + gap;
-    return { id: p.id, label: p.label, rect: r };
-  });
-  const bg: Rect = { x: startX - 8, y: barYOpen, w: totalW + 16, h: HUD_H };
-  return { coin, buttons, barYOpen, bg };
-}
-
 // ── Render ───────────────────────────────────────────────────────────────────
 
 export function renderStrip(): void {
@@ -279,6 +215,7 @@ export function renderStrip(): void {
   // frame can never miss the trail reset / hit-region republish that a raid start/stop needs.
   if (store.raid.role !== lastRaidRole) {
     lastRaidRole = store.raid.role;
+    if (store.raid.role !== "none" && store.ui.panel !== "none") togglePanel(store.ui.panel);
     // A board belongs to one farm, so a role change always drops it: entering a raid must not leave
     // my own wall on screen, and leaving one must not strand the victim's (with no chest left to
     // close it, overlapping the card composer that follows).
@@ -291,6 +228,7 @@ export function renderStrip(): void {
   }
 
   const L = layout();
+  syncHud(!store.hiddenFullscreen && store.ready && store.raid.role === "none" && !isCollapsed() && (hudEngaged(L) || hudT > 0.05), L.dock, L.bandH);
 
   // ── Adaptive paint scheduler ──────────────────────────────────────────────────
   // Everything on the band animates (crop sway, snow, drifting decor), so a plain "dirty-only" skip
@@ -362,7 +300,7 @@ export function renderStrip(): void {
   maybeRepublishHitRegions(L);
 }
 
-/** Wipe the ENTIRE overlay canvas before painting. The window is tall (~480px: band at one edge,
+/** Wipe the ENTIRE overlay canvas before painting. The window is tall (up to 640px: band at one edge,
  *  transparent panel space filling the rest), and the strip draws OUTSIDE the band — most importantly
  *  the cursor trail, which follows the pointer across an open panel high in the window. A band-only
  *  dirty-rect left those pixels un-cleared, so trail particles piled up permanently across the upper
@@ -472,7 +410,6 @@ function drawFarmView(c: CanvasRenderingContext2D, L: BandLayout): void {
   }
   drawEffects(c, L);
   drawSelfTrail(c, L);
-  drawHUD(c, L);
   drawCollapseTab(c, L);
 }
 
@@ -483,7 +420,7 @@ function drawSelfTrail(c: CanvasRenderingContext2D, L: BandLayout): void {
   // over any hit region (an open panel included), so without this gate the trail scatters particles
   // across the tall overlay above the band.
   const overBand =
-    !!lastPointer && Math.abs(lastPointer.y - (L.bandY + L.bandH / 2)) <= L.bandH / 2 + HUD_H;
+    !!lastPointer && Math.abs(lastPointer.y - (L.bandY + L.bandH / 2)) <= L.bandH / 2 + hudHeight();
   if (lastPointer && hovered && overBand && style.kind !== "none") {
     selfTrail.emit(lastPointer.x, lastPointer.y, style, store.now, L.dir);
   }
@@ -640,78 +577,6 @@ function cropOverrides(tier: number): Record<string, string> {
   return { f: base, h: lighten(base, 0.22), d: darken(base, 0.26) };
 }
 
-// ── HUD (hover roll-up) ────────────────────────────────────────────────────────
-
-function drawHUD(c: CanvasRenderingContext2D, L: BandLayout): void {
-  if (hudT <= 0.02) return;
-  const hud = hudLayout(L);
-  const slide = (1 - hudT) * (HUD_H + 10) * (L.dock === "bottom" ? 1 : -1);
-  const a = Math.min(1, hudT * 1.3);
-  c.save();
-
-  // cohesive wood-framed backdrop
-  c.globalAlpha = a;
-  const bg = { ...hud.bg, y: hud.bg.y + slide };
-  c.fillStyle = "rgba(58,42,26,0.94)";
-  roundRect(c, bg.x, bg.y, bg.w, bg.h, 11);
-  c.fill();
-  c.lineWidth = 2;
-  c.strokeStyle = "#caa15e";
-  roundRect(c, bg.x, bg.y, bg.w, bg.h, 11);
-  c.stroke();
-
-  // coin pill
-  const pop = 1 + 0.08 * Math.sin(Math.min(1, hudT) * Math.PI);
-  const coinY = hud.coin.y + slide;
-  drawSprite(c, COIN, hud.coin.x + 4, coinY + hud.coin.h / 2 - 7 * pop, 2 * pop);
-  c.fillStyle = "#ffe9a8";
-  c.font = `bold 14px ${FONT}`;
-  c.textBaseline = "middle";
-  c.textAlign = "left";
-  c.fillText(formatCoins(coins()), hud.coin.x + 22, coinY + hud.coin.h / 2 + 1);
-
-  // labeled chips, staggered left→right
-  for (let i = 0; i < hud.buttons.length; i++) {
-    const b = hud.buttons[i];
-    const t = clamp((hudT - i * 0.05) / 0.75, 0, 1);
-    c.globalAlpha = a * t;
-    const r: Rect = { ...b.rect, y: b.rect.y + slide + (1 - t) * 8 };
-    drawWoodButton(c, r, store.ui.panel === b.id);
-    let textX = r.x + r.w / 2;
-    if (b.id === "seed") {
-      const tier = tierOf(store.selectedSeedTier);
-      c.save();
-      if (tier?.glow) {
-        c.shadowColor = tier.glow;
-        c.shadowBlur = 6;
-      }
-      c.fillStyle = tier?.color || "#fff";
-      c.beginPath();
-      c.arc(r.x + 11, r.y + r.h / 2, 4.5, 0, Math.PI * 2);
-      c.fill();
-      c.restore();
-      c.lineWidth = 1;
-      c.strokeStyle = "#2e2117";
-      c.stroke();
-      textX = r.x + 11 + (r.w - 11) / 2;
-    }
-    c.fillStyle = "#2e2117";
-    c.font = `bold 13px ${FONT}`;
-    c.textAlign = "center";
-    c.textBaseline = "middle";
-    c.fillText(b.label, textX, r.y + r.h / 2 + 1);
-    const badge = b.id === "chat" && store.chatUnread;
-    if (badge) {
-      c.fillStyle = "#e2573c";
-      c.beginPath();
-      c.arc(r.x + r.w - 5, r.y + 5, 4, 0, Math.PI * 2);
-      c.fill();
-    }
-  }
-  c.restore();
-  c.textAlign = "left";
-}
-
 // ── Collapse tab (the little brown handle at the band's inner edge) ───────────────
 // Repurposed from the old hover hint: it now toggles the whole farm away/back. The chevron points
 // toward the screen edge to COLLAPSE (farm showing) and toward the interior to EXPAND (collapsed).
@@ -725,6 +590,8 @@ function setCollapsed(v: boolean): void {
   if (farmCollapsed === v) return;
   farmCollapsed = v;
   localStorage.setItem(COLLAPSE_KEY, v ? "1" : "0");
+  keyboardMenu = false;
+  if (store.ui.panel !== "none") togglePanel(store.ui.panel);
   hovered = false; // drop any stale hover so the HUD doesn't linger after collapsing
   publishHitRegions();
 }
@@ -744,6 +611,7 @@ function collapseTabRect(L: BandLayout): Rect {
  * stays reachable instead of vanishing behind a rolled-up HUD.)
  */
 function hudEngaged(L: BandLayout): boolean {
+  if (keyboardMenu || hudHasFocus() || hudHasPointer() || store.ui.panel !== "none" || isBoardOpen()) return true;
   if (!hovered) return false;
   if (lastPointer && inRect(lastPointer.x, lastPointer.y, collapseTabRect(L))) return false;
   return true;
@@ -1198,7 +1066,7 @@ function drawToast(c: CanvasRenderingContext2D, L: BandLayout): void {
   c.font = "bold 12px 'MulmaruMono', ui-monospace, monospace";
   const w = c.measureText(text).width + 24;
   const x = clamp(L.W / 2 - w / 2, 4, L.W - w - 4);
-  let y = L.dock === "bottom" ? L.bandY - HUD_H - 26 : L.bandY + L.bandH + HUD_H + 6;
+  let y = L.dock === "bottom" ? L.bandY - hudHeight() - 26 : L.bandY + L.bandH + hudHeight() + 6;
   y = clamp(y, 4, L.H - 26);
   c.fillStyle = "#f4e6c6";
   roundRect(c, x, y, w, 22, 8);
@@ -1224,13 +1092,6 @@ function inRect(x: number, y: number, r: Rect): boolean {
   return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 }
 
-/** The HUD chip id under (x,y) while the menu is rolled up, else null. */
-function hudButtonAt(L: BandLayout, x: number, y: number): string | null {
-  if (hudT <= 0.5) return null;
-  for (const b of hudLayout(L).buttons) if (inRect(x, y, b.rect)) return b.id;
-  return null;
-}
-
 function onClick(e: MouseEvent): void {
   if (store.hiddenFullscreen || !store.ready) return;
   const { x, y } = cssCoords(e);
@@ -1239,7 +1100,7 @@ function onClick(e: MouseEvent): void {
   // Collapse tab — the little brown handle at the band's inner edge. Works whenever the farm (not a
   // raid) is on screen. When the menu is up, a click on a real chip goes to the chip, so the tab
   // sitting under the HUD's bottom edge never hijacks menu clicks.
-  if (store.raid.role === "none" && inRect(x, y, collapseTabRect(L)) && !hudButtonAt(L, x, y)) {
+  if (store.raid.role === "none" && inRect(x, y, collapseTabRect(L))) {
     setCollapsed(!farmCollapsed);
     return;
   }
@@ -1302,16 +1163,7 @@ function onClick(e: MouseEvent): void {
     return;
   }
 
-  // HUD buttons (only when rolled up)
-  if (hudT > 0.5) {
-    const hud = hudLayout(L);
-    for (const b of hud.buttons) {
-      if (inRect(x, y, b.rect)) {
-        handleButton(b.id);
-        return;
-      }
-    }
-  }
+
   // crop slots — match nearest slot column
   for (const s of L.slots) {
     if (Math.abs(x - s.cx) <= L.slotW / 2 && Math.abs(y - (L.soilY - L.maxCropPx / 2)) <= L.maxCropPx) {
@@ -1319,27 +1171,6 @@ function onClick(e: MouseEvent): void {
       return;
     }
   }
-}
-
-function handleButton(id: string): void {
-  playClick();
-  // The 씨앗 chip opens the shop's seed list (pick directly) instead of cycling one-by-one through
-  // all tiers — the chip's colour dot still shows which seed is currently selected.
-  if (id === "seed") {
-    togglePanel("shop");
-    return;
-  }
-  // 낙서장 chip: 패널이 아니라 전용 오버레이(그리기 표면이라 패널 리빌드에 살아남아야 한다).
-  if (id === "board") {
-    toggleBoard(store.uid, store.user?.nickname || "나");
-    return;
-  }
-  // 여행 chip: 패널이 아니라 별도의 3D 여행 창을 연다.
-  if (id === "travel") {
-    void openTravelWindow();
-    return;
-  }
-  togglePanel(id as PanelKind);
 }
 
 async function handleSlotClick(L: BandLayout, s: Slot): Promise<void> {
@@ -1385,12 +1216,41 @@ async function handleSlotClick(L: BandLayout, s: Slot): Promise<void> {
 }
 
 export function setupStripInteractions(): void {
+  setupHud((section) => {
+    playClick();
+    keyboardMenu = false;
+    if (isBoardOpen()) closeBoard();
+    togglePanel(panelSection(store.ui.panel) === section ? store.ui.panel : section);
+  }, publishHitRegions);
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "F2" && store.ready && store.raid.role === "none") {
+      e.preventDefault();
+      setCollapsed(false);
+      keyboardMenu = true;
+      const L = layout();
+      syncHud(true, L.dock, L.bandH);
+      focusHud();
+      publishHitRegions();
+    } else if (e.key === "Escape") {
+      keyboardMenu = false;
+    }
+  });
+  // Browser previews do not receive the native strip-hover event.
+  if (!isTauri()) {
+    window.addEventListener("mousemove", (e) => {
+      const L = layout();
+      const h = L.dock === "bottom" ? e.clientY >= L.bandY : e.clientY <= L.bandH;
+      if (hovered !== h) { hovered = h; publishHitRegions(); }
+    });
+    document.documentElement.addEventListener("mouseleave", () => { hovered = false; publishHitRegions(); });
+  }
   window.addEventListener("resize", () => {
     ensureCanvas();
     publishHitRegions();
   });
   void onStripHover((h) => {
     hovered = h;
+    if (!h) clearHudPointer();
     publishHitRegions();
   });
 
@@ -1410,13 +1270,14 @@ export function setupStripInteractions(): void {
       const isHidden = localStorage.getItem(SPY_HIDDEN_KEY) === "1";
       localStorage.setItem(SPY_HIDDEN_KEY, isHidden ? "0" : "1");
       if (!isHidden && store.ui.panel === "spy") togglePanel("spy"); // hiding → close it if open
+      if (store.ui.panel === "more") { togglePanel("more"); togglePanel("more"); }
       publishHitRegions();
     }
   });
 
   // first-run "wink" + discoverability hint
   winkStart = Date.now();
-  toast("마우스를 올리면 메뉴가 나와요", 4000);
+  toast("밭에 마우스를 올리거나 F2를 눌러 메뉴를 열어요", 4000);
 }
 
 // ── Hit regions (published to Rust) ─────────────────────────────────────────────
@@ -1603,10 +1464,6 @@ export function publishHitRegions(): void {
     // slots, harvest, and hit menu buttons exactly as before.
     const padX = 8;
     push(Math.max(0, L.slotSpan.x0 - padX), y0, L.slotSpan.x1 - L.slotSpan.x0 + padX * 2, h);
-    const hud = hudLayout(L);
-    const top = Math.min(hud.barYOpen, L.bandY);
-    const bot = Math.max(hud.barYOpen + HUD_H, L.bandY + L.bandH);
-    push(0, top, W, bot - top);
     push(tab.x, tab.y, tab.w, tab.h);
   } else {
     // AT REST: block ONLY the crops (pixel-tight to each sprite) + a thin soil strip. Everything
@@ -1628,6 +1485,15 @@ export function publishHitRegions(): void {
     const soilY = L.dir < 0 ? L.soilY - soilH + 2 : L.soilY - 2;
     push(Math.max(0, L.slotSpan.x0 - 4), soilY, L.slotSpan.x1 - L.slotSpan.x0 + 8, soilH);
     push(tab.x, tab.y, tab.w, tab.h);
+  }
+
+  const hr = !isCollapsed() && store.raid.role === "none" ? getHudRect() : null;
+  if (hr) {
+    push(hr.left, hr.top, hr.width, hr.height);
+    // Only the narrow route between the dock and the crops captures pointer travel.
+    const bridgeTop = Math.min(hr.bottom, L.bandY);
+    const bridgeBottom = Math.max(hr.top, L.bandY + L.bandH);
+    push(hr.left, bridgeTop, hr.width, Math.max(0, bridgeBottom - bridgeTop));
   }
 
   const pr = getPanelRect();
@@ -1657,7 +1523,7 @@ let lastHitSig = "";
 function hitRegionSig(L: BandLayout): string {
   if (isCollapsed()) return "collapsed";
   if (store.raid.role !== "none") return "raid";
-  let s = hudEngaged(L) ? "H|" : "0|";
+  let s = `${hudEngaged(L) ? "H" : "0"}|${hudT > 0.05}|${store.ui.panel}|${coins()}|${store.selectedSeedTier}|${store.chatUnread}|${L.W}|${L.H}|${L.dock}|`;
   for (const slot of L.slots) {
     const key = String(slot.i);
     if (store.weeds[key]) {
@@ -1688,20 +1554,6 @@ function roundRect(c: CanvasRenderingContext2D, x: number, y: number, w: number,
   c.arcTo(x, y + h, x, y, rr);
   c.arcTo(x, y, x + w, y, rr);
   c.closePath();
-}
-
-function drawWoodButton(c: CanvasRenderingContext2D, r: Rect, active: boolean): void {
-  c.fillStyle = active ? "#e8c98a" : "#caa15e";
-  roundRect(c, r.x, r.y, r.w, r.h, 4);
-  c.fill();
-  c.fillStyle = "rgba(255,240,210,0.6)";
-  c.fillRect(r.x + 2, r.y + 1, r.w - 4, 1); // top highlight
-  c.fillStyle = "rgba(110,70,34,0.6)";
-  c.fillRect(r.x + 2, r.y + r.h - 2, r.w - 4, 1); // bottom shade
-  c.lineWidth = 1.5;
-  c.strokeStyle = "#4a3115";
-  roundRect(c, r.x, r.y, r.w, r.h, 4);
-  c.stroke();
 }
 
 function fmtTime(ms: number): string {
